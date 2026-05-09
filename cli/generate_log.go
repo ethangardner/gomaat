@@ -17,8 +17,8 @@ func newGenerateLogCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "generate-log",
-		Short: "Generate a git2-format log from a git repository",
-		Long: `Runs the git log command in git2 format so you don't have to remember the syntax.
+		Short: "Generate a formatted log file from a git repository",
+		Long: `Runs the git log command with the predefined options to generate a formatted log file.
 
 Examples:
   gomaat generate-log -o logfile.log

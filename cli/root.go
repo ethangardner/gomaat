@@ -47,7 +47,7 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&logFile, "log", "l", "", "git2-format log file to analyze")
+	rootCmd.PersistentFlags().StringVarP(&logFile, "log", "l", "", "git log file to analyze")
 	rootCmd.PersistentFlags().StringVarP(&outFile, "outfile", "o", "", "write output to file (default: stdout)")
 	rootCmd.PersistentFlags().IntVarP(&maxRows, "rows", "r", 0, "max result rows (0 = no limit)")
 	rootCmd.PersistentFlags().StringVarP(&groupFile, "group", "g", "", "architectural grouping spec file")
