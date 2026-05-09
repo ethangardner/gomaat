@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"godemaat/internal/analysis"
-	"godemaat/internal/grouper"
-	"godemaat/internal/model"
-	"godemaat/internal/output"
-	"godemaat/internal/parser"
-	"godemaat/internal/teammapper"
+	"gomaat/internal/analysis"
+	"gomaat/internal/grouper"
+	"gomaat/internal/model"
+	"gomaat/internal/output"
+	"gomaat/internal/parser"
+	"gomaat/internal/teammapper"
 )
 
 // persistent flag values (shared across all analysis subcommands)
@@ -25,17 +25,17 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "godemaat",
+	Use:   "gomaat",
 	Short: "Mine and analyze git history",
-	Long: `godemaat mines git version-control history to surface design insights:
+	Long: `gomaat mines git version-control history to surface design insights:
 logical coupling, code churn, authorship patterns, code age, and more.
 
 Generate a git log first:
-  godemaat generate-log --after 2023-01-01 -o logfile.log
+  gomaat generate-log --after 2023-01-01 -o logfile.log
 
 Then run an analysis:
-  godemaat authors -l logfile.log
-  godemaat coupling -l logfile.log --min-coupling 30`,
+  gomaat authors -l logfile.log
+  gomaat coupling -l logfile.log --min-coupling 30`,
 }
 
 // Execute is the entry point called from main.

@@ -1,4 +1,4 @@
-# godemaat
+# gomaat
 
 A Go port of [code-maat](https://github.com/adamtornhill/code-maat) — a command-line tool that mines git history to surface design insights. Identify logical coupling, code churn, authorship patterns, fragmentation, and more.
 
@@ -44,14 +44,14 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
 
 ```bash
 git clone <repo-url>
-cd godemaat
-go install ./cmd/godemaat/
+cd gomaat
+go install ./cmd/gomaat/
 ```
 
 Or build a binary directly:
 
 ```bash
-go build -o godemaat ./cmd/godemaat/
+go build -o gomaat ./cmd/gomaat/
 ```
 
 ---
@@ -63,10 +63,10 @@ go build -o godemaat ./cmd/godemaat/
 
 ```bash
 # Step 1 — generate the log
-godemaat generate-log --after 2023-01-01 --output logfile.log
+gomaat generate-log --after 2023-01-01 --output logfile.log
 
 # Step 2 — run an analysis
-godemaat coupling -l logfile.log
+gomaat coupling -l logfile.log
 ```
 
 All analyses read from a pre-generated log file rather than calling git directly. This makes repeated analysis fast and allows you to version-control the log for reproducible results.
@@ -78,7 +78,7 @@ All analyses read from a pre-generated log file rather than calling git directly
 The `generate-log` subcommand runs the correct `git log` invocation so you don't have to remember the flags.
 
 ```
-godemaat generate-log [flags]
+gomaat generate-log [flags]
 ```
 
 | Flag | Default | Description |
@@ -91,13 +91,13 @@ godemaat generate-log [flags]
 
 ```bash
 # Current directory, all history, print to stdout
-godemaat generate-log
+gomaat generate-log
 
 # Last two years, save to file
-godemaat generate-log --after 2023-01-01 --output logfile.log
+gomaat generate-log --after 2023-01-01 --output logfile.log
 
 # Different repo
-godemaat generate-log --repo /path/to/project --after 2022-06-01 --output logfile.log
+gomaat generate-log --repo /path/to/project --after 2022-06-01 --output logfile.log
 ```
 
 The log is generated using:
@@ -134,7 +134,7 @@ All analyses write CSV to stdout by default. Use `-o <file>` to write to a file 
 Count the number of distinct authors and total revisions per entity. Entities with many authors have a higher communication overhead and tend to accumulate more defects.
 
 ```
-godemaat authors -l logfile.log
+gomaat authors -l logfile.log
 ```
 
 **Output:**
@@ -161,7 +161,7 @@ src/util/Parser.java,1,3
 Count the total number of revisions per entity. Frequently changed files are higher-risk and worth prioritizing for quality improvements.
 
 ```
-godemaat revisions -l logfile.log
+gomaat revisions -l logfile.log
 ```
 
 **Output:**
@@ -180,7 +180,7 @@ Sorted by `n-revs` descending.
 Detect temporal (logical) coupling — modules that change together more often than chance. Coupling that isn't visible in the code is often a sign of hidden dependencies or misplaced responsibilities.
 
 ```
-godemaat coupling -l logfile.log [flags]
+gomaat coupling -l logfile.log [flags]
 ```
 
 | Flag | Short | Default | Description |
@@ -225,7 +225,7 @@ src/User.java,src/Auth.java,61,38
 Aggregate the total coupling for each entity — how many co-change relationships it participates in across all revisions. High SOC entities are "hubs" that everything depends on.
 
 ```
-godemaat soc -l logfile.log [flags]
+gomaat soc -l logfile.log [flags]
 ```
 
 Accepts the same threshold flags as [coupling](#coupling).
@@ -246,7 +246,7 @@ Sorted by `soc` descending.
 Print a quick overview of the dataset: commit count, entity count, and author count.
 
 ```
-godemaat summary -l logfile.log
+gomaat summary -l logfile.log
 ```
 
 **Output:**
@@ -266,7 +266,7 @@ number-of-authors,24
 Absolute code churn aggregated by date — total lines added and deleted per day. Useful for identifying turbulent periods in development history.
 
 ```
-godemaat abs-churn -l logfile.log
+gomaat abs-churn -l logfile.log
 ```
 
 **Output:**
@@ -287,7 +287,7 @@ Sorted by `date` ascending.
 Lines added and deleted aggregated by author. Shows individual contribution volume.
 
 ```
-godemaat author-churn -l logfile.log
+gomaat author-churn -l logfile.log
 ```
 
 **Output:**
@@ -308,7 +308,7 @@ Sorted by `author` ascending.
 Lines added and deleted aggregated by entity. Pre-release churn is one of the strongest predictors of post-release defects.
 
 ```
-godemaat entity-churn -l logfile.log
+gomaat entity-churn -l logfile.log
 ```
 
 **Output:**
@@ -329,7 +329,7 @@ Sorted by `added` descending.
 Churn broken down by (entity, author) pair. Shows exactly how much each author contributed to each file in terms of lines written.
 
 ```
-godemaat entity-ownership -l logfile.log
+gomaat entity-ownership -l logfile.log
 ```
 
 **Output:**
@@ -350,7 +350,7 @@ Sorted by `entity` ascending.
 Identify the main developer per entity — the author responsible for the most lines added. Combined with `entity-churn`, this tells you who to talk to about a problematic file.
 
 ```
-godemaat main-dev -l logfile.log
+gomaat main-dev -l logfile.log
 ```
 
 **Output:**
@@ -372,7 +372,7 @@ Sorted by `entity` ascending.
 Like `main-dev`, but ranks by lines deleted rather than added. Line deletions are a proxy for design decisions — the author who deletes the most often has the deepest understanding of the code.
 
 ```
-godemaat refactoring-main-dev -l logfile.log
+gomaat refactoring-main-dev -l logfile.log
 ```
 
 **Output:**
@@ -394,7 +394,7 @@ Sorted by `entity` ascending.
 Revision count per (entity, author) pair. Useful for understanding knowledge distribution without relying on line counts (which can be misleading for reformatted files).
 
 ```
-godemaat entity-effort -l logfile.log
+gomaat entity-effort -l logfile.log
 ```
 
 **Output:**
@@ -415,7 +415,7 @@ Sorted by `entity` ascending, then `author-revs` descending within each entity.
 Main developer per entity ranked by revision count rather than lines. Revision count is a more stable signal than line count for files that are frequently reformatted or auto-generated.
 
 ```
-godemaat main-dev-by-revs -l logfile.log
+gomaat main-dev-by-revs -l logfile.log
 ```
 
 **Output:**
@@ -442,7 +442,7 @@ The fractal value (0–1) measuring how evenly development effort is distributed
 Highly fragmented entities have diffuse ownership and are harder to reason about.
 
 ```
-godemaat fragmentation -l logfile.log
+gomaat fragmentation -l logfile.log
 ```
 
 **Fragmentation formula:**
@@ -467,7 +467,7 @@ Sorted by `fractal-value` descending.
 Map communication needs across the team. Author pairs who frequently modify the same entities need to coordinate — this analysis makes that implicit need explicit. Based on Conway's Law.
 
 ```
-godemaat communication -l logfile.log
+gomaat communication -l logfile.log
 ```
 
 **Strength formula:**
@@ -495,7 +495,7 @@ Sorted by `strength` descending. Each pair appears twice (once per direction).
 Months since each entity was last modified, relative to a reference date. Old, untouched code is either stable or forgotten — either way it's worth knowing about.
 
 ```
-godemaat age -l logfile.log [--age-time-now YYYY-MM-DD]
+gomaat age -l logfile.log [--age-time-now YYYY-MM-DD]
 ```
 
 | Flag | Short | Default | Description |
@@ -515,10 +515,10 @@ Sorted by `age-months` ascending (youngest first).
 
 ### identity
 
-Dump the raw parsed commit records as CSV. Useful for debugging the log format or inspecting what godemaat sees before analysis.
+Dump the raw parsed commit records as CSV. Useful for debugging the log format or inspecting what gomaat sees before analysis.
 
 ```
-godemaat identity -l logfile.log
+gomaat identity -l logfile.log
 ```
 
 **Output:**
@@ -554,7 +554,7 @@ Plain paths are matched as prefixes (`src/orders/` matches `src/orders/Model.jav
 Lines starting with `^` are treated as regular expressions.
 
 ```bash
-godemaat coupling -l logfile.log -g groups.txt
+gomaat coupling -l logfile.log -g groups.txt
 ```
 
 Files that don't match any group are excluded from the analysis.
@@ -578,8 +578,8 @@ Dave Brown,Platform
 The header row is optional and automatically skipped.
 
 ```bash
-godemaat communication -l logfile.log -p teams.csv
-godemaat fragmentation -l logfile.log -p teams.csv
+gomaat communication -l logfile.log -p teams.csv
+gomaat fragmentation -l logfile.log -p teams.csv
 ```
 
 Authors not present in the map are excluded from analysis.
@@ -592,10 +592,10 @@ Use `-r` to cap the number of result rows. Useful when piping to other tools or 
 
 ```bash
 # Top 10 most coupled module pairs
-godemaat coupling -l logfile.log -n 2 -m 2 -r 10
+gomaat coupling -l logfile.log -n 2 -m 2 -r 10
 
 # Top 5 most revised files
-godemaat revisions -l logfile.log -r 5
+gomaat revisions -l logfile.log -r 5
 ```
 
 ---
@@ -605,8 +605,8 @@ godemaat revisions -l logfile.log -r 5
 Use `-o` to write CSV output to a file instead of stdout.
 
 ```bash
-godemaat authors -l logfile.log -o authors.csv
-godemaat coupling -l logfile.log -o coupling.csv
+gomaat authors -l logfile.log -o authors.csv
+gomaat coupling -l logfile.log -o coupling.csv
 ```
 
 ---
@@ -615,29 +615,29 @@ godemaat coupling -l logfile.log -o coupling.csv
 
 ```bash
 # 1. Generate a log for the last year
-godemaat generate-log \
+gomaat generate-log \
   --repo /path/to/your/project \
   --after 2024-01-01 \
   --output project.log
 
 # 2. Overview: how big is the dataset?
-godemaat summary -l project.log
+gomaat summary -l project.log
 
 # 3. Which files change the most?
-godemaat revisions -l project.log -r 20
+gomaat revisions -l project.log -r 20
 
 # 4. Which files have the most authors?
-godemaat authors -l project.log -r 20
+gomaat authors -l project.log -r 20
 
 # 5. Are there hidden dependencies?
-godemaat coupling -l project.log --min-revs 10 --min-shared-revs 5
+gomaat coupling -l project.log --min-revs 10 --min-shared-revs 5
 
 # 6. Where is knowledge fragmented?
-godemaat fragmentation -l project.log -r 20
+gomaat fragmentation -l project.log -r 20
 
 # 7. Who should talk to whom?
-godemaat communication -l project.log
+gomaat communication -l project.log
 
 # 8. What code has gone untouched for years?
-godemaat age -l project.log -r 20
+gomaat age -l project.log -r 20
 ```

@@ -5,7 +5,7 @@ import (
 	"math"
 	"sort"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 // Coupling detects modules that tend to change together (temporal coupling).

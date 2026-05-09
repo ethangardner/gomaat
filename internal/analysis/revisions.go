@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 func Revisions(commits []model.Commit, _ model.Options) [][]string {

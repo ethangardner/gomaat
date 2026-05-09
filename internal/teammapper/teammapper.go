@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 // LoadFile reads a CSV file mapping author → team.

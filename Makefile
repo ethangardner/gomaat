@@ -1,5 +1,5 @@
-BINARY     := godemaat
-CMD        := ./cmd/godemaat/
+BINARY     := gomaat
+CMD        := ./cmd/gomaat/
 BUILD_DIR  := ./bin
 
 GO         := $(shell which go 2>/dev/null || echo /usr/local/go/bin/go)
@@ -9,7 +9,7 @@ GOLINT     := golangci-lint
 
 all: fmt vet lint test build
 
-## build: compile the binary to ./bin/godemaat
+## build: compile the binary to ./bin/gomaat
 build:
 	$(GO) build -o $(BUILD_DIR)/$(BINARY) $(CMD)
 

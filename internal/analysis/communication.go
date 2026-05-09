@@ -5,7 +5,7 @@ import (
 	"math"
 	"sort"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 // Communication maps team collaboration needs based on shared entities.

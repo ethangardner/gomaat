@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 // Age calculates months since last modification for each entity.

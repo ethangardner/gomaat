@@ -1,6 +1,6 @@
 package main
 
-import "godemaat/cli"
+import "gomaat/cli"
 
 func main() {
 	cli.Execute()

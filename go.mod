@@ -1,4 +1,4 @@
-module godemaat
+module gomaat
 
 go 1.26.3
 

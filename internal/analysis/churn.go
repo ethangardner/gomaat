@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 // AbsChurn returns lines added/deleted aggregated by date.

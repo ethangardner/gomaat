@@ -20,9 +20,9 @@ func newGenerateLogCmd() *cobra.Command {
 		Long: `Runs the git log command in git2 format so you don't have to remember the syntax.
 
 Examples:
-  godemaat generate-log -o logfile.log
-  godemaat generate-log --after 2023-01-01 -o logfile.log
-  godemaat generate-log --repo /path/to/repo --after 2022-06-01 -o logfile.log`,
+  gomaat generate-log -o logfile.log
+  gomaat generate-log --after 2023-01-01 -o logfile.log
+  gomaat generate-log --repo /path/to/repo --after 2022-06-01 -o logfile.log`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gitArgs := []string{
 				"-C", repo,

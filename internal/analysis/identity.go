@@ -3,7 +3,7 @@ package analysis
 import (
 	"fmt"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 func Identity(commits []model.Commit, _ model.Options) [][]string {

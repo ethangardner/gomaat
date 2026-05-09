@@ -5,7 +5,7 @@ import (
 	"math"
 	"sort"
 
-	"godemaat/internal/model"
+	"gomaat/internal/model"
 )
 
 // EntityEffort returns revision count per (entity, author) pair.
