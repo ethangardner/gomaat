@@ -1,1 +1,4 @@
 code-maat/
+bin/
+
+.claude/settings.local.json
