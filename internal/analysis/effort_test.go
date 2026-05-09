@@ -8,10 +8,10 @@ import (
 
 func TestFragmentation(t *testing.T) {
 	tests := []struct {
-		name     string
-		commits  []model.Commit
-		entity   string
-		fractal  string
+		name      string
+		commits   []model.Commit
+		entity    string
+		fractal   string
 		totalRevs string
 	}{
 		{
