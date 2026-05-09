@@ -86,6 +86,7 @@ gomaat generate-log [flags]
 | `--after` | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`) |
 | `--repo` | `.` | Path to the git repository |
 | `--output` | stdout | Write the log to this file |
+| `--exclude` | _(none)_ | Exclude paths matching this pattern (repeatable, supports globs) |
 
 **Examples:**
 
@@ -98,11 +99,14 @@ gomaat generate-log --after 2023-01-01 --output logfile.log
 
 # Different repo
 gomaat generate-log --repo /path/to/project --after 2022-06-01 --output logfile.log
+
+# Exclude generated files and vendored dependencies
+gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --output logfile.log
 ```
 
 The log is generated using:
 ```
-git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames [--after=DATE]
+git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames [--after=DATE] [-- . :(exclude)PATTERN ...]
 ```
 
 > **Note:** `--no-renames` means renamed files are tracked as a delete + add rather than a rename. This avoids inflated coupling between old and new paths.
@@ -614,10 +618,12 @@ gomaat coupling -l logfile.log -o coupling.csv
 ## Example End-to-End Session
 
 ```bash
-# 1. Generate a log for the last year
+# 1. Generate a log for the last year, skipping vendored and generated files
 gomaat generate-log \
   --repo /path/to/your/project \
   --after 2024-01-01 \
+  --exclude vendor/ \
+  --exclude '*.pb.go' \
   --output project.log
 
 # 2. Overview: how big is the dataset?

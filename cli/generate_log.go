@@ -13,6 +13,7 @@ func newGenerateLogCmd() *cobra.Command {
 	var after string
 	var repo string
 	var outputFile string
+	var excludes []string
 
 	cmd := &cobra.Command{
 		Use:   "generate-log",
@@ -22,7 +23,8 @@ func newGenerateLogCmd() *cobra.Command {
 Examples:
   gomaat generate-log -o logfile.log
   gomaat generate-log --after 2023-01-01 -o logfile.log
-  gomaat generate-log --repo /path/to/repo --after 2022-06-01 -o logfile.log`,
+  gomaat generate-log --repo /path/to/repo --after 2022-06-01 -o logfile.log
+  gomaat generate-log --exclude vendor/ --exclude '*.pb.go' -o logfile.log`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gitArgs := []string{
 				"-C", repo,
@@ -33,6 +35,12 @@ Examples:
 			}
 			if after != "" {
 				gitArgs = append(gitArgs, "--after="+after)
+			}
+			if len(excludes) > 0 {
+				gitArgs = append(gitArgs, "--", ".")
+				for _, ex := range excludes {
+					gitArgs = append(gitArgs, ":(exclude)"+ex)
+				}
 			}
 
 			gitCmd := exec.Command("git", gitArgs...)
@@ -59,6 +67,7 @@ Examples:
 	cmd.Flags().StringVar(&after, "after", "", "only include commits after this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&repo, "repo", ".", "path to the git repository")
 	cmd.Flags().StringVar(&outputFile, "output", "", "write log to this file (default: stdout)")
+	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
 	return cmd
 }
