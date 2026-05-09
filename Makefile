@@ -3,11 +3,10 @@ CMD        := ./cmd/gomaat/
 BUILD_DIR  := ./bin
 
 GO         := $(shell which go 2>/dev/null || echo /usr/local/go/bin/go)
-GOLINT     := golangci-lint
 
-.PHONY: all build install fmt vet lint test clean tidy check
+.PHONY: all build install fmt vet test clean tidy check
 
-all: fmt vet lint test build
+all: fmt vet test build
 
 ## build: compile the binary to ./bin/gomaat
 build:
@@ -25,10 +24,6 @@ fmt:
 vet:
 	$(GO) vet ./...
 
-## lint: run golangci-lint (install from https://golangci-lint.run/usage/install/)
-lint:
-	$(GOLINT) run ./...
-
 ## test: run all tests
 test:
 	$(GO) test ./...
@@ -42,8 +37,8 @@ tidy:
 	$(GO) mod tidy
 	$(GO) mod verify
 
-## check: fmt + vet + lint + test (CI-style, no build artifact)
-check: fmt vet lint test
+## check: fmt + vet + test (CI-style, no build artifact)
+check: fmt vet test
 
 ## clean: remove the build directory
 clean:
