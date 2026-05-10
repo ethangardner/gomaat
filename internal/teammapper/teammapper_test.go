@@ -70,9 +70,13 @@ func TestLoadFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(f.Name())
-	f.WriteString("Alice,Backend\nBob,Frontend\n")
-	f.Close()
+	defer func() { _ = os.Remove(f.Name()) }()
+	if _, err := f.WriteString("Alice,Backend\nBob,Frontend\n"); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
 
 	lookup, err := LoadFile(f.Name())
 	if err != nil {

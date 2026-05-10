@@ -49,8 +49,10 @@ func TestWriteFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	name := f.Name()
-	f.Close()
-	defer os.Remove(name)
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = os.Remove(name) }()
 
 	rows := [][]string{{"entity"}, {"foo.go"}}
 	if err := WriteFile(name, rows, 0); err != nil {
