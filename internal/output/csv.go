@@ -34,6 +34,11 @@ func WriteFile(path string, rows [][]string, limit int) error {
 	if err != nil {
 		return fmt.Errorf("creating output file: %w", err)
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "error closing output file %s: %v\n", path, err)
+		}
+	}(f)
 	return Write(f, rows, limit)
 }

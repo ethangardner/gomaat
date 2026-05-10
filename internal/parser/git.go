@@ -27,7 +27,12 @@ func ParseFile(path string) ([]model.Commit, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening log file: %w", err)
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "error closing log file %s: %v\n", path, err)
+		}
+	}(f)
 	return parse(f)
 }
 

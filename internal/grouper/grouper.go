@@ -29,7 +29,12 @@ func LoadFile(path string) ([]group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening group file: %w", err)
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "error closing file %s: %v\n", path, err)
+		}
+	}(f)
 	return load(f)
 }
 
