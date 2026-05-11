@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -36,19 +37,18 @@ Examples:
 			if after != "" {
 				gitArgs = append(gitArgs, "--after="+after)
 			}
-			if len(excludes) > 0 {
-				gitArgs = append(gitArgs, "--", ".")
-				for _, ex := range excludes {
-					gitArgs = append(gitArgs, ":(exclude)"+ex)
-				}
-			}
 
+			var stderr strings.Builder
 			gitCmd := exec.Command("git", gitArgs...)
-			gitCmd.Stderr = os.Stderr
+			gitCmd.Stderr = &stderr
 
 			out, err := gitCmd.Output()
 			if err != nil {
-				return fmt.Errorf("git log failed: %w\nCommand: git %s", err, strings.Join(gitArgs, " "))
+				return fmt.Errorf("git log failed: %w\n%s\nCommand: git %s", err, stderr.String(), strings.Join(gitArgs, " "))
+			}
+
+			if len(excludes) > 0 {
+				out = filterExcludes(out, excludes)
 			}
 
 			if outputFile != "" {
@@ -70,4 +70,46 @@ Examples:
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
 	return cmd
+}
+
+// filterExcludes removes numstat lines whose path matches any exclude pattern.
+// Patterns ending in "/" match directory prefixes; others are matched as globs
+// against both the full path and the base filename.
+func filterExcludes(data []byte, excludes []string) []byte {
+	lines := strings.Split(string(data), "\n")
+	out := lines[:0]
+	for _, line := range lines {
+		if !numstatLineMatchesExclude(line, excludes) {
+			out = append(out, line)
+		}
+	}
+	return []byte(strings.Join(out, "\n"))
+}
+
+func numstatLineMatchesExclude(line string, excludes []string) bool {
+	// numstat lines: "<added>\t<deleted>\t<path>"
+	parts := strings.SplitN(line, "\t", 3)
+	if len(parts) != 3 {
+		return false
+	}
+	path := parts[2]
+	for _, pattern := range excludes {
+		if matchesExcludePattern(path, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func matchesExcludePattern(path, pattern string) bool {
+	if strings.HasSuffix(pattern, "/") {
+		return strings.HasPrefix(path, pattern)
+	}
+	if matched, _ := filepath.Match(pattern, path); matched {
+		return true
+	}
+	if matched, _ := filepath.Match(pattern, filepath.Base(path)); matched {
+		return true
+	}
+	return false
 }
