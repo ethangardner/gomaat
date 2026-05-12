@@ -198,4 +198,7 @@ func init() {
 
 	// generate-log subcommand
 	rootCmd.AddCommand(newGenerateLogCmd())
+
+	// cloc subcommand
+	rootCmd.AddCommand(newClocCmd())
 }

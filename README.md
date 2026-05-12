@@ -30,6 +30,8 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [communication](#communication)
   - [age](#age)
   - [identity](#identity)
+- [Code Metrics](#code-metrics)
+  - [cloc](#cloc)
 - [Advanced Usage](#advanced-usage)
   - [Architectural Grouping](#architectural-grouping)
   - [Team Mapping](#team-mapping)
@@ -84,7 +86,7 @@ gomaat generate-log [flags]
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--after` | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`) |
-| `--repo` | `.` | Path to the git repository |
+| `--path` | `.` | Path to the git repository |
 | `--output` | stdout | Write the log to this file |
 | `--exclude` | _(none)_ | Exclude paths matching this pattern (repeatable, supports globs) |
 
@@ -98,7 +100,7 @@ gomaat generate-log
 gomaat generate-log --after 2023-01-01 --output logfile.log
 
 # Different repo
-gomaat generate-log --repo /path/to/project --after 2022-06-01 --output logfile.log
+gomaat generate-log --path /path/to/project --after 2022-06-01 --output logfile.log
 
 # Exclude generated files and vendored dependencies
 gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --output logfile.log
@@ -538,6 +540,69 @@ gomaat identity -l logfile.log
 
 ---
 
+## Code Metrics
+
+### cloc
+
+Count lines of code, comments, and blank lines across a directory. Unlike the analysis commands, `cloc` works directly against source files and does not require a git log.
+
+```
+gomaat cloc [flags]
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--path` | `.` | Directory to analyze |
+| `--by-file` | `false` | Show results per file instead of per language |
+| `--exclude` | _(none)_ | Exclude paths matching this pattern (repeatable, supports globs) |
+| `--outfile` | stdout | Write CSV output to this file |
+| `--rows` | 0 (no limit) | Maximum number of result rows |
+
+**Output (by language, default):**
+
+| Column | Description |
+|--------|-------------|
+| `Language` | Programming language |
+| `Files` | Number of files |
+| `Blank` | Blank lines |
+| `Comment` | Comment lines |
+| `Code` | Lines of code |
+
+Sorted by `Code` descending. A `TOTAL` row is always appended.
+
+```
+Language,Files,Blank,Comment,Code
+Go,42,410,180,3100
+YAML,5,12,0,88
+Makefile,1,8,4,22
+TOTAL,48,430,184,3210
+```
+
+With `--by-file`, each row represents a single file sorted by path, with a `File` column replacing `Language` and a `Language` column added.
+
+**Examples:**
+
+```bash
+# Count lines in the current directory
+gomaat cloc
+
+# Analyze a different repo
+gomaat cloc --path /path/to/project
+
+# Exclude vendored and generated files
+gomaat cloc --exclude vendor/ --exclude '*.pb.go'
+
+# Per-file breakdown saved to CSV
+gomaat cloc --by-file -o cloc.csv
+
+# Top 10 largest files by code
+gomaat cloc --by-file -r 10
+```
+
+The `--exclude` patterns follow the same rules as `generate-log --exclude`: patterns ending in `/` match directory prefixes; all others are matched as globs against both the full path and the base filename.
+
+---
+
 ## Advanced Usage
 
 ### Architectural Grouping
@@ -620,7 +685,7 @@ gomaat coupling -l logfile.log -o coupling.csv
 ```bash
 # 1. Generate a log for the last year, skipping vendored and generated files
 gomaat generate-log \
-  --repo /path/to/your/project \
+  --path /path/to/your/project \
   --after 2024-01-01 \
   --exclude vendor/ \
   --exclude '*.pb.go' \

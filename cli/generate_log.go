@@ -12,7 +12,7 @@ import (
 
 func newGenerateLogCmd() *cobra.Command {
 	var after string
-	var repo string
+	var path string
 	var outputFile string
 	var excludes []string
 
@@ -24,11 +24,11 @@ func newGenerateLogCmd() *cobra.Command {
 Examples:
   gomaat generate-log -o logfile.log
   gomaat generate-log --after 2023-01-01 -o logfile.log
-  gomaat generate-log --repo /path/to/repo --after 2022-06-01 -o logfile.log
+  gomaat generate-log --path /path/to/repo --after 2022-06-01 -o logfile.log
   gomaat generate-log --exclude vendor/ --exclude '*.pb.go' -o logfile.log`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			gitArgs := []string{
-				"-C", repo,
+				"-C", path,
 				"log", "--all", "--numstat",
 				"--date=short",
 				"--pretty=format:--%h--%ad--%aN",
@@ -65,7 +65,7 @@ Examples:
 	}
 
 	cmd.Flags().StringVar(&after, "after", "", "only include commits after this date (YYYY-MM-DD)")
-	cmd.Flags().StringVar(&repo, "repo", ".", "path to the git repository")
+	cmd.Flags().StringVar(&path, "path", ".", "path to the git repository")
 	cmd.Flags().StringVar(&outputFile, "output", "", "write log to this file (default: stdout)")
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
