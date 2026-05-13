@@ -31,7 +31,7 @@ Examples:
   gomaat cloc --exclude vendor/ --exclude '*.pb.go'
   gomaat cloc --by-file -o results.csv`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			trackedFiles, err := gitTrackedFiles(path)
+			trackedFiles, repoRoot, err := gitTrackedFiles(path)
 			if err != nil {
 				return err
 			}
@@ -44,6 +44,8 @@ Examples:
 			if err != nil {
 				return fmt.Errorf("cloc failed: %w", err)
 			}
+
+			relativizeResult(result, repoRoot)
 
 			if len(excludes) > 0 {
 				applyClocExcludes(result, excludes)
@@ -70,15 +72,16 @@ Examples:
 	return cmd
 }
 
-// gitTrackedFiles returns the absolute paths of all files tracked by git under path.
-func gitTrackedFiles(path string) ([]string, error) {
+// gitTrackedFiles returns the absolute paths of all files tracked by git under
+// path, along with the resolved absolute path used as the repo root.
+func gitTrackedFiles(path string) ([]string, string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	out, err := exec.Command("git", "-C", absPath, "ls-files").Output()
 	if err != nil {
-		return nil, fmt.Errorf("git ls-files failed: not a git repository or git is not installed")
+		return nil, "", fmt.Errorf("git ls-files failed: not a git repository or git is not installed")
 	}
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	files := make([]string, 0, len(lines))
@@ -87,7 +90,30 @@ func gitTrackedFiles(path string) ([]string, error) {
 			files = append(files, filepath.Join(absPath, line))
 		}
 	}
-	return files, nil
+	return files, absPath, nil
+}
+
+// relativizeResult rewrites all file paths in result to be relative to root.
+// This must be called before applyClocExcludes so patterns like "vendor/" match.
+func relativizeResult(result *gocloc.Result, root string) {
+	newFiles := make(map[string]*gocloc.ClocFile, len(result.Files))
+	for absPath, f := range result.Files {
+		rel, err := filepath.Rel(root, absPath)
+		if err != nil {
+			rel = absPath
+		}
+		f.Name = rel
+		newFiles[rel] = f
+	}
+	result.Files = newFiles
+
+	for _, lang := range result.Languages {
+		for i, f := range lang.Files {
+			if rel, err := filepath.Rel(root, f); err == nil {
+				lang.Files[i] = rel
+			}
+		}
+	}
 }
 
 // applyClocExcludes removes excluded files from result and adjusts language and total counts.

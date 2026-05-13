@@ -372,11 +372,14 @@ func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, err := gitTrackedFiles(dir)
+	files, root, err := gitTrackedFiles(dir)
 	if err != nil {
 		t.Fatalf("gitTrackedFiles: %v", err)
 	}
 
+	if root != dir {
+		t.Errorf("root: got %q, want %q", root, dir)
+	}
 	if len(files) != 1 || files[0] != tracked {
 		t.Errorf("got %v, want [%s]", files, tracked)
 	}
@@ -384,7 +387,7 @@ func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
 
 func TestGitTrackedFilesErrorsOnNonRepo(t *testing.T) {
 	dir := t.TempDir()
-	_, err := gitTrackedFiles(dir)
+	_, _, err := gitTrackedFiles(dir)
 	if err == nil {
 		t.Error("expected error for non-git directory, got nil")
 	}
@@ -453,12 +456,13 @@ func TestClocIntegrationExclude(t *testing.T) {
 		t.Fatalf("Analyze: %v", err)
 	}
 
+	relativizeResult(result, dir)
 	applyClocExcludes(result, []string{"*.pb.go"})
 
-	if _, ok := result.Files[filepath.Join(dir, "types.pb.go")]; ok {
+	if _, ok := result.Files["types.pb.go"]; ok {
 		t.Error("types.pb.go should have been excluded")
 	}
-	if _, ok := result.Files[filepath.Join(dir, "main.go")]; !ok {
+	if _, ok := result.Files["main.go"]; !ok {
 		t.Error("main.go should still be present")
 	}
 	if result.Total.Total != 1 {
