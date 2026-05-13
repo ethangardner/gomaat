@@ -83,12 +83,12 @@ The `generate-log` subcommand runs the correct `git log` invocation so you don't
 gomaat generate-log [flags]
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--after` | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`) |
-| `--path` | `.` | Path to the git repository |
-| `--output` | stdout | Write the log to this file |
-| `--exclude` | _(none)_ | Exclude paths matching this pattern (repeatable, supports globs) |
+| Flag        | Default         | Description                                                      |
+|-------------|-----------------|------------------------------------------------------------------|
+| `--after`   | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)              |
+| `--path`    | `.`             | Path to the git repository                                       |
+| `--output`  | stdout          | Write the log to this file                                       |
+| `--exclude` | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs) |
 
 **Examples:**
 
@@ -119,13 +119,13 @@ git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renam
 
 These flags are available on every analysis subcommand.
 
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--log` | `-l` | _(required)_ | Path to the git log file |
-| `--outfile` | `-o` | stdout | Write CSV output to this file |
-| `--rows` | `-r` | 0 (no limit) | Maximum number of result rows |
-| `--group` | `-g` | _(none)_ | [Architectural grouping](#architectural-grouping) spec file |
-| `--team-map-file` | `-p` | _(none)_ | [Team mapping](#team-mapping) CSV file |
+| Flag              | Short | Default      | Description                                                 |
+|-------------------|-------|--------------|-------------------------------------------------------------|
+| `--log`           | `-l`  | _(required)_ | Path to the git log file                                    |
+| `--outfile`       | `-o`  | stdout       | Write CSV output to this file                               |
+| `--rows`          | `-r`  | 0 (no limit) | Maximum number of result rows                               |
+| `--group`         | `-g`  | _(none)_     | [Architectural grouping](#architectural-grouping) spec file |
+| `--team-map-file` | `-p`  | _(none)_     | [Team mapping](#team-mapping) CSV file                      |
 
 ---
 
@@ -145,11 +145,11 @@ gomaat authors -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
+| Column      | Description                |
+|-------------|----------------------------|
+| `entity`    | File path                  |
 | `n-authors` | Number of distinct authors |
-| `n-revs` | Total revisions |
+| `n-revs`    | Total revisions            |
 
 Sorted by `n-authors` descending.
 
@@ -172,9 +172,9 @@ gomaat revisions -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
+| Column   | Description     |
+|----------|-----------------|
+| `entity` | File path       |
 | `n-revs` | Total revisions |
 
 Sorted by `n-revs` descending.
@@ -189,14 +189,14 @@ Detect temporal (logical) coupling — modules that change together more often t
 gomaat coupling -l logfile.log [flags]
 ```
 
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--min-revs` | `-n` | `5` | Minimum revisions for an entity to be included |
-| `--min-shared-revs` | `-m` | `5` | Minimum number of shared revisions between a pair |
-| `--min-coupling` | `-i` | `30` | Minimum coupling percentage to report |
-| `--max-coupling` | `-x` | `100` | Maximum coupling percentage to report |
-| `--max-changeset-size` | `-s` | `30` | Ignore commits that touch more than this many files (large refactors skew results) |
-| `--verbose-results` | | `false` | Add extra columns: per-entity revision counts and shared revision count |
+| Flag                   | Short | Default | Description                                                                        |
+|------------------------|-------|---------|------------------------------------------------------------------------------------|
+| `--min-revs`           | `-n`  | `5`     | Minimum revisions for an entity to be included                                     |
+| `--min-shared-revs`    | `-m`  | `5`     | Minimum number of shared revisions between a pair                                  |
+| `--min-coupling`       | `-i`  | `30`    | Minimum coupling percentage to report                                              |
+| `--max-coupling`       | `-x`  | `100`   | Maximum coupling percentage to report                                              |
+| `--max-changeset-size` | `-s`  | `30`    | Ignore commits that touch more than this many files (large refactors skew results) |
+| `--verbose-results`    |       | `false` | Add extra columns: per-entity revision counts and shared revision count            |
 
 **Coupling formula:**
 ```
@@ -205,11 +205,11 @@ degree = (shared_revisions / average_revisions(A, B)) × 100
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | First file |
-| `coupled` | Second file |
-| `degree` | Coupling percentage |
+| Column         | Description                              |
+|----------------|------------------------------------------|
+| `entity`       | First file                               |
+| `coupled`      | Second file                              |
+| `degree`       | Coupling percentage                      |
 | `average-revs` | Average revision count across both files |
 
 With `--verbose-results`, three extra columns are appended: `first-entity-revisions`, `second-entity-revisions`, `shared-revisions`.
@@ -238,10 +238,10 @@ Accepts the same threshold flags as [coupling](#coupling).
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `soc` | Sum of coupling (total co-change count) |
+| Column   | Description                             |
+|----------|-----------------------------------------|
+| `entity` | File path                               |
+| `soc`    | Sum of coupling (total co-change count) |
 
 Sorted by `soc` descending.
 
@@ -277,11 +277,11 @@ gomaat abs-churn -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `date` | Commit date (`YYYY-MM-DD`) |
-| `added` | Lines added |
-| `deleted` | Lines deleted |
+| Column    | Description                    |
+|-----------|--------------------------------|
+| `date`    | Commit date (`YYYY-MM-DD`)     |
+| `added`   | Lines added                    |
+| `deleted` | Lines deleted                  |
 | `commits` | Number of commits on that date |
 
 Sorted by `date` ascending.
@@ -298,12 +298,12 @@ gomaat author-churn -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `author` | Author name |
-| `added` | Total lines added |
+| Column    | Description         |
+|-----------|---------------------|
+| `author`  | Author name         |
+| `added`   | Total lines added   |
 | `deleted` | Total lines deleted |
-| `commits` | Total commits |
+| `commits` | Total commits       |
 
 Sorted by `author` ascending.
 
@@ -319,12 +319,12 @@ gomaat entity-churn -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `added` | Total lines added |
+| Column    | Description         |
+|-----------|---------------------|
+| `entity`  | File path           |
+| `added`   | Total lines added   |
 | `deleted` | Total lines deleted |
-| `commits` | Total commits |
+| `commits` | Total commits       |
 
 Sorted by `added` descending.
 
@@ -340,11 +340,11 @@ gomaat entity-ownership -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `author` | Author name |
-| `added` | Lines added by this author |
+| Column    | Description                  |
+|-----------|------------------------------|
+| `entity`  | File path                    |
+| `author`  | Author name                  |
+| `added`   | Lines added by this author   |
 | `deleted` | Lines deleted by this author |
 
 Sorted by `entity` ascending.
@@ -361,13 +361,13 @@ gomaat main-dev -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `main-dev` | Author with the most lines added |
-| `added` | Lines added by main developer |
+| Column        | Description                      |
+|---------------|----------------------------------|
+| `entity`      | File path                        |
+| `main-dev`    | Author with the most lines added |
+| `added`       | Lines added by main developer    |
 | `total-added` | Total lines added to this entity |
-| `ownership` | Main developer's share (%) |
+| `ownership`   | Main developer's share (%)       |
 
 Sorted by `entity` ascending.
 
@@ -383,13 +383,13 @@ gomaat refactoring-main-dev -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `main-dev` | Author with the most lines deleted |
-| `removed` | Lines deleted by main developer |
+| Column          | Description                          |
+|-----------------|--------------------------------------|
+| `entity`        | File path                            |
+| `main-dev`      | Author with the most lines deleted   |
+| `removed`       | Lines deleted by main developer      |
 | `total-removed` | Total lines deleted from this entity |
-| `ownership` | Main developer's share (%) |
+| `ownership`     | Main developer's share (%)           |
 
 Sorted by `entity` ascending.
 
@@ -405,12 +405,12 @@ gomaat entity-effort -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `author` | Author name |
-| `author-revs` | Revisions by this author |
-| `total-revs` | Total revisions to this entity |
+| Column        | Description                    |
+|---------------|--------------------------------|
+| `entity`      | File path                      |
+| `author`      | Author name                    |
+| `author-revs` | Revisions by this author       |
+| `total-revs`  | Total revisions to this entity |
 
 Sorted by `entity` ascending, then `author-revs` descending within each entity.
 
@@ -426,13 +426,13 @@ gomaat main-dev-by-revs -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `main-dev` | Author with the most revisions |
-| `added` | Revisions by main developer |
+| Column        | Description                    |
+|---------------|--------------------------------|
+| `entity`      | File path                      |
+| `main-dev`    | Author with the most revisions |
+| `added`       | Revisions by main developer    |
 | `total-added` | Total revisions to this entity |
-| `ownership` | Main developer's share (%) |
+| `ownership`   | Main developer's share (%)     |
 
 Sorted by `entity` ascending.
 
@@ -458,11 +458,11 @@ fractal = 1 - Σ(author_revisions / total_revisions)²
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
+| Column          | Description                     |
+|-----------------|---------------------------------|
+| `entity`        | File path                       |
 | `fractal-value` | Fragmentation score (0.00–1.00) |
-| `total-revs` | Total revisions to this entity |
+| `total-revs`    | Total revisions to this entity  |
 
 Sorted by `fractal-value` descending.
 
@@ -484,13 +484,13 @@ where `shared_entities` is the count of entities both authors have touched.
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `author` | First author |
-| `peer` | Second author |
-| `shared` | Number of entities both have touched |
-| `average` | `ceil((total_entities_A + total_entities_B) / 2)` |
-| `strength` | Communication need as a percentage |
+| Column     | Description                                       |
+|------------|---------------------------------------------------|
+| `author`   | First author                                      |
+| `peer`     | Second author                                     |
+| `shared`   | Number of entities both have touched              |
+| `average`  | `ceil((total_entities_A + total_entities_B) / 2)` |
+| `strength` | Communication need as a percentage                |
 
 Sorted by `strength` descending. Each pair appears twice (once per direction).
 
@@ -504,15 +504,15 @@ Months since each entity was last modified, relative to a reference date. Old, u
 gomaat age -l logfile.log [--age-time-now YYYY-MM-DD]
 ```
 
-| Flag | Short | Default | Description |
-|------|-------|---------|-------------|
-| `--age-time-now` | `-d` | today | Reference date for age calculation |
+| Flag             | Short | Default | Description                        |
+|------------------|-------|---------|------------------------------------|
+| `--age-time-now` | `-d`  | today   | Reference date for age calculation |
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
+| Column       | Description                    |
+|--------------|--------------------------------|
+| `entity`     | File path                      |
 | `age-months` | Months since last modification |
 
 Sorted by `age-months` ascending (youngest first).
@@ -529,13 +529,13 @@ gomaat identity -l logfile.log
 
 **Output:**
 
-| Column | Description |
-|--------|-------------|
-| `entity` | File path |
-| `rev` | Commit hash |
-| `date` | Commit date |
-| `author` | Author name |
-| `loc-added` | Lines added (0 for binary files) |
+| Column        | Description                        |
+|---------------|------------------------------------|
+| `entity`      | File path                          |
+| `rev`         | Commit hash                        |
+| `date`        | Commit date                        |
+| `author`      | Author name                        |
+| `loc-added`   | Lines added (0 for binary files)   |
 | `loc-deleted` | Lines deleted (0 for binary files) |
 
 ---
@@ -550,23 +550,23 @@ Count lines of code, comments, and blank lines across a directory. Unlike the an
 gomaat cloc [flags]
 ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--path` | `.` | Directory to analyze |
-| `--by-file` | `false` | Show results per file instead of per language |
-| `--exclude` | _(none)_ | Exclude paths matching this pattern (repeatable, supports globs) |
-| `--outfile` | stdout | Write CSV output to this file |
-| `--rows` | 0 (no limit) | Maximum number of result rows |
+| Flag        | Default      | Description                                                      |
+|-------------|--------------|------------------------------------------------------------------|
+| `--path`    | `.`          | Directory to analyze                                             |
+| `--by-file` | `false`      | Show results per file instead of per language                    |
+| `--exclude` | _(none)_     | Exclude paths matching this pattern (repeatable, supports globs) |
+| `--outfile` | stdout       | Write CSV output to this file                                    |
+| `--rows`    | 0 (no limit) | Maximum number of result rows                                    |
 
 **Output (by language, default):**
 
-| Column | Description |
-|--------|-------------|
+| Column     | Description          |
+|------------|----------------------|
 | `Language` | Programming language |
-| `Files` | Number of files |
-| `Blank` | Blank lines |
-| `Comment` | Comment lines |
-| `Code` | Lines of code |
+| `Files`    | Number of files      |
+| `Blank`    | Blank lines          |
+| `Comment`  | Comment lines        |
+| `Code`     | Lines of code        |
 
 Sorted by `Code` descending. A `TOTAL` row is always appended.
 
