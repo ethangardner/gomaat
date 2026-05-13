@@ -3,8 +3,11 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/hhatto/gocloc"
 	"github.com/spf13/cobra"
@@ -20,7 +23,7 @@ func newClocCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cloc",
 		Short: "Count lines of code in a directory",
-		Long: `Counts lines of code, comments, and blank lines using gocloc.
+		Long: `Counts lines of code, comments, and blank lines for git-tracked files using gocloc.
 
 Examples:
   gomaat cloc
@@ -28,8 +31,16 @@ Examples:
   gomaat cloc --exclude vendor/ --exclude '*.pb.go'
   gomaat cloc --by-file -o results.csv`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			trackedFiles, err := gitTrackedFiles(path)
+			if err != nil {
+				return err
+			}
+			if len(trackedFiles) == 0 {
+				return fmt.Errorf("no git-tracked files found in %s", path)
+			}
+
 			processor := gocloc.NewProcessor(gocloc.NewDefinedLanguages(), gocloc.NewClocOptions())
-			result, err := processor.Analyze([]string{path})
+			result, err := processor.Analyze(trackedFiles)
 			if err != nil {
 				return fmt.Errorf("cloc failed: %w", err)
 			}
@@ -57,6 +68,26 @@ Examples:
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
 	return cmd
+}
+
+// gitTrackedFiles returns the absolute paths of all files tracked by git under path.
+func gitTrackedFiles(path string) ([]string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	out, err := exec.Command("git", "-C", absPath, "ls-files").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git ls-files failed: not a git repository or git is not installed")
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	files := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if line != "" {
+			files = append(files, filepath.Join(absPath, line))
+		}
+	}
+	return files, nil
 }
 
 // applyClocExcludes removes excluded files from result and adjusts language and total counts.

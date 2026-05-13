@@ -1,4 +1,4 @@
-code-maat/
+.idea/
 bin/
 
 .claude/settings.local.json

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -340,6 +341,52 @@ func TestClocFileRowsColumns(t *testing.T) {
 		if c.col != c.want {
 			t.Errorf("column value: got %q, want %q", c.col, c.want)
 		}
+	}
+}
+
+func initGitRepo(t *testing.T, dir string) {
+	t.Helper()
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "Test"},
+	} {
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+}
+
+func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+
+	tracked := filepath.Join(dir, "main.go")
+	untracked := filepath.Join(dir, "scratch.go")
+	for _, f := range []string{tracked, untracked} {
+		if err := os.WriteFile(f, []byte("package main\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := exec.Command("git", "-C", dir, "add", "main.go").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	files, err := gitTrackedFiles(dir)
+	if err != nil {
+		t.Fatalf("gitTrackedFiles: %v", err)
+	}
+
+	if len(files) != 1 || files[0] != tracked {
+		t.Errorf("got %v, want [%s]", files, tracked)
+	}
+}
+
+func TestGitTrackedFilesErrorsOnNonRepo(t *testing.T) {
+	dir := t.TempDir()
+	_, err := gitTrackedFiles(dir)
+	if err == nil {
+		t.Error("expected error for non-git directory, got nil")
 	}
 }
 

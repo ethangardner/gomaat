@@ -32,6 +32,10 @@ test:
 test-verbose:
 	$(GO) test -v ./...
 
+## watchtest: re-run tests on any .go file change (requires entr)
+watchtest:
+	find . -name '*.go' | entr -c $(GO) test ./...
+
 ## tidy: tidy and verify go.mod / go.sum
 tidy:
 	$(GO) mod tidy
