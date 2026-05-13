@@ -13,7 +13,6 @@ import (
 func newGenerateLogCmd() *cobra.Command {
 	var after string
 	var path string
-	var outputFile string
 	var excludes []string
 
 	cmd := &cobra.Command{
@@ -51,11 +50,11 @@ Examples:
 				out = filterExcludes(out, excludes)
 			}
 
-			if outputFile != "" {
-				if err := os.WriteFile(outputFile, out, 0644); err != nil {
+			if outFile != "" {
+				if err := os.WriteFile(outFile, out, 0644); err != nil {
 					return fmt.Errorf("writing output file: %w", err)
 				}
-				fmt.Fprintf(os.Stderr, "Log written to %s\n", outputFile)
+				fmt.Fprintf(os.Stderr, "Log written to %s\n", outFile)
 			} else {
 				_, err = os.Stdout.Write(out)
 				return err
@@ -66,7 +65,6 @@ Examples:
 
 	cmd.Flags().StringVar(&after, "after", "", "only include commits after this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&path, "path", ".", "path to the git repository")
-	cmd.Flags().StringVar(&outputFile, "output", "", "write log to this file (default: stdout)")
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
 	return cmd
