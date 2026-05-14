@@ -683,32 +683,30 @@ gomaat coupling -l logfile.log -o coupling.csv
 ## Example End-to-End Session
 
 ```bash
-# 1. Generate a log for the last year, skipping vendored and generated files
+# 1. Generate a log 
 gomaat generate-log \
   --path /path/to/your/project \
   --after 2024-01-01 \
-  --exclude vendor/ \
-  --exclude '*.pb.go' \
-  --output project.log
+  --outfile logfile.log
 
 # 2. Overview: how big is the dataset?
-gomaat summary -l project.log
+gomaat summary -l logfile.log
 
 # 3. Which files change the most?
-gomaat revisions -l project.log -r 20
+gomaat revisions -l logfile.log -r 20
 
 # 4. Which files have the most authors?
-gomaat authors -l project.log -r 20
+gomaat authors -l logfile.log -r 20
 
 # 5. Are there hidden dependencies?
-gomaat coupling -l project.log --min-revs 10 --min-shared-revs 5
+gomaat coupling -l logfile.log --min-revs 10 --min-shared-revs 5
 
 # 6. Where is knowledge fragmented?
-gomaat fragmentation -l project.log -r 20
+gomaat fragmentation -l logfile.log -r 20
 
 # 7. Who should talk to whom?
-gomaat communication -l project.log
+gomaat communication -l logfile.log
 
 # 8. What code has gone untouched for years?
-gomaat age -l project.log -r 20
+gomaat age -l logfile.log -r 20
 ```
