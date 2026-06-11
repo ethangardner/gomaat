@@ -49,7 +49,7 @@ Examples:
 				return fmt.Errorf("creating git stdout pipe: %w", err)
 			}
 
-			var dst io.Writer = os.Stdout
+			dst := os.Stdout
 			var outHandle *os.File
 			if outFile != "" {
 				outHandle, err = os.Create(outFile)
