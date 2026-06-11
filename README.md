@@ -709,4 +709,7 @@ gomaat communication -l logfile.log
 
 # 8. What code has gone untouched for years?
 gomaat age -l logfile.log -r 20
+
+# 9. Find the largest files
+gomaat cloc --by-file | sort -t, -k5 -nr
 ```
