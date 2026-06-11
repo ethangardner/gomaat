@@ -79,7 +79,17 @@ func gitTrackedFiles(path string) ([]string, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	out, err := exec.Command("git", "-C", absPath, "ls-files").Output()
+
+	repoRootOut, err := exec.Command("git", "-C", absPath, "rev-parse", "--show-toplevel").CombinedOutput()
+	if err != nil {
+		return nil, "", fmt.Errorf("git rev-parse --show-toplevel failed: %w: %s", err, strings.TrimSpace(string(repoRootOut)))
+	}
+	repoRoot := strings.TrimSpace(string(repoRootOut))
+	if repoRoot == "" {
+		return nil, "", fmt.Errorf("git rev-parse --show-toplevel returned empty repository root")
+	}
+
+	out, err := exec.Command("git", "-C", repoRoot, "ls-files").Output()
 	if err != nil {
 		return nil, "", fmt.Errorf("git ls-files failed: not a git repository or git is not installed")
 	}
@@ -87,10 +97,10 @@ func gitTrackedFiles(path string) ([]string, string, error) {
 	files := make([]string, 0, len(lines))
 	for _, line := range lines {
 		if line != "" {
-			files = append(files, filepath.Join(absPath, line))
+			files = append(files, filepath.Join(repoRoot, line))
 		}
 	}
-	return files, absPath, nil
+	return files, repoRoot, nil
 }
 
 // relativizeResult rewrites all file paths in result to be relative to root.

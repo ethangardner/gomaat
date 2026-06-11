@@ -385,6 +385,36 @@ func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
 	}
 }
 
+func TestGitTrackedFilesFromSubdirectoryUsesRepoRoot(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+
+	nestedDir := filepath.Join(dir, "pkg")
+	if err := os.MkdirAll(nestedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	tracked := filepath.Join(nestedDir, "main.go")
+	if err := os.WriteFile(tracked, []byte("package pkg\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dir, "add", "pkg/main.go").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	files, root, err := gitTrackedFiles(nestedDir)
+	if err != nil {
+		t.Fatalf("gitTrackedFiles: %v", err)
+	}
+
+	if root != dir {
+		t.Errorf("root: got %q, want %q", root, dir)
+	}
+	if len(files) != 1 || files[0] != tracked {
+		t.Errorf("got %v, want [%s]", files, tracked)
+	}
+}
+
 func TestGitTrackedFilesErrorsOnNonRepo(t *testing.T) {
 	dir := t.TempDir()
 	_, _, err := gitTrackedFiles(dir)
