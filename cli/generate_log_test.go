@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"bytes"
+	"io"
 	"strings"
 	"testing"
 )
@@ -92,5 +94,69 @@ func TestNumstatLineMatchesExclude(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("numstatLineMatchesExclude(%q, %v) = %v, want %v", tt.line, tt.excludes, got, tt.want)
 		}
+	}
+}
+
+func TestFilterExcludesStreamMatchesFilterExcludes(t *testing.T) {
+	input := strings.Join([]string{
+		"--abc123--2024-01-15--Alice",
+		"5\t3\tsrc/foo.go",
+		"2\t1\tvendor/github.com/lib/lib.go",
+		"1\t0\tsrc/types.pb.go",
+		"",
+		"--def456--2024-02-01--Bob",
+		"3\t2\tsrc/bar.go",
+		"4\t0\tsrc/api/gen.pb.go",
+		"",
+	}, "\n")
+
+	want := filterExcludes([]byte(input), []string{"vendor/", "*.pb.go"})
+
+	var got bytes.Buffer
+	if err := filterExcludesStream(strings.NewReader(input), &got, []string{"vendor/", "*.pb.go"}); err != nil {
+		t.Fatalf("filterExcludesStream: %v", err)
+	}
+
+	if got.String() != string(want) {
+		t.Fatalf("stream filter mismatch\n got:\n%s\nwant:\n%s", got.String(), string(want))
+	}
+}
+
+func TestFilterExcludesStreamPreservesTrailingNewline(t *testing.T) {
+	input := "1\t0\tvendor/foo.go\n2\t0\tsrc/keep.go\n"
+
+	var out bytes.Buffer
+	if err := filterExcludesStream(strings.NewReader(input), &out, []string{"vendor/"}); err != nil {
+		t.Fatalf("filterExcludesStream: %v", err)
+	}
+
+	if out.String() != "2\t0\tsrc/keep.go\n" {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestFilterExcludesStreamWriterError(t *testing.T) {
+	err := filterExcludesStream(strings.NewReader("1\t0\tsrc/keep.go\n"), errWriter{}, nil)
+	if err == nil {
+		t.Fatal("expected writer error, got nil")
+	}
+}
+
+type errWriter struct{}
+
+func (errWriter) Write(_ []byte) (int, error) {
+	return 0, io.ErrClosedPipe
+}
+
+func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
+	input := "1\t0\tvendor/foo.go\r\n2\t0\tsrc/keep.go\r\n"
+
+	var out bytes.Buffer
+	if err := filterExcludesStream(strings.NewReader(input), &out, []string{"vendor/"}); err != nil {
+		t.Fatalf("filterExcludesStream: %v", err)
+	}
+
+	if out.String() != "2\t0\tsrc/keep.go\r\n" {
+		t.Fatalf("unexpected output: %q", out.String())
 	}
 }

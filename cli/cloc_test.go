@@ -5,6 +5,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/hhatto/gocloc"
@@ -420,6 +421,9 @@ func TestGitTrackedFilesErrorsOnNonRepo(t *testing.T) {
 	_, _, err := gitTrackedFiles(dir)
 	if err == nil {
 		t.Error("expected error for non-git directory, got nil")
+	}
+	if !strings.Contains(err.Error(), "git rev-parse --show-toplevel failed") {
+		t.Errorf("expected rev-parse context in error, got: %v", err)
 	}
 }
 

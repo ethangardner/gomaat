@@ -1,7 +1,10 @@
 package cli
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,23 +44,43 @@ Examples:
 			gitCmd := exec.Command("git", gitArgs...)
 			gitCmd.Stderr = &stderr
 
-			out, err := gitCmd.Output()
+			stdout, err := gitCmd.StdoutPipe()
 			if err != nil {
-				return fmt.Errorf("git log failed: %w\n%s\nCommand: git %s", err, stderr.String(), strings.Join(gitArgs, " "))
+				return fmt.Errorf("creating git stdout pipe: %w", err)
+			}
+
+			var dst io.Writer = os.Stdout
+			var outHandle *os.File
+			if outFile != "" {
+				outHandle, err = os.Create(outFile)
+				if err != nil {
+					return fmt.Errorf("creating output file: %w", err)
+				}
+				defer outHandle.Close()
+				dst = outHandle
+			}
+
+			if err := gitCmd.Start(); err != nil {
+				return fmt.Errorf("starting git log: %w", err)
 			}
 
 			if len(excludes) > 0 {
-				out = filterExcludes(out, excludes)
+				err = filterExcludesStream(stdout, dst, excludes)
+			} else {
+				_, err = io.Copy(dst, stdout)
+			}
+			if err != nil {
+				_ = stdout.Close()
+				_ = gitCmd.Wait()
+				return fmt.Errorf("processing git log output: %w", err)
+			}
+
+			if err := gitCmd.Wait(); err != nil {
+				return fmt.Errorf("git log failed: %w\n%s\nCommand: git %s", err, strings.TrimSpace(stderr.String()), strings.Join(gitArgs, " "))
 			}
 
 			if outFile != "" {
-				if err := os.WriteFile(outFile, out, 0644); err != nil {
-					return fmt.Errorf("writing output file: %w", err)
-				}
 				fmt.Fprintf(os.Stderr, "Log written to %s\n", outFile)
-			} else {
-				_, err = os.Stdout.Write(out)
-				return err
 			}
 			return nil
 		},
@@ -74,14 +97,33 @@ Examples:
 // Patterns ending in "/" match directory prefixes; others are matched as globs
 // against both the full path and the base filename.
 func filterExcludes(data []byte, excludes []string) []byte {
-	lines := strings.Split(string(data), "\n")
-	out := lines[:0]
-	for _, line := range lines {
-		if !numstatLineMatchesExclude(line, excludes) {
-			out = append(out, line)
+	var out bytes.Buffer
+	if err := filterExcludesStream(bytes.NewReader(data), &out, excludes); err != nil {
+		return data
+	}
+	return out.Bytes()
+}
+
+func filterExcludesStream(src io.Reader, dst io.Writer, excludes []string) error {
+	reader := bufio.NewReader(src)
+	for {
+		line, err := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			lineNoNewline := bytes.TrimSuffix(bytes.TrimSuffix(line, []byte("\n")), []byte("\r"))
+			if !numstatLineMatchesExclude(string(lineNoNewline), excludes) {
+				if _, writeErr := dst.Write(line); writeErr != nil {
+					return writeErr
+				}
+			}
+		}
+
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
-	return []byte(strings.Join(out, "\n"))
 }
 
 func numstatLineMatchesExclude(line string, excludes []string) bool {
