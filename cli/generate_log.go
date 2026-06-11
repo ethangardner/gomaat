@@ -28,7 +28,7 @@ Examples:
   gomaat generate-log --after 2023-01-01 -o logfile.log
   gomaat generate-log --path /path/to/repo --after 2022-06-01 -o logfile.log
   gomaat generate-log --exclude vendor/ --exclude '*.pb.go' -o logfile.log`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) (err error) {
 			gitArgs := []string{
 				"-C", path,
 				"log", "--all", "--numstat",
@@ -56,7 +56,11 @@ Examples:
 				if err != nil {
 					return fmt.Errorf("creating output file: %w", err)
 				}
-				defer outHandle.Close()
+				defer func() {
+					if closeErr := outHandle.Close(); closeErr != nil && err == nil {
+						err = closeErr
+					}
+				}()
 				dst = outHandle
 			}
 

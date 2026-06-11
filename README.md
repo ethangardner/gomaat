@@ -65,7 +65,7 @@ go build -o gomaat ./cmd/gomaat/
 
 ```bash
 # Step 1 — generate the log
-gomaat generate-log --after 2023-01-01 --output logfile.log
+gomaat generate-log --after 2023-01-01 --outfile logfile.log
 
 # Step 2 — run an analysis
 gomaat coupling -l logfile.log
@@ -87,7 +87,7 @@ gomaat generate-log [flags]
 |-------------|-----------------|------------------------------------------------------------------|
 | `--after`   | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)              |
 | `--path`    | `.`             | Path to the git repository                                       |
-| `--output`  | stdout          | Write the log to this file                                       |
+| `--outfile`  | stdout          | Write the log to this file                                       |
 | `--exclude` | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs) |
 
 **Examples:**
@@ -97,13 +97,13 @@ gomaat generate-log [flags]
 gomaat generate-log
 
 # Last two years, save to file
-gomaat generate-log --after 2023-01-01 --output logfile.log
+gomaat generate-log --after 2023-01-01 --outfile logfile.log
 
 # Different repo
-gomaat generate-log --path /path/to/project --after 2022-06-01 --output logfile.log
+gomaat generate-log --path /path/to/project --after 2022-06-01 --outfile logfile.log
 
 # Exclude generated files and vendored dependencies
-gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --output logfile.log
+gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --outfile logfile.log
 ```
 
 The log is generated using:
