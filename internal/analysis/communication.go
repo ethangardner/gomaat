@@ -17,6 +17,16 @@ type CommunicationResult struct {
 }
 
 // Communication maps team collaboration needs based on shared entities.
+//
+// Algorithm (mirrors the original Clojure implementation):
+//  1. Find distinct authors per entity.
+//  2. For each entity, generate all 2-selections (with replacement) of its authors:
+//     [A,A], [A,B], [B,A], [B,B] etc.
+//  3. Count frequencies across all entities.
+//  4. Self-pairs [A,A] give A's total entity count ("total commits").
+//  5. Non-self pairs [A,B] give the count of entities both A and B touched ("shared").
+//  6. average = ceil((self_A + self_B) / 2)
+//  7. strength = int((shared / average) * 100)
 func Communication(commits []model.Commit, _ model.Options) []CommunicationResult {
 	// Collect distinct authors per entity
 	entityAuthors := map[string]map[string]struct{}{}
