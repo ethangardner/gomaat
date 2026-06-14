@@ -26,32 +26,44 @@ var couplingCommits = []model.Commit{
 }
 
 func TestCouplingBasic(t *testing.T) {
-	rows := Coupling(couplingCommits, looseOpts)
+	results := Coupling(couplingCommits, looseOpts)
 
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header row, got %v", rows[0])
-	}
-	if len(rows) != 3 { // header + 2 pairs
-		t.Fatalf("expected 3 rows, got %d", len(rows))
+	if len(results) != 2 { // 2 pairs
+		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
 	// {a.go,b.go}: avg=2.5 → degree=80, avgRevs=3 (ceil)
-	r1 := rows[1]
-	if r1[0] != "a.go" || r1[1] != "b.go" || r1[2] != "80" || r1[3] != "3" {
-		t.Errorf("row 1: got %v, want [a.go b.go 80 3]", r1)
+	r1 := results[0]
+	if r1.Entity != "a.go" || r1.Coupled != "b.go" || r1.Degree != 80 || r1.AvgRevs != 3 {
+		t.Errorf("result 0: got %v, want {a.go b.go 80 3 ...}", r1)
 	}
 	// {a.go,c.go}: avg=2 → degree=50, avgRevs=2
-	r2 := rows[2]
-	if r2[0] != "a.go" || r2[1] != "c.go" || r2[2] != "50" || r2[3] != "2" {
-		t.Errorf("row 2: got %v, want [a.go c.go 50 2]", r2)
+	r2 := results[1]
+	if r2.Entity != "a.go" || r2.Coupled != "c.go" || r2.Degree != 50 || r2.AvgRevs != 2 {
+		t.Errorf("result 1: got %v, want {a.go c.go 50 2 ...}", r2)
+	}
+
+	// Verify formatter
+	rows := FormatCoupling(results, looseOpts)
+	if rows[0][0] != "entity" {
+		t.Fatalf("expected header row, got %v", rows[0])
+	}
+	if len(rows) != 3 {
+		t.Fatalf("expected 3 rows, got %d", len(rows))
 	}
 }
 
 func TestCouplingVerbose(t *testing.T) {
 	opts := looseOpts
 	opts.VerboseResults = true
-	rows := Coupling(couplingCommits, opts)
+	results := Coupling(couplingCommits, opts)
 
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+
+	// Verify formatter
+	rows := FormatCoupling(results, opts)
 	if len(rows[0]) != 7 {
 		t.Fatalf("verbose header should have 7 columns, got %d", len(rows[0]))
 	}
@@ -65,11 +77,11 @@ func TestCouplingVerbose(t *testing.T) {
 func TestCouplingMinSharedRevs(t *testing.T) {
 	opts := looseOpts
 	opts.MinSharedRevs = 2
-	rows := Coupling(couplingCommits, opts)
+	results := Coupling(couplingCommits, opts)
 
 	// Only {a.go,b.go} has 2 shared revisions; {a.go,c.go} has 1 → filtered
-	if len(rows) != 2 { // header + 1 pair
-		t.Errorf("expected 2 rows with MinSharedRevs=2, got %d", len(rows))
+	if len(results) != 1 {
+		t.Errorf("expected 1 result with MinSharedRevs=2, got %d", len(results))
 	}
 }
 
@@ -82,38 +94,44 @@ func TestCouplingMaxChangesetSize(t *testing.T) {
 	}
 	opts := looseOpts
 	opts.MaxChangesetSize = 2
-	rows := Coupling(commits, opts)
+	results := Coupling(commits, opts)
 
-	if len(rows) != 1 { // header only
-		t.Errorf("expected no pairs when changeset exceeds max size, got %d rows", len(rows))
+	if len(results) != 0 {
+		t.Errorf("expected no results when changeset exceeds max size, got %d", len(results))
 	}
 }
 
 func TestCouplingEmpty(t *testing.T) {
-	rows := Coupling(nil, looseOpts)
-	if len(rows) != 1 {
-		t.Errorf("expected header-only result for empty input, got %d rows", len(rows))
+	results := Coupling(nil, looseOpts)
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
 	}
 }
 
 func TestSumOfCoupling(t *testing.T) {
 	// r1: a.go+b.go, r2: a.go+b.go, r3: a.go+c.go
 	// soc: a.go=3, b.go=2, c.go=1
-	rows := SumOfCoupling(couplingCommits, looseOpts)
+	results := SumOfCoupling(couplingCommits, looseOpts)
 
+	if len(results) != 3 {
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+	if results[0].Entity != "a.go" || results[0].Soc != 3 {
+		t.Errorf("result 0: got %v, want {a.go 3}", results[0])
+	}
+	if results[1].Entity != "b.go" || results[1].Soc != 2 {
+		t.Errorf("result 1: got %v, want {b.go 2}", results[1])
+	}
+	if results[2].Entity != "c.go" || results[2].Soc != 1 {
+		t.Errorf("result 2: got %v, want {c.go 1}", results[2])
+	}
+
+	// Verify formatter
+	rows := FormatSumOfCoupling(results, looseOpts)
 	if rows[0][0] != "entity" {
 		t.Fatalf("expected header, got %v", rows[0])
 	}
 	if len(rows) != 4 {
 		t.Fatalf("expected 4 rows, got %d", len(rows))
-	}
-	if rows[1][0] != "a.go" || rows[1][1] != "3" {
-		t.Errorf("row 1: got %v, want [a.go 3]", rows[1])
-	}
-	if rows[2][0] != "b.go" || rows[2][1] != "2" {
-		t.Errorf("row 2: got %v, want [b.go 2]", rows[2])
-	}
-	if rows[3][0] != "c.go" || rows[3][1] != "1" {
-		t.Errorf("row 3: got %v, want [c.go 1]", rows[3])
 	}
 }

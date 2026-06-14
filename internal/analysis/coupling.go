@@ -8,8 +8,18 @@ import (
 	"gomaat/internal/model"
 )
 
+type CouplingResult struct {
+	Entity  string
+	Coupled string
+	Degree  int
+	AvgRevs int
+	RevA    int
+	RevB    int
+	Shared  int
+}
+
 // Coupling detects modules that tend to change together (temporal coupling).
-func Coupling(commits []model.Commit, opts model.Options) [][]string {
+func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 	// group entities by revision
 	revEntities := map[string][]string{}
 	for _, c := range commits {
@@ -46,17 +56,7 @@ func Coupling(commits []model.Commit, opts model.Options) [][]string {
 		}
 	}
 
-	type couplingRow struct {
-		entity  string
-		coupled string
-		degree  int
-		avgRevs int
-		revA    int
-		revB    int
-		shared  int
-	}
-
-	var rows []couplingRow
+	var results []CouplingResult
 	for key, shared := range pairShared {
 		parts := splitPairKey(key)
 		a, b := parts[0], parts[1]
@@ -78,24 +78,28 @@ func Coupling(commits []model.Commit, opts model.Options) [][]string {
 			continue
 		}
 
-		rows = append(rows, couplingRow{
-			entity:  a,
-			coupled: b,
-			degree:  int(degree),
-			avgRevs: int(math.Ceil(avg)),
-			revA:    revsA,
-			revB:    revsB,
-			shared:  shared,
+		results = append(results, CouplingResult{
+			Entity:  a,
+			Coupled: b,
+			Degree:  int(degree),
+			AvgRevs: int(math.Ceil(avg)),
+			RevA:    revsA,
+			RevB:    revsB,
+			Shared:  shared,
 		})
 	}
 
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].degree != rows[j].degree {
-			return rows[i].degree > rows[j].degree
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Degree != results[j].Degree {
+			return results[i].Degree > results[j].Degree
 		}
-		return rows[i].avgRevs > rows[j].avgRevs
+		return results[i].AvgRevs > results[j].AvgRevs
 	})
 
+	return results
+}
+
+func FormatCoupling(results []CouplingResult, opts model.Options) [][]string {
 	var headers []string
 	if opts.VerboseResults {
 		headers = []string{"entity", "coupled", "degree", "average-revs", "first-entity-revisions", "second-entity-revisions", "shared-revisions"}
@@ -104,22 +108,27 @@ func Coupling(commits []model.Commit, opts model.Options) [][]string {
 	}
 
 	out := [][]string{headers}
-	for _, r := range rows {
+	for _, r := range results {
 		if opts.VerboseResults {
 			out = append(out, []string{
-				r.entity, r.coupled,
-				fmt.Sprint(r.degree), fmt.Sprint(r.avgRevs),
-				fmt.Sprint(r.revA), fmt.Sprint(r.revB), fmt.Sprint(r.shared),
+				r.Entity, r.Coupled,
+				fmt.Sprint(r.Degree), fmt.Sprint(r.AvgRevs),
+				fmt.Sprint(r.RevA), fmt.Sprint(r.RevB), fmt.Sprint(r.Shared),
 			})
 		} else {
-			out = append(out, []string{r.entity, r.coupled, fmt.Sprint(r.degree), fmt.Sprint(r.avgRevs)})
+			out = append(out, []string{r.Entity, r.Coupled, fmt.Sprint(r.Degree), fmt.Sprint(r.AvgRevs)})
 		}
 	}
 	return out
 }
 
+type SumOfCouplingResult struct {
+	Entity string
+	Soc    int
+}
+
 // SumOfCoupling aggregates coupling counts per entity (how many co-changes it participates in).
-func SumOfCoupling(commits []model.Commit, opts model.Options) [][]string {
+func SumOfCoupling(commits []model.Commit, opts model.Options) []SumOfCouplingResult {
 	revEntities := map[string][]string{}
 	for _, c := range commits {
 		revEntities[c.Rev] = append(revEntities[c.Rev], c.Entity)
@@ -136,24 +145,24 @@ func SumOfCoupling(commits []model.Commit, opts model.Options) [][]string {
 		}
 	}
 
-	type row struct {
-		entity string
-		soc    int
-	}
-	rows := make([]row, 0, len(soc))
+	results := make([]SumOfCouplingResult, 0, len(soc))
 	for entity, count := range soc {
-		rows = append(rows, row{entity, count})
+		results = append(results, SumOfCouplingResult{entity, count})
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].soc != rows[j].soc {
-			return rows[i].soc > rows[j].soc
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Soc != results[j].Soc {
+			return results[i].Soc > results[j].Soc
 		}
-		return rows[i].entity < rows[j].entity
+		return results[i].Entity < results[j].Entity
 	})
 
+	return results
+}
+
+func FormatSumOfCoupling(results []SumOfCouplingResult, _ model.Options) [][]string {
 	out := [][]string{{"entity", "soc"}}
-	for _, r := range rows {
-		out = append(out, []string{r.entity, fmt.Sprint(r.soc)})
+	for _, r := range results {
+		out = append(out, []string{r.Entity, fmt.Sprint(r.Soc)})
 	}
 	return out
 }

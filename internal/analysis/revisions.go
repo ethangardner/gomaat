@@ -7,7 +7,12 @@ import (
 	"gomaat/internal/model"
 )
 
-func Revisions(commits []model.Commit, _ model.Options) [][]string {
+type RevisionsResult struct {
+	Entity string
+	Revs   int
+}
+
+func Revisions(commits []model.Commit, _ model.Options) []RevisionsResult {
 	revsByEntity := map[string]map[string]struct{}{}
 	for _, c := range commits {
 		if _, ok := revsByEntity[c.Entity]; !ok {
@@ -16,24 +21,24 @@ func Revisions(commits []model.Commit, _ model.Options) [][]string {
 		revsByEntity[c.Entity][c.Rev] = struct{}{}
 	}
 
-	type row struct {
-		entity string
-		nRevs  int
-	}
-	rows := make([]row, 0, len(revsByEntity))
+	results := make([]RevisionsResult, 0, len(revsByEntity))
 	for entity, revs := range revsByEntity {
-		rows = append(rows, row{entity, len(revs)})
+		results = append(results, RevisionsResult{entity, len(revs)})
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].nRevs != rows[j].nRevs {
-			return rows[i].nRevs > rows[j].nRevs
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Revs != results[j].Revs {
+			return results[i].Revs > results[j].Revs
 		}
-		return rows[i].entity < rows[j].entity
+		return results[i].Entity < results[j].Entity
 	})
 
+	return results
+}
+
+func FormatRevisions(results []RevisionsResult, _ model.Options) [][]string {
 	out := [][]string{{"entity", "n-revs"}}
-	for _, r := range rows {
-		out = append(out, []string{r.entity, fmt.Sprint(r.nRevs)})
+	for _, r := range results {
+		out = append(out, []string{r.Entity, fmt.Sprint(r.Revs)})
 	}
 	return out
 }

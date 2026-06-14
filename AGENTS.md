@@ -36,7 +36,8 @@ Every analysis subcommand follows the same pipeline, orchestrated by `runAnalysi
 log file --[parser.ParseFile]--> []model.Commit
         --[grouper.Apply]-->      (optional, if -g given: remap Entity -> group name, drop unmatched)
         --[teammapper.Apply]-->   (optional, if -p given: remap Author -> team, drop unmapped)
-        --[analysis.XXX]-->       [][]string  (header row + data rows)
+        --[analysis.XXX]-->       typed result (e.g. []XXXResult)
+        --[analysis.FormatXXX]--> [][]string  (header row + data rows)
         --[output.Write/WriteFile]--> CSV to stdout or file
 ```
 
@@ -50,14 +51,17 @@ log file --[parser.ParseFile]--> []model.Commit
 
 ### Analysis functions
 
-Every analysis lives in `internal/analysis/` and implements the shared signature:
+Every analysis lives in `internal/analysis/` and is split into a compute step and a format step:
 
 ```go
-type analysisFunc func([]model.Commit, model.Options) [][]string
+func XXX(commits []model.Commit, opts model.Options) T    // compute typed results
+func FormatXXX(results T, opts model.Options) [][]string  // render to CSV rows
 ```
 
-The first returned row is always the CSV header. New analyses should follow this pattern and be registered in `cli/root.go`'s `init()`:
-- Most subcommands need no extra flags — register with `simpleCmd(use, short, analysis.Fn)`.
+`T` is usually `[]XXXResult`, a slice of a small per-row struct (e.g. `CouplingResult`), but can be a single struct (`Summary` -> `SummaryResult`) or `[]model.Commit` (`Identity`). The first row returned by `FormatXXX` is always the CSV header. Keeping the typed result separate from formatting lets tests assert on the data directly and lets other analyses reuse the computed results.
+
+`runAnalysis`, `simpleCmd`, and `newCouplingCmd` in `cli/root.go` are generic over `T`: they call `XXX` to get the typed result, then `FormatXXX` to get CSV rows. New analyses should follow this pattern and be registered in `cli/root.go`'s `init()`:
+- Most subcommands need no extra flags — register with `simpleCmd(use, short, analysis.Fn, analysis.FormatFn)`.
 - Coupling-style subcommands (those needing the `--min-revs`/`--min-shared-revs`/`--min-coupling`/`--max-coupling`/`--max-changeset-size` thresholds) use `newCouplingCmd`.
 - `age` and `generate-log`/`cloc` are registered individually because they need bespoke flags.
 
