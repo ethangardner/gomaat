@@ -55,6 +55,10 @@ func init() {
 }
 
 // runAnalysis is the shared execution path for all analysis subcommands.
+// T is the analysis's intermediate result type (e.g. []CouplingResult or
+// Summary). The type parameter ties fn's return type to format's input type,
+// so the compiler rejects mismatched compute/format pairs instead of relying
+// on `any` plus a runtime type assertion inside format.
 func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string, opts model.Options) error {
 	if logFile == "" {
 		return fmt.Errorf("--log (-l) is required")
@@ -100,6 +104,8 @@ type couplingFlags struct {
 	verboseResults   bool
 }
 
+// T is inferred from fn/format and forwarded to runAnalysis; see its comment
+// for why the type parameter is needed.
 func newCouplingCmd[T any](use, short string, fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string, addFlags func(*cobra.Command, *couplingFlags)) *cobra.Command {
 	cf := &couplingFlags{
 		minRevs:          5,
@@ -134,6 +140,8 @@ func newCouplingCmd[T any](use, short string, fn func([]model.Commit, model.Opti
 	return cmd
 }
 
+// T is inferred from fn/format and forwarded to runAnalysis; see its comment
+// for why the type parameter is needed.
 func simpleCmd[T any](use, short string, fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string) *cobra.Command {
 	return &cobra.Command{
 		Use:   use,
