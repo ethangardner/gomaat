@@ -8,6 +8,14 @@ import (
 	"gomaat/internal/model"
 )
 
+type CommunicationResult struct {
+	Author   string
+	Peer     string
+	Shared   int
+	Average  int
+	Strength int
+}
+
 // Communication maps team collaboration needs based on shared entities.
 //
 // Algorithm (mirrors the original Clojure implementation):
@@ -19,7 +27,7 @@ import (
 //  5. Non-self pairs [A,B] give the count of entities both A and B touched ("shared").
 //  6. average = ceil((self_A + self_B) / 2)
 //  7. strength = int((shared / average) * 100)
-func Communication(commits []model.Commit, _ model.Options) [][]string {
+func Communication(commits []model.Commit, _ model.Options) []CommunicationResult {
 	// Collect distinct authors per entity
 	entityAuthors := map[string]map[string]struct{}{}
 	for _, c := range commits {
@@ -46,14 +54,7 @@ func Communication(commits []model.Commit, _ model.Options) [][]string {
 	}
 
 	// Build results from non-self pairs.
-	type commRow struct {
-		author   string
-		peer     string
-		shared   int
-		average  int
-		strength int
-	}
-	var rows []commRow
+	var results []CommunicationResult
 	for key, shared := range freqs {
 		parts := splitPairKey(key)
 		me, peer := parts[0], parts[1]
@@ -67,23 +68,27 @@ func Communication(commits []model.Commit, _ model.Options) [][]string {
 			continue
 		}
 		strength := int((float64(shared) / float64(avg)) * 100.0)
-		rows = append(rows, commRow{me, peer, shared, avg, strength})
+		results = append(results, CommunicationResult{me, peer, shared, avg, strength})
 	}
 
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].strength != rows[j].strength {
-			return rows[i].strength > rows[j].strength
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Strength != results[j].Strength {
+			return results[i].Strength > results[j].Strength
 		}
-		return rows[i].author > rows[j].author // desc, matching original
+		return results[i].Author > results[j].Author // desc, matching original
 	})
 
+	return results
+}
+
+func FormatCommunication(results []CommunicationResult, _ model.Options) [][]string {
 	out := [][]string{{"author", "peer", "shared", "average", "strength"}}
-	for _, r := range rows {
+	for _, r := range results {
 		out = append(out, []string{
-			r.author, r.peer,
-			fmt.Sprint(r.shared),
-			fmt.Sprint(r.average),
-			fmt.Sprint(r.strength),
+			r.Author, r.Peer,
+			fmt.Sprint(r.Shared),
+			fmt.Sprint(r.Average),
+			fmt.Sprint(r.Strength),
 		})
 	}
 	return out

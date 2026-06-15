@@ -8,8 +8,13 @@ import (
 	"gomaat/internal/model"
 )
 
+type AgeResult struct {
+	Entity    string
+	AgeMonths int
+}
+
 // Age calculates months since last modification for each entity.
-func Age(commits []model.Commit, opts model.Options) [][]string {
+func Age(commits []model.Commit, opts model.Options) []AgeResult {
 	lastDate := map[string]string{}
 	for _, c := range commits {
 		cur, ok := lastDate[c.Entity]
@@ -23,29 +28,29 @@ func Age(commits []model.Commit, opts model.Options) [][]string {
 		now = time.Now()
 	}
 
-	type row struct {
-		entity    string
-		ageMonths int
-	}
-	rows := make([]row, 0, len(lastDate))
+	results := make([]AgeResult, 0, len(lastDate))
 	for entity, dateStr := range lastDate {
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
 			continue
 		}
 		months := monthsBetween(t, now)
-		rows = append(rows, row{entity, months})
+		results = append(results, AgeResult{entity, months})
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].ageMonths != rows[j].ageMonths {
-			return rows[i].ageMonths < rows[j].ageMonths
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].AgeMonths != results[j].AgeMonths {
+			return results[i].AgeMonths < results[j].AgeMonths
 		}
-		return rows[i].entity < rows[j].entity
+		return results[i].Entity < results[j].Entity
 	})
 
+	return results
+}
+
+func FormatAge(results []AgeResult, _ model.Options) [][]string {
 	out := [][]string{{"entity", "age-months"}}
-	for _, r := range rows {
-		out = append(out, []string{r.entity, fmt.Sprint(r.ageMonths)})
+	for _, r := range results {
+		out = append(out, []string{r.Entity, fmt.Sprint(r.AgeMonths)})
 	}
 	return out
 }

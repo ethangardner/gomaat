@@ -35,20 +35,26 @@ func TestAge(t *testing.T) {
 		{Entity: "old.go", Date: "2024-01-01"}, // 6 months
 	}
 	opts := model.Options{AgeTimeNow: now}
-	rows := Age(commits, opts)
+	results := Age(commits, opts)
 
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	// sorted youngest first
+	if results[0].Entity != "new.go" || results[0].AgeMonths != 1 {
+		t.Errorf("result 0: got %v, want {new.go 1}", results[0])
+	}
+	if results[1].Entity != "old.go" || results[1].AgeMonths != 6 {
+		t.Errorf("result 1: got %v, want {old.go 6}", results[1])
+	}
+
+	// Verify formatter
+	rows := FormatAge(results, opts)
 	if rows[0][0] != "entity" {
 		t.Fatalf("expected header, got %v", rows[0])
 	}
 	if len(rows) != 3 {
 		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
-	// sorted youngest first
-	if rows[1][0] != "new.go" || rows[1][1] != "1" {
-		t.Errorf("row 1: got %v, want [new.go 1]", rows[1])
-	}
-	if rows[2][0] != "old.go" || rows[2][1] != "6" {
-		t.Errorf("row 2: got %v, want [old.go 6]", rows[2])
 	}
 }
 
@@ -60,8 +66,13 @@ func TestAgeUsesLatestDate(t *testing.T) {
 		{Entity: "foo.go", Date: "2024-06-01"}, // newer → 1 month ago
 	}
 	opts := model.Options{AgeTimeNow: now}
-	rows := Age(commits, opts)
+	results := Age(commits, opts)
+	if results[0].AgeMonths != 1 {
+		t.Errorf("expected age 1 (most recent commit), got %d", results[0].AgeMonths)
+	}
+
+	rows := FormatAge(results, opts)
 	if rows[1][1] != "1" {
-		t.Errorf("expected age 1 (most recent commit), got %q", rows[1][1])
+		t.Errorf("expected formatted age 1, got %q", rows[1][1])
 	}
 }

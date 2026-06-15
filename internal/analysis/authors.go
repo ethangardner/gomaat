@@ -7,7 +7,13 @@ import (
 	"gomaat/internal/model"
 )
 
-func Authors(commits []model.Commit, _ model.Options) [][]string {
+type AuthorsResult struct {
+	Entity  string
+	Authors int
+	Revs    int
+}
+
+func Authors(commits []model.Commit, _ model.Options) []AuthorsResult {
 	type entry struct {
 		authors   map[string]struct{}
 		revisions map[string]struct{}
@@ -27,25 +33,24 @@ func Authors(commits []model.Commit, _ model.Options) [][]string {
 		e.revisions[c.Rev] = struct{}{}
 	}
 
-	type row struct {
-		entity   string
-		nAuthors int
-		nRevs    int
-	}
-	rows := make([]row, 0, len(entities))
+	results := make([]AuthorsResult, 0, len(entities))
 	for entity, e := range entities {
-		rows = append(rows, row{entity, len(e.authors), len(e.revisions)})
+		results = append(results, AuthorsResult{entity, len(e.authors), len(e.revisions)})
 	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].nAuthors != rows[j].nAuthors {
-			return rows[i].nAuthors > rows[j].nAuthors
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Authors != results[j].Authors {
+			return results[i].Authors > results[j].Authors
 		}
-		return rows[i].entity < rows[j].entity
+		return results[i].Entity < results[j].Entity
 	})
 
+	return results
+}
+
+func FormatAuthors(results []AuthorsResult, _ model.Options) [][]string {
 	out := [][]string{{"entity", "n-authors", "n-revs"}}
-	for _, r := range rows {
-		out = append(out, []string{r.entity, fmt.Sprint(r.nAuthors), fmt.Sprint(r.nRevs)})
+	for _, r := range results {
+		out = append(out, []string{r.Entity, fmt.Sprint(r.Authors), fmt.Sprint(r.Revs)})
 	}
 	return out
 }

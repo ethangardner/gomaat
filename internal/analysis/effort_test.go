@@ -11,8 +11,8 @@ func TestFragmentation(t *testing.T) {
 		name      string
 		commits   []model.Commit
 		entity    string
-		fractal   string
-		totalRevs string
+		fractal   float64
+		totalRevs int
 	}{
 		{
 			name: "single author owns everything",
@@ -21,8 +21,8 @@ func TestFragmentation(t *testing.T) {
 				{Rev: "r2", Author: "Alice", Entity: "foo.go"},
 			},
 			entity:    "foo.go",
-			fractal:   "0.00",
-			totalRevs: "2",
+			fractal:   0.00,
+			totalRevs: 2,
 		},
 		{
 			name: "two equal authors",
@@ -31,26 +31,32 @@ func TestFragmentation(t *testing.T) {
 				{Rev: "r2", Author: "Bob", Entity: "bar.go"},
 			},
 			entity:    "bar.go",
-			fractal:   "0.50",
-			totalRevs: "2",
+			fractal:   0.50,
+			totalRevs: 2,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rows := Fragmentation(tt.commits, model.Options{})
+			results := Fragmentation(tt.commits, model.Options{})
+			if len(results) < 1 {
+				t.Fatalf("expected at least one result, got %d", len(results))
+			}
+			r := results[0]
+			if r.Entity != tt.entity {
+				t.Errorf("entity: got %q, want %q", r.Entity, tt.entity)
+			}
+			if r.Fractal != tt.fractal {
+				t.Errorf("fractal: got %f, want %f", r.Fractal, tt.fractal)
+			}
+			if r.TotalRevs != tt.totalRevs {
+				t.Errorf("total-revs: got %d, want %d", r.TotalRevs, tt.totalRevs)
+			}
+
+			// Verify formatter
+			rows := FormatFragmentation(results, model.Options{})
 			if len(rows) < 2 {
-				t.Fatalf("expected at least one data row, got %d rows", len(rows))
-			}
-			r := rows[1]
-			if r[0] != tt.entity {
-				t.Errorf("entity: got %q, want %q", r[0], tt.entity)
-			}
-			if r[1] != tt.fractal {
-				t.Errorf("fractal-value: got %q, want %q", r[1], tt.fractal)
-			}
-			if r[2] != tt.totalRevs {
-				t.Errorf("total-revs: got %q, want %q", r[2], tt.totalRevs)
+				t.Fatalf("expected at least two formatted rows")
 			}
 		})
 	}
@@ -63,23 +69,29 @@ func TestEntityEffort(t *testing.T) {
 		{Rev: "r1", Author: "Bob", Entity: "foo.go"},
 		{Rev: "r1", Author: "Alice", Entity: "bar.go"},
 	}
-	rows := EntityEffort(commits, model.Options{})
+	results := EntityEffort(commits, model.Options{})
 
+	if len(results) != 3 { // bar.go/Alice, foo.go/Alice, foo.go/Bob
+		t.Fatalf("expected 3 results, got %d", len(results))
+	}
+	// sorted entity asc, then author-revs desc within entity
+	if results[0].Entity != "bar.go" || results[0].Author != "Alice" || results[0].AuthorRevs != 1 || results[0].TotalRevs != 1 {
+		t.Errorf("bar.go/Alice result: got %v", results[0])
+	}
+	if results[1].Entity != "foo.go" || results[1].Author != "Alice" || results[1].AuthorRevs != 2 || results[1].TotalRevs != 2 {
+		t.Errorf("foo.go/Alice result: got %v", results[1])
+	}
+	if results[2].Entity != "foo.go" || results[2].Author != "Bob" || results[2].AuthorRevs != 1 || results[2].TotalRevs != 2 {
+		t.Errorf("foo.go/Bob result: got %v", results[2])
+	}
+
+	// Verify formatter
+	rows := FormatEntityEffort(results, model.Options{})
 	if rows[0][0] != "entity" {
 		t.Fatalf("expected header, got %v", rows[0])
 	}
-	if len(rows) != 4 { // header + bar.go/Alice + foo.go/Alice + foo.go/Bob
+	if len(rows) != 4 {
 		t.Fatalf("expected 4 rows, got %d", len(rows))
-	}
-	// sorted entity asc, then author-revs desc within entity
-	if rows[1][0] != "bar.go" || rows[1][1] != "Alice" || rows[1][2] != "1" || rows[1][3] != "1" {
-		t.Errorf("bar.go/Alice row: got %v, want [bar.go Alice 1 1]", rows[1])
-	}
-	if rows[2][0] != "foo.go" || rows[2][1] != "Alice" || rows[2][2] != "2" || rows[2][3] != "2" {
-		t.Errorf("foo.go/Alice row: got %v, want [foo.go Alice 2 2]", rows[2])
-	}
-	if rows[3][0] != "foo.go" || rows[3][1] != "Bob" || rows[3][2] != "1" || rows[3][3] != "2" {
-		t.Errorf("foo.go/Bob row: got %v, want [foo.go Bob 1 2]", rows[3])
 	}
 }
 
@@ -89,14 +101,20 @@ func TestMainDevByRevs(t *testing.T) {
 		{Rev: "r2", Author: "Alice", Entity: "foo.go"},
 		{Rev: "r1", Author: "Bob", Entity: "foo.go"},
 	}
-	rows := MainDevByRevs(commits, model.Options{})
+	results := MainDevByRevs(commits, model.Options{})
 
-	if len(rows) != 2 {
-		t.Fatalf("expected 2 rows, got %d", len(rows))
+	if len(results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 	// Alice: 2 revs out of 2 total → 100%
+	if results[0].MainDev != "Alice" || results[0].Added != 2 || results[0].TotalRevs != 2 || results[0].Ownership != 100.0 {
+		t.Errorf("got %v", results[0])
+	}
+
+	// Verify formatter
+	rows := FormatMainDevByRevs(results, model.Options{})
 	if rows[1][1] != "Alice" || rows[1][2] != "2" || rows[1][3] != "2" || rows[1][4] != "100.00" {
-		t.Errorf("got %v, want [foo.go Alice 2 2 100.00]", rows[1])
+		t.Errorf("got %v, want [foo.go Alice 2 2 100.00] formatted", rows[1])
 	}
 }
 
@@ -108,8 +126,8 @@ func TestFragmentationSortOrder(t *testing.T) {
 		{Rev: "r2", Author: "Alice", Entity: "bar.go"},
 		{Rev: "r3", Author: "Bob", Entity: "bar.go"},
 	}
-	rows := Fragmentation(commits, model.Options{})
-	if rows[1][0] != "bar.go" {
-		t.Errorf("expected bar.go (higher fractal) first, got %q", rows[1][0])
+	results := Fragmentation(commits, model.Options{})
+	if results[0].Entity != "bar.go" {
+		t.Errorf("expected bar.go (higher fractal) first, got %q", results[0].Entity)
 	}
 }

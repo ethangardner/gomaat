@@ -14,22 +14,28 @@ func TestAuthors(t *testing.T) {
 		{Rev: "r1", Author: "Alice", Entity: "bar.go"},
 	}
 
-	rows := Authors(commits, model.Options{})
+	results := Authors(commits, model.Options{})
 
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header row, got %v", rows[0])
-	}
-	if len(rows) != 3 { // header + 2 entities
-		t.Fatalf("expected 3 rows (header + 2), got %d", len(rows))
+	if len(results) != 2 { // 2 entities
+		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
 	// foo.go has 2 authors → sorts first
-	if rows[1][0] != "foo.go" || rows[1][1] != "2" || rows[1][2] != "3" {
-		t.Errorf("row 1: got %v, want [foo.go 2 3]", rows[1])
+	if results[0].Entity != "foo.go" || results[0].Authors != 2 || results[0].Revs != 3 {
+		t.Errorf("result 0: got %v, want {foo.go 2 3}", results[0])
 	}
 	// bar.go has 1 author
-	if rows[2][0] != "bar.go" || rows[2][1] != "1" || rows[2][2] != "1" {
-		t.Errorf("row 2: got %v, want [bar.go 1 1]", rows[2])
+	if results[1].Entity != "bar.go" || results[1].Authors != 1 || results[1].Revs != 1 {
+		t.Errorf("result 1: got %v, want {bar.go 1 1}", results[1])
+	}
+
+	// Verify formatter
+	rows := FormatAuthors(results, model.Options{})
+	if rows[0][0] != "entity" {
+		t.Fatalf("expected header row, got %v", rows[0])
+	}
+	if len(rows) != 3 {
+		t.Fatalf("expected 3 rows, got %d", len(rows))
 	}
 }
 
@@ -39,8 +45,13 @@ func TestAuthorsDeduplicatesRevisions(t *testing.T) {
 		{Rev: "r1", Author: "Alice", Entity: "foo.go"},
 		{Rev: "r1", Author: "Alice", Entity: "foo.go"},
 	}
-	rows := Authors(commits, model.Options{})
+	results := Authors(commits, model.Options{})
+	if results[0].Revs != 1 {
+		t.Errorf("expected 1 revision (deduped), got %d", results[0].Revs)
+	}
+
+	rows := FormatAuthors(results, model.Options{})
 	if rows[1][2] != "1" {
-		t.Errorf("expected 1 revision (deduped), got %q", rows[1][2])
+		t.Errorf("expected 1 revision (deduped) in formatted rows, got %q", rows[1][2])
 	}
 }
