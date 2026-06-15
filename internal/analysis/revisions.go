@@ -13,17 +13,11 @@ type RevisionsResult struct {
 }
 
 func Revisions(commits []model.Commit, _ model.Options) []RevisionsResult {
-	revsByEntity := map[string]map[string]struct{}{}
-	for _, c := range commits {
-		if _, ok := revsByEntity[c.Entity]; !ok {
-			revsByEntity[c.Entity] = map[string]struct{}{}
-		}
-		revsByEntity[c.Entity][c.Rev] = struct{}{}
-	}
+	revsByEntity := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
 
 	results := make([]RevisionsResult, 0, len(revsByEntity))
 	for entity, revs := range revsByEntity {
-		results = append(results, RevisionsResult{entity, len(revs)})
+		results = append(results, RevisionsResult{entity, revs})
 	}
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Revs != results[j].Revs {

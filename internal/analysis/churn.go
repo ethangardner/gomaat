@@ -16,29 +16,13 @@ type AbsChurnResult struct {
 
 // AbsChurn returns lines added/deleted aggregated by date.
 func AbsChurn(commits []model.Commit, _ model.Options) []AbsChurnResult {
-	type entry struct {
-		added   int
-		deleted int
-		commits map[string]struct{}
-	}
-	byDate := map[string]*entry{}
-	for _, c := range commits {
-		e, ok := byDate[c.Date]
-		if !ok {
-			e = &entry{commits: map[string]struct{}{}}
-			byDate[c.Date] = e
-		}
-		e.added += c.LocAdded
-		e.deleted += c.LocDeleted
-		e.commits[c.Rev] = struct{}{}
-	}
+	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Date })
+	sort.Slice(aggs, func(i, j int) bool { return aggs[i].key < aggs[j].key })
 
-	results := make([]AbsChurnResult, 0, len(byDate))
-	for date, e := range byDate {
-		results = append(results, AbsChurnResult{date, e.added, e.deleted, len(e.commits)})
+	results := make([]AbsChurnResult, len(aggs))
+	for i, a := range aggs {
+		results[i] = AbsChurnResult{a.key, a.added, a.deleted, a.commits}
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].Date < results[j].Date })
-
 	return results
 }
 
@@ -59,29 +43,13 @@ type AuthorChurnResult struct {
 
 // AuthorChurn returns lines added/deleted aggregated by author.
 func AuthorChurn(commits []model.Commit, _ model.Options) []AuthorChurnResult {
-	type entry struct {
-		added   int
-		deleted int
-		commits map[string]struct{}
-	}
-	byAuthor := map[string]*entry{}
-	for _, c := range commits {
-		e, ok := byAuthor[c.Author]
-		if !ok {
-			e = &entry{commits: map[string]struct{}{}}
-			byAuthor[c.Author] = e
-		}
-		e.added += c.LocAdded
-		e.deleted += c.LocDeleted
-		e.commits[c.Rev] = struct{}{}
-	}
+	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Author })
+	sort.Slice(aggs, func(i, j int) bool { return aggs[i].key < aggs[j].key })
 
-	results := make([]AuthorChurnResult, 0, len(byAuthor))
-	for author, e := range byAuthor {
-		results = append(results, AuthorChurnResult{author, e.added, e.deleted, len(e.commits)})
+	results := make([]AuthorChurnResult, len(aggs))
+	for i, a := range aggs {
+		results[i] = AuthorChurnResult{a.key, a.added, a.deleted, a.commits}
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].Author < results[j].Author })
-
 	return results
 }
 
@@ -102,34 +70,18 @@ type EntityChurnResult struct {
 
 // EntityChurn returns lines added/deleted aggregated by entity, sorted by added desc.
 func EntityChurn(commits []model.Commit, _ model.Options) []EntityChurnResult {
-	type entry struct {
-		added   int
-		deleted int
-		commits map[string]struct{}
-	}
-	byEntity := map[string]*entry{}
-	for _, c := range commits {
-		e, ok := byEntity[c.Entity]
-		if !ok {
-			e = &entry{commits: map[string]struct{}{}}
-			byEntity[c.Entity] = e
+	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Entity })
+	sort.Slice(aggs, func(i, j int) bool {
+		if aggs[i].added != aggs[j].added {
+			return aggs[i].added > aggs[j].added
 		}
-		e.added += c.LocAdded
-		e.deleted += c.LocDeleted
-		e.commits[c.Rev] = struct{}{}
-	}
-
-	results := make([]EntityChurnResult, 0, len(byEntity))
-	for entity, e := range byEntity {
-		results = append(results, EntityChurnResult{entity, e.added, e.deleted, len(e.commits)})
-	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Added != results[j].Added {
-			return results[i].Added > results[j].Added
-		}
-		return results[i].Entity < results[j].Entity
+		return aggs[i].key < aggs[j].key
 	})
 
+	results := make([]EntityChurnResult, len(aggs))
+	for i, a := range aggs {
+		results[i] = EntityChurnResult{a.key, a.added, a.deleted, a.commits}
+	}
 	return results
 }
 
