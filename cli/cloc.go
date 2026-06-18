@@ -1,11 +1,12 @@
 package cli
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -93,9 +94,8 @@ func gitTrackedFiles(path string) ([]string, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("git ls-files failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	files := make([]string, 0, len(lines))
-	for _, line := range lines {
+	var files []string
+	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
 		if line != "" {
 			files = append(files, filepath.Join(repoRoot, line))
 		}
@@ -172,8 +172,8 @@ func clocLanguageRows(result *gocloc.Result) [][]string {
 			langs = append(langs, lang)
 		}
 	}
-	sort.Slice(langs, func(i, j int) bool {
-		return langs[i].Code > langs[j].Code
+	slices.SortFunc(langs, func(a, b *gocloc.Language) int {
+		return cmp.Compare(b.Code, a.Code)
 	})
 
 	for _, lang := range langs {
@@ -205,8 +205,8 @@ func clocFileRows(result *gocloc.Result) [][]string {
 	for _, f := range result.Files {
 		files = append(files, f)
 	}
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].Name < files[j].Name
+	slices.SortFunc(files, func(a, b *gocloc.ClocFile) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	for _, f := range files {

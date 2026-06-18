@@ -1,8 +1,9 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -15,33 +16,33 @@ type AuthorsResult struct {
 
 func Authors(commits []model.Commit, _ model.Options) []AuthorsResult {
 	type entry struct {
-		authors   map[string]struct{}
-		revisions map[string]struct{}
+		authors map[string]struct{}
+		revs    map[string]struct{}
 	}
-	entities := map[string]*entry{}
+	byEntity := map[string]*entry{}
 
 	for _, c := range commits {
-		e, ok := entities[c.Entity]
+		e, ok := byEntity[c.Entity]
 		if !ok {
 			e = &entry{
-				authors:   map[string]struct{}{},
-				revisions: map[string]struct{}{},
+				authors: make(map[string]struct{}),
+				revs:    make(map[string]struct{}),
 			}
-			entities[c.Entity] = e
+			byEntity[c.Entity] = e
 		}
 		e.authors[c.Author] = struct{}{}
-		e.revisions[c.Rev] = struct{}{}
+		e.revs[c.Rev] = struct{}{}
 	}
 
-	results := make([]AuthorsResult, 0, len(entities))
-	for entity, e := range entities {
-		results = append(results, AuthorsResult{entity, len(e.authors), len(e.revisions)})
+	results := make([]AuthorsResult, 0, len(byEntity))
+	for entity, e := range byEntity {
+		results = append(results, AuthorsResult{entity, len(e.authors), len(e.revs)})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Authors != results[j].Authors {
-			return results[i].Authors > results[j].Authors
+	slices.SortFunc(results, func(a, b AuthorsResult) int {
+		if c := cmp.Compare(b.Authors, a.Authors); c != 0 {
+			return c
 		}
-		return results[i].Entity < results[j].Entity
+		return cmp.Compare(a.Entity, b.Entity)
 	})
 
 	return results

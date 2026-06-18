@@ -1,8 +1,9 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"gomaat/internal/model"
@@ -37,11 +38,11 @@ func Age(commits []model.Commit, opts model.Options) []AgeResult {
 		months := monthsBetween(t, now)
 		results = append(results, AgeResult{entity, months})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].AgeMonths != results[j].AgeMonths {
-			return results[i].AgeMonths < results[j].AgeMonths
+	slices.SortFunc(results, func(a, b AgeResult) int {
+		if c := cmp.Compare(a.AgeMonths, b.AgeMonths); c != 0 {
+			return c
 		}
-		return results[i].Entity < results[j].Entity
+		return cmp.Compare(a.Entity, b.Entity)
 	})
 
 	return results

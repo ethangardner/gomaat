@@ -1,9 +1,10 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -19,38 +20,25 @@ type EntityEffortResult struct {
 func EntityEffort(commits []model.Commit, _ model.Options) []EntityEffortResult {
 	type key struct{ entity, author string }
 	// count distinct revisions per (entity, author)
-	revsByKey := map[key]map[string]struct{}{}
-	for _, c := range commits {
-		k := key{c.Entity, c.Author}
-		if _, ok := revsByKey[k]; !ok {
-			revsByKey[k] = map[string]struct{}{}
-		}
-		revsByKey[k][c.Rev] = struct{}{}
-	}
+	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
 
 	// total revisions per entity
-	totalRevsByEntity := map[string]map[string]struct{}{}
-	for _, c := range commits {
-		if _, ok := totalRevsByEntity[c.Entity]; !ok {
-			totalRevsByEntity[c.Entity] = map[string]struct{}{}
-		}
-		totalRevsByEntity[c.Entity][c.Rev] = struct{}{}
-	}
+	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
 
-	results := make([]EntityEffortResult, 0, len(revsByKey))
-	for k, revs := range revsByKey {
+	results := make([]EntityEffortResult, 0, len(authorRevs))
+	for k, revs := range authorRevs {
 		results = append(results, EntityEffortResult{
 			Entity:     k.entity,
 			Author:     k.author,
-			AuthorRevs: len(revs),
-			TotalRevs:  len(totalRevsByEntity[k.entity]),
+			AuthorRevs: revs,
+			TotalRevs:  totalRevs[k.entity],
 		})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Entity != results[j].Entity {
-			return results[i].Entity < results[j].Entity
+	slices.SortFunc(results, func(a, b EntityEffortResult) int {
+		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
+			return c
 		}
-		return results[i].AuthorRevs > results[j].AuthorRevs
+		return cmp.Compare(b.AuthorRevs, a.AuthorRevs)
 	})
 
 	return results
@@ -75,43 +63,31 @@ type MainDevByRevsResult struct {
 // MainDevByRevs returns the author with the most revisions per entity.
 func MainDevByRevs(commits []model.Commit, _ model.Options) []MainDevByRevsResult {
 	type key struct{ entity, author string }
-	revsByKey := map[key]map[string]struct{}{}
-	totalRevsByEntity := map[string]map[string]struct{}{}
-
-	for _, c := range commits {
-		k := key{c.Entity, c.Author}
-		if _, ok := revsByKey[k]; !ok {
-			revsByKey[k] = map[string]struct{}{}
-		}
-		revsByKey[k][c.Rev] = struct{}{}
-		if _, ok := totalRevsByEntity[c.Entity]; !ok {
-			totalRevsByEntity[c.Entity] = map[string]struct{}{}
-		}
-		totalRevsByEntity[c.Entity][c.Rev] = struct{}{}
-	}
+	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
+	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
 
 	type bestEntry struct {
 		author string
 		revs   int
 	}
 	bestByEntity := map[string]bestEntry{}
-	for k, revs := range revsByKey {
+	for k, revs := range authorRevs {
 		cur, ok := bestByEntity[k.entity]
-		if !ok || len(revs) > cur.revs {
-			bestByEntity[k.entity] = bestEntry{k.author, len(revs)}
+		if !ok || revs > cur.revs {
+			bestByEntity[k.entity] = bestEntry{k.author, revs}
 		}
 	}
 
 	results := make([]MainDevByRevsResult, 0, len(bestByEntity))
 	for entity, best := range bestByEntity {
-		total := len(totalRevsByEntity[entity])
+		total := totalRevs[entity]
 		var ownership float64
 		if total > 0 {
 			ownership = float64(best.revs) / float64(total) * 100.0
 		}
 		results = append(results, MainDevByRevsResult{entity, best.author, best.revs, total, ownership})
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].Entity < results[j].Entity })
+	slices.SortFunc(results, func(a, b MainDevByRevsResult) int { return cmp.Compare(a.Entity, b.Entity) })
 
 	return results
 }
@@ -139,45 +115,34 @@ type FragmentationResult struct {
 // 0 = single author, approaching 1 = many equal contributors.
 func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResult {
 	type key struct{ entity, author string }
-	revsByKey := map[key]map[string]struct{}{}
-	totalRevsByEntity := map[string]map[string]struct{}{}
-
-	for _, c := range commits {
-		k := key{c.Entity, c.Author}
-		if _, ok := revsByKey[k]; !ok {
-			revsByKey[k] = map[string]struct{}{}
-		}
-		revsByKey[k][c.Rev] = struct{}{}
-		if _, ok := totalRevsByEntity[c.Entity]; !ok {
-			totalRevsByEntity[c.Entity] = map[string]struct{}{}
-		}
-		totalRevsByEntity[c.Entity][c.Rev] = struct{}{}
-	}
+	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
+	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
 
 	// collect authors per entity
 	entityAuthors := map[string][]string{}
-	for k := range revsByKey {
+	for k := range authorRevs {
 		entityAuthors[k.entity] = append(entityAuthors[k.entity], k.author)
 	}
 
 	results := make([]FragmentationResult, 0, len(entityAuthors))
 	for entity, authors := range entityAuthors {
-		total := len(totalRevsByEntity[entity])
+		total := totalRevs[entity]
 		var sumSq float64
-		for _, author := range authors {
-			authorRevs := len(revsByKey[key{entity, author}])
-			ratio := float64(authorRevs) / float64(total)
-			sumSq += ratio * ratio
+		if total > 0 {
+			for _, author := range authors {
+				ratio := float64(authorRevs[key{entity, author}]) / float64(total)
+				sumSq += ratio * ratio
+			}
 		}
 		fractal := 1.0 - sumSq
 		fractal = math.Round(fractal*100) / 100
 		results = append(results, FragmentationResult{entity, fractal, total})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Fractal != results[j].Fractal {
-			return results[i].Fractal > results[j].Fractal
+	slices.SortFunc(results, func(a, b FragmentationResult) int {
+		if c := cmp.Compare(b.Fractal, a.Fractal); c != 0 {
+			return c
 		}
-		return results[i].Entity < results[j].Entity
+		return cmp.Compare(a.Entity, b.Entity)
 	})
 
 	return results

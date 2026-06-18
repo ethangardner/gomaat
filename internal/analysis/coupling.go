@@ -1,9 +1,10 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -45,7 +46,7 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 			}
 		}
 		// generate all pairs
-		for i := 0; i < len(dedupedEntities); i++ {
+		for i := range len(dedupedEntities) {
 			for j := i + 1; j < len(dedupedEntities); j++ {
 				a, b := dedupedEntities[i], dedupedEntities[j]
 				if a > b {
@@ -89,11 +90,11 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 		})
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Degree != results[j].Degree {
-			return results[i].Degree > results[j].Degree
+	slices.SortFunc(results, func(a, b CouplingResult) int {
+		if c := cmp.Compare(b.Degree, a.Degree); c != 0 {
+			return c
 		}
-		return results[i].AvgRevs > results[j].AvgRevs
+		return cmp.Compare(b.AvgRevs, a.AvgRevs)
 	})
 
 	return results
@@ -149,11 +150,11 @@ func SumOfCoupling(commits []model.Commit, opts model.Options) []SumOfCouplingRe
 	for entity, count := range soc {
 		results = append(results, SumOfCouplingResult{entity, count})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Soc != results[j].Soc {
-			return results[i].Soc > results[j].Soc
+	slices.SortFunc(results, func(a, b SumOfCouplingResult) int {
+		if c := cmp.Compare(b.Soc, a.Soc); c != 0 {
+			return c
 		}
-		return results[i].Entity < results[j].Entity
+		return cmp.Compare(a.Entity, b.Entity)
 	})
 
 	return results
