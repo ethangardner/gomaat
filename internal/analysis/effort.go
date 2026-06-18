@@ -1,9 +1,10 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -33,11 +34,11 @@ func EntityEffort(commits []model.Commit, _ model.Options) []EntityEffortResult 
 			TotalRevs:  totalRevs[k.entity],
 		})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Entity != results[j].Entity {
-			return results[i].Entity < results[j].Entity
+	slices.SortFunc(results, func(a, b EntityEffortResult) int {
+		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
+			return c
 		}
-		return results[i].AuthorRevs > results[j].AuthorRevs
+		return cmp.Compare(b.AuthorRevs, a.AuthorRevs)
 	})
 
 	return results
@@ -86,7 +87,7 @@ func MainDevByRevs(commits []model.Commit, _ model.Options) []MainDevByRevsResul
 		}
 		results = append(results, MainDevByRevsResult{entity, best.author, best.revs, total, ownership})
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].Entity < results[j].Entity })
+	slices.SortFunc(results, func(a, b MainDevByRevsResult) int { return cmp.Compare(a.Entity, b.Entity) })
 
 	return results
 }
@@ -137,11 +138,11 @@ func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResul
 		fractal = math.Round(fractal*100) / 100
 		results = append(results, FragmentationResult{entity, fractal, total})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Fractal != results[j].Fractal {
-			return results[i].Fractal > results[j].Fractal
+	slices.SortFunc(results, func(a, b FragmentationResult) int {
+		if c := cmp.Compare(b.Fractal, a.Fractal); c != 0 {
+			return c
 		}
-		return results[i].Entity < results[j].Entity
+		return cmp.Compare(a.Entity, b.Entity)
 	})
 
 	return results

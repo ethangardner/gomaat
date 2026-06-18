@@ -1,8 +1,9 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -19,11 +20,11 @@ func Revisions(commits []model.Commit, _ model.Options) []RevisionsResult {
 	for entity, revs := range revsByEntity {
 		results = append(results, RevisionsResult{entity, revs})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Revs != results[j].Revs {
-			return results[i].Revs > results[j].Revs
+	slices.SortFunc(results, func(a, b RevisionsResult) int {
+		if c := cmp.Compare(b.Revs, a.Revs); c != 0 {
+			return c
 		}
-		return results[i].Entity < results[j].Entity
+		return cmp.Compare(a.Entity, b.Entity)
 	})
 
 	return results

@@ -1,8 +1,9 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -17,7 +18,7 @@ type AbsChurnResult struct {
 // AbsChurn returns lines added/deleted aggregated by date.
 func AbsChurn(commits []model.Commit, _ model.Options) []AbsChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Date })
-	sort.Slice(aggs, func(i, j int) bool { return aggs[i].key < aggs[j].key })
+	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
 
 	results := make([]AbsChurnResult, len(aggs))
 	for i, a := range aggs {
@@ -44,7 +45,7 @@ type AuthorChurnResult struct {
 // AuthorChurn returns lines added/deleted aggregated by author.
 func AuthorChurn(commits []model.Commit, _ model.Options) []AuthorChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Author })
-	sort.Slice(aggs, func(i, j int) bool { return aggs[i].key < aggs[j].key })
+	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
 
 	results := make([]AuthorChurnResult, len(aggs))
 	for i, a := range aggs {
@@ -71,11 +72,11 @@ type EntityChurnResult struct {
 // EntityChurn returns lines added/deleted aggregated by entity, sorted by added desc.
 func EntityChurn(commits []model.Commit, _ model.Options) []EntityChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Entity })
-	sort.Slice(aggs, func(i, j int) bool {
-		if aggs[i].added != aggs[j].added {
-			return aggs[i].added > aggs[j].added
+	slices.SortFunc(aggs, func(a, b churnAgg) int {
+		if c := cmp.Compare(b.added, a.added); c != 0 {
+			return c
 		}
-		return aggs[i].key < aggs[j].key
+		return cmp.Compare(a.key, b.key)
 	})
 
 	results := make([]EntityChurnResult, len(aggs))
@@ -120,11 +121,11 @@ func EntityOwnership(commits []model.Commit, _ model.Options) []EntityOwnershipR
 	for k, e := range byKey {
 		results = append(results, EntityOwnershipResult{k.entity, k.author, e.added, e.deleted})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Entity != results[j].Entity {
-			return results[i].Entity < results[j].Entity
+	slices.SortFunc(results, func(a, b EntityOwnershipResult) int {
+		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
+			return c
 		}
-		return results[i].Author < results[j].Author
+		return cmp.Compare(a.Author, b.Author)
 	})
 
 	return results
@@ -180,7 +181,7 @@ func MainDev(commits []model.Commit, _ model.Options) []MainDevResult {
 		}
 		results = append(results, MainDevResult{entity, best.author, best.added, total, ownership})
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].Entity < results[j].Entity })
+	slices.SortFunc(results, func(a, b MainDevResult) int { return cmp.Compare(a.Entity, b.Entity) })
 
 	return results
 }
@@ -238,7 +239,7 @@ func RefactoringMainDev(commits []model.Commit, _ model.Options) []RefactoringMa
 		}
 		results = append(results, RefactoringMainDevResult{entity, best.author, best.deleted, total, ownership})
 	}
-	sort.Slice(results, func(i, j int) bool { return results[i].Entity < results[j].Entity })
+	slices.SortFunc(results, func(a, b RefactoringMainDevResult) int { return cmp.Compare(a.Entity, b.Entity) })
 
 	return results
 }

@@ -1,8 +1,9 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -37,11 +38,11 @@ func Authors(commits []model.Commit, _ model.Options) []AuthorsResult {
 	for entity, e := range byEntity {
 		results = append(results, AuthorsResult{entity, len(e.authors), len(e.revs)})
 	}
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Authors != results[j].Authors {
-			return results[i].Authors > results[j].Authors
+	slices.SortFunc(results, func(a, b AuthorsResult) int {
+		if c := cmp.Compare(b.Authors, a.Authors); c != 0 {
+			return c
 		}
-		return results[i].Entity < results[j].Entity
+		return cmp.Compare(a.Entity, b.Entity)
 	})
 
 	return results

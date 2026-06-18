@@ -1,9 +1,10 @@
 package analysis
 
 import (
+	"cmp"
 	"fmt"
 	"math"
-	"sort"
+	"slices"
 
 	"gomaat/internal/model"
 )
@@ -71,11 +72,11 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 		results = append(results, CommunicationResult{me, peer, shared, avg, strength})
 	}
 
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Strength != results[j].Strength {
-			return results[i].Strength > results[j].Strength
+	slices.SortFunc(results, func(a, b CommunicationResult) int {
+		if c := cmp.Compare(b.Strength, a.Strength); c != 0 {
+			return c
 		}
-		return results[i].Author > results[j].Author // desc, matching original
+		return cmp.Compare(b.Author, a.Author)
 	})
 
 	return results
