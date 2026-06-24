@@ -106,6 +106,8 @@ func gitTrackedFiles(path string) ([]string, string, error) {
 // relativizeResult rewrites all file paths in result to be relative to root.
 // This must be called before applyClocExcludes so patterns like "vendor/" match.
 func relativizeResult(result *gocloc.Result, root string) {
+	// Rebuild under relative-path keys rather than mutating in place (can't
+	// safely rewrite map keys while ranging); pre-size to the 1:1 entry count.
 	newFiles := make(map[string]*gocloc.ClocFile, len(result.Files))
 	for absPath, f := range result.Files {
 		rel, err := filepath.Rel(root, absPath)
