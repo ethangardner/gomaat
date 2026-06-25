@@ -149,40 +149,11 @@ type MainDevResult struct {
 
 // MainDev returns the author with the most lines added per entity.
 func MainDev(commits []model.Commit, _ model.Options) []MainDevResult {
-	type key struct{ entity, author string }
-	addedByKey := map[key]int{}
-	totalAddedByEntity := map[string]int{}
-
-	for _, c := range commits {
-		k := key{c.Entity, c.Author}
-		addedByKey[k] += c.LocAdded
-		totalAddedByEntity[c.Entity] += c.LocAdded
+	entries := findTopContributor(commits, func(c model.Commit) int { return c.LocAdded })
+	results := make([]MainDevResult, len(entries))
+	for i, e := range entries {
+		results[i] = MainDevResult{e.entity, e.author, e.count, e.total, e.ownership}
 	}
-
-	// find main dev per entity
-	type bestEntry struct {
-		author string
-		added  int
-	}
-	bestByEntity := map[string]bestEntry{}
-	for k, added := range addedByKey {
-		cur, ok := bestByEntity[k.entity]
-		if !ok || added > cur.added {
-			bestByEntity[k.entity] = bestEntry{k.author, added}
-		}
-	}
-
-	results := make([]MainDevResult, 0, len(bestByEntity))
-	for entity, best := range bestByEntity {
-		total := totalAddedByEntity[entity]
-		var ownership float64
-		if total > 0 {
-			ownership = float64(best.added) / float64(total) * 100.0
-		}
-		results = append(results, MainDevResult{entity, best.author, best.added, total, ownership})
-	}
-	slices.SortFunc(results, func(a, b MainDevResult) int { return cmp.Compare(a.Entity, b.Entity) })
-
 	return results
 }
 
@@ -208,39 +179,11 @@ type RefactoringMainDevResult struct {
 
 // RefactoringMainDev returns the author with the most lines deleted per entity.
 func RefactoringMainDev(commits []model.Commit, _ model.Options) []RefactoringMainDevResult {
-	type key struct{ entity, author string }
-	deletedByKey := map[key]int{}
-	totalDeletedByEntity := map[string]int{}
-
-	for _, c := range commits {
-		k := key{c.Entity, c.Author}
-		deletedByKey[k] += c.LocDeleted
-		totalDeletedByEntity[c.Entity] += c.LocDeleted
+	entries := findTopContributor(commits, func(c model.Commit) int { return c.LocDeleted })
+	results := make([]RefactoringMainDevResult, len(entries))
+	for i, e := range entries {
+		results[i] = RefactoringMainDevResult{e.entity, e.author, e.count, e.total, e.ownership}
 	}
-
-	type bestEntry struct {
-		author  string
-		deleted int
-	}
-	bestByEntity := map[string]bestEntry{}
-	for k, deleted := range deletedByKey {
-		cur, ok := bestByEntity[k.entity]
-		if !ok || deleted > cur.deleted {
-			bestByEntity[k.entity] = bestEntry{k.author, deleted}
-		}
-	}
-
-	results := make([]RefactoringMainDevResult, 0, len(bestByEntity))
-	for entity, best := range bestByEntity {
-		total := totalDeletedByEntity[entity]
-		var ownership float64
-		if total > 0 {
-			ownership = float64(best.deleted) / float64(total) * 100.0
-		}
-		results = append(results, RefactoringMainDevResult{entity, best.author, best.deleted, total, ownership})
-	}
-	slices.SortFunc(results, func(a, b RefactoringMainDevResult) int { return cmp.Compare(a.Entity, b.Entity) })
-
 	return results
 }
 
