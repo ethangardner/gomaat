@@ -11,21 +11,57 @@ import (
 	"github.com/hhatto/gocloc"
 )
 
-// makeResult builds a gocloc.Result from the provided languages and files.
-// Total counts are derived from the file map so tests don't have to maintain them manually.
-func makeResult(langs map[string]*gocloc.Language, files map[string]*gocloc.ClocFile) *gocloc.Result {
+// fileSpec describes a single file for use with buildResult.
+type fileSpec struct {
+	path, lang             string
+	code, comments, blanks int32
+}
+
+// buildResult constructs a *gocloc.Result from file specs. Language-level
+// aggregates are derived from the files so tests don't have to repeat them.
+func buildResult(specs ...fileSpec) *gocloc.Result {
+	langs := map[string]*gocloc.Language{}
+	files := map[string]*gocloc.ClocFile{}
 	total := &gocloc.Language{Name: "TOTAL"}
-	for _, f := range files {
-		total.Code += f.Code
-		total.Comments += f.Comments
-		total.Blanks += f.Blanks
+	for _, s := range specs {
+		if langs[s.lang] == nil {
+			langs[s.lang] = &gocloc.Language{Name: s.lang}
+		}
+		l := langs[s.lang]
+		l.Files = append(l.Files, s.path)
+		l.Code += s.code
+		l.Comments += s.comments
+		l.Blanks += s.blanks
+		files[s.path] = &gocloc.ClocFile{Name: s.path, Lang: s.lang, Code: s.code, Comments: s.comments, Blanks: s.blanks}
+		total.Code += s.code
+		total.Comments += s.comments
+		total.Blanks += s.blanks
 		total.Total++
 	}
-	return &gocloc.Result{
-		Total:     total,
-		Languages: langs,
-		Files:     files,
+	return &gocloc.Result{Total: total, Languages: langs, Files: files}
+}
+
+// checkHeader verifies that a CSV header row matches want, column by column.
+func checkHeader(t *testing.T, row, want []string) {
+	t.Helper()
+	if len(row) != len(want) {
+		t.Fatalf("header length: got %d, want %d", len(row), len(want))
 	}
+	for i, col := range want {
+		if row[i] != col {
+			t.Errorf("header[%d]: got %q, want %q", i, row[i], col)
+		}
+	}
+}
+
+// runClocAnalysis runs gocloc over dir and fatals on error.
+func runClocAnalysis(t *testing.T, dir string) *gocloc.Result {
+	t.Helper()
+	result, err := newClocProcessor().Analyze([]string{dir})
+	if err != nil {
+		t.Fatalf("gocloc Analyze: %v", err)
+	}
+	return result
 }
 
 func TestPathMatchesAnyExclude(t *testing.T) {
@@ -53,14 +89,7 @@ func TestPathMatchesAnyExclude(t *testing.T) {
 }
 
 func TestApplyClocExcludesNoOp(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"Go": {Name: "Go", Files: []string{"src/main.go"}, Code: 50, Comments: 5, Blanks: 3},
-		},
-		map[string]*gocloc.ClocFile{
-			"src/main.go": {Name: "src/main.go", Lang: "Go", Code: 50, Comments: 5, Blanks: 3},
-		},
-	)
+	result := buildResult(fileSpec{"src/main.go", "Go", 50, 5, 3})
 
 	applyClocExcludes(result, nil)
 
@@ -73,20 +102,9 @@ func TestApplyClocExcludesNoOp(t *testing.T) {
 }
 
 func TestApplyClocExcludesRemovesFile(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"Go": {
-				Name:     "Go",
-				Files:    []string{"src/main.go", "vendor/lib.go"},
-				Code:     100,
-				Comments: 10,
-				Blanks:   8,
-			},
-		},
-		map[string]*gocloc.ClocFile{
-			"src/main.go":   {Name: "src/main.go", Lang: "Go", Code: 60, Comments: 6, Blanks: 4},
-			"vendor/lib.go": {Name: "vendor/lib.go", Lang: "Go", Code: 40, Comments: 4, Blanks: 4},
-		},
+	result := buildResult(
+		fileSpec{"src/main.go", "Go", 60, 6, 4},
+		fileSpec{"vendor/lib.go", "Go", 40, 4, 4},
 	)
 
 	applyClocExcludes(result, []string{"vendor/"})
@@ -121,16 +139,10 @@ func TestApplyClocExcludesRemovesFile(t *testing.T) {
 }
 
 func TestApplyClocExcludesAllFilesOfLanguage(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"Go":   {Name: "Go", Files: []string{"vendor/a.go", "vendor/b.go"}, Code: 80, Comments: 4, Blanks: 6},
-			"YAML": {Name: "YAML", Files: []string{"config.yaml"}, Code: 30, Comments: 0, Blanks: 2},
-		},
-		map[string]*gocloc.ClocFile{
-			"vendor/a.go": {Name: "vendor/a.go", Lang: "Go", Code: 50, Comments: 3, Blanks: 4},
-			"vendor/b.go": {Name: "vendor/b.go", Lang: "Go", Code: 30, Comments: 1, Blanks: 2},
-			"config.yaml": {Name: "config.yaml", Lang: "YAML", Code: 30, Comments: 0, Blanks: 2},
-		},
+	result := buildResult(
+		fileSpec{"vendor/a.go", "Go", 50, 3, 4},
+		fileSpec{"vendor/b.go", "Go", 30, 1, 2},
+		fileSpec{"config.yaml", "YAML", 30, 0, 2},
 	)
 
 	applyClocExcludes(result, []string{"vendor/"})
@@ -152,18 +164,9 @@ func TestApplyClocExcludesAllFilesOfLanguage(t *testing.T) {
 }
 
 func TestApplyClocExcludesGlob(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"Go": {
-				Name:  "Go",
-				Files: []string{"src/types.pb.go", "src/main.go"},
-				Code:  70,
-			},
-		},
-		map[string]*gocloc.ClocFile{
-			"src/types.pb.go": {Name: "src/types.pb.go", Lang: "Go", Code: 40},
-			"src/main.go":     {Name: "src/main.go", Lang: "Go", Code: 30},
-		},
+	result := buildResult(
+		fileSpec{"src/types.pb.go", "Go", 40, 0, 0},
+		fileSpec{"src/main.go", "Go", 30, 0, 0},
 	)
 
 	applyClocExcludes(result, []string{"*.pb.go"})
@@ -177,41 +180,19 @@ func TestApplyClocExcludesGlob(t *testing.T) {
 }
 
 func TestClocLanguageRowsHeader(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"Go": {Name: "Go", Files: []string{"main.go"}, Code: 10},
-		},
-		map[string]*gocloc.ClocFile{
-			"main.go": {Name: "main.go", Lang: "Go", Code: 10},
-		},
-	)
+	result := buildResult(fileSpec{"main.go", "Go", 10, 0, 0})
 
 	rows := clocLanguageRows(result)
 
-	want := []string{"Language", "Files", "Blank", "Comment", "Code"}
-	if len(rows[0]) != len(want) {
-		t.Fatalf("header length: got %d, want %d", len(rows[0]), len(want))
-	}
-	for i, col := range want {
-		if rows[0][i] != col {
-			t.Errorf("header[%d]: got %q, want %q", i, rows[0][i], col)
-		}
-	}
+	checkHeader(t, rows[0], []string{"Language", "Files", "Blank", "Comment", "Code"})
 }
 
 func TestClocLanguageRowsSortedByCode(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"YAML": {Name: "YAML", Files: []string{"a.yaml"}, Code: 10},
-			"Go":   {Name: "Go", Files: []string{"a.go", "b.go"}, Code: 200},
-			"JSON": {Name: "JSON", Files: []string{"a.json"}, Code: 50},
-		},
-		map[string]*gocloc.ClocFile{
-			"a.yaml": {Name: "a.yaml", Lang: "YAML", Code: 10},
-			"a.go":   {Name: "a.go", Lang: "Go", Code: 100},
-			"b.go":   {Name: "b.go", Lang: "Go", Code: 100},
-			"a.json": {Name: "a.json", Lang: "JSON", Code: 50},
-		},
+	result := buildResult(
+		fileSpec{"a.yaml", "YAML", 10, 0, 0},
+		fileSpec{"a.go", "Go", 100, 0, 0},
+		fileSpec{"b.go", "Go", 100, 0, 0},
+		fileSpec{"a.json", "JSON", 50, 0, 0},
 	)
 
 	rows := clocLanguageRows(result)
@@ -230,15 +211,8 @@ func TestClocLanguageRowsSortedByCode(t *testing.T) {
 }
 
 func TestClocLanguageRowsSkipsEmptyLanguages(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"Go":   {Name: "Go", Files: []string{"main.go"}, Code: 50},
-			"YAML": {Name: "YAML", Files: []string{}, Code: 0}, // no files
-		},
-		map[string]*gocloc.ClocFile{
-			"main.go": {Name: "main.go", Lang: "Go", Code: 50},
-		},
-	)
+	result := buildResult(fileSpec{"main.go", "Go", 50, 0, 0})
+	result.Languages["YAML"] = &gocloc.Language{Name: "YAML"} // no files
 
 	rows := clocLanguageRows(result)
 
@@ -249,14 +223,9 @@ func TestClocLanguageRowsSkipsEmptyLanguages(t *testing.T) {
 }
 
 func TestClocLanguageRowsTotalRow(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{
-			"Go": {Name: "Go", Files: []string{"a.go", "b.go"}, Code: 80, Comments: 8, Blanks: 6},
-		},
-		map[string]*gocloc.ClocFile{
-			"a.go": {Name: "a.go", Lang: "Go", Code: 40, Comments: 4, Blanks: 3},
-			"b.go": {Name: "b.go", Lang: "Go", Code: 40, Comments: 4, Blanks: 3},
-		},
+	result := buildResult(
+		fileSpec{"a.go", "Go", 40, 4, 3},
+		fileSpec{"b.go", "Go", 40, 4, 3},
 	)
 
 	rows := clocLanguageRows(result)
@@ -274,34 +243,18 @@ func TestClocLanguageRowsTotalRow(t *testing.T) {
 }
 
 func TestClocFileRowsHeader(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{},
-		map[string]*gocloc.ClocFile{
-			"main.go": {Name: "main.go", Lang: "Go", Code: 10},
-		},
-	)
+	result := buildResult(fileSpec{"main.go", "Go", 10, 0, 0})
 
 	rows := clocFileRows(result)
 
-	want := []string{"File", "Language", "Blank", "Comment", "Code"}
-	if len(rows[0]) != len(want) {
-		t.Fatalf("header length: got %d, want %d", len(rows[0]), len(want))
-	}
-	for i, col := range want {
-		if rows[0][i] != col {
-			t.Errorf("header[%d]: got %q, want %q", i, rows[0][i], col)
-		}
-	}
+	checkHeader(t, rows[0], []string{"File", "Language", "Blank", "Comment", "Code"})
 }
 
 func TestClocFileRowsSortedByName(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{},
-		map[string]*gocloc.ClocFile{
-			"src/z.go": {Name: "src/z.go", Lang: "Go", Code: 10},
-			"src/a.go": {Name: "src/a.go", Lang: "Go", Code: 20},
-			"src/m.go": {Name: "src/m.go", Lang: "Go", Code: 15},
-		},
+	result := buildResult(
+		fileSpec{"src/z.go", "Go", 10, 0, 0},
+		fileSpec{"src/a.go", "Go", 20, 0, 0},
+		fileSpec{"src/m.go", "Go", 15, 0, 0},
 	)
 
 	rows := clocFileRows(result)
@@ -318,12 +271,7 @@ func TestClocFileRowsSortedByName(t *testing.T) {
 }
 
 func TestClocFileRowsColumns(t *testing.T) {
-	result := makeResult(
-		map[string]*gocloc.Language{},
-		map[string]*gocloc.ClocFile{
-			"foo.go": {Name: "foo.go", Lang: "Go", Code: 42, Comments: 7, Blanks: 3},
-		},
-	)
+	result := buildResult(fileSpec{"foo.go", "Go", 42, 7, 3})
 
 	rows := clocFileRows(result)
 
@@ -420,7 +368,7 @@ func TestGitTrackedFilesErrorsOnNonRepo(t *testing.T) {
 	dir := t.TempDir()
 	_, _, err := gitTrackedFiles(dir)
 	if err == nil {
-		t.Error("expected error for non-git directory, got nil")
+		t.Fatal("expected error for non-git directory, got nil")
 	}
 	if !strings.Contains(err.Error(), "git rev-parse --show-toplevel failed") {
 		t.Errorf("expected rev-parse context in error, got: %v", err)
@@ -435,12 +383,7 @@ func TestClocIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	processor := gocloc.NewProcessor(gocloc.NewDefinedLanguages(), gocloc.NewClocOptions())
-	result, err := processor.Analyze([]string{dir})
-	if err != nil {
-		t.Fatalf("Analyze: %v", err)
-	}
-
+	result := runClocAnalysis(t, dir)
 	rows := clocLanguageRows(result)
 
 	if len(rows) < 3 {
@@ -484,12 +427,7 @@ func TestClocIntegrationExclude(t *testing.T) {
 		}
 	}
 
-	processor := gocloc.NewProcessor(gocloc.NewDefinedLanguages(), gocloc.NewClocOptions())
-	result, err := processor.Analyze([]string{dir})
-	if err != nil {
-		t.Fatalf("Analyze: %v", err)
-	}
-
+	result := runClocAnalysis(t, dir)
 	relativizeResult(result, dir)
 	applyClocExcludes(result, []string{"*.pb.go"})
 

@@ -16,6 +16,10 @@ import (
 	"gomaat/internal/output"
 )
 
+func newClocProcessor() *gocloc.Processor {
+	return gocloc.NewProcessor(gocloc.NewDefinedLanguages(), gocloc.NewClocOptions())
+}
+
 func newClocCmd() *cobra.Command {
 	var path string
 	var byFile bool
@@ -40,8 +44,7 @@ Examples:
 				return fmt.Errorf("no git-tracked files found in %s", path)
 			}
 
-			processor := gocloc.NewProcessor(gocloc.NewDefinedLanguages(), gocloc.NewClocOptions())
-			result, err := processor.Analyze(trackedFiles)
+			result, err := newClocProcessor().Analyze(trackedFiles)
 			if err != nil {
 				return fmt.Errorf("cloc failed: %w", err)
 			}

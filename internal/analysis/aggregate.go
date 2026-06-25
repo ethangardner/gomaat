@@ -84,18 +84,10 @@ type topContributorEntry struct {
 	ownership float64
 }
 
-// findTopContributor returns, per entity, the author with the highest value
-// from valueFn, along with their count, the entity total, and ownership %.
-func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []topContributorEntry {
-	byKey := map[entityAuthorKey]int{}
-	totalByEntity := map[string]int{}
-	for _, c := range commits {
-		k := entityAuthorKey{c.Entity, c.Author}
-		v := valueFn(c)
-		byKey[k] += v
-		totalByEntity[c.Entity] += v
-	}
-
+// pickTopContributor selects, per entity, the author with the highest count
+// from pre-computed per-(entity,author) counts and per-entity totals, and
+// computes ownership %.
+func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]int) []topContributorEntry {
 	type best struct {
 		author string
 		count  int
@@ -103,7 +95,7 @@ func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) 
 	bestByEntity := map[string]best{}
 	for k, count := range byKey {
 		cur, ok := bestByEntity[k.entity]
-		if !ok || count > cur.count {
+		if !ok || count > cur.count || (count == cur.count && k.author < cur.author) {
 			bestByEntity[k.entity] = best{k.author, count}
 		}
 	}
@@ -119,4 +111,18 @@ func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) 
 	}
 	slices.SortFunc(results, func(a, b topContributorEntry) int { return cmp.Compare(a.entity, b.entity) })
 	return results
+}
+
+// findTopContributor returns, per entity, the author with the highest value
+// from valueFn, along with their count, the entity total, and ownership %.
+func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []topContributorEntry {
+	byKey := map[entityAuthorKey]int{}
+	totalByEntity := map[string]int{}
+	for _, c := range commits {
+		k := entityAuthorKey{c.Entity, c.Author}
+		v := valueFn(c)
+		byKey[k] += v
+		totalByEntity[c.Entity] += v
+	}
+	return pickTopContributor(byKey, totalByEntity)
 }
