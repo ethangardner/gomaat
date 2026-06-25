@@ -16,6 +16,10 @@ import (
 	"gomaat/internal/output"
 )
 
+func newClocProcessor() *gocloc.Processor {
+	return gocloc.NewProcessor(gocloc.NewDefinedLanguages(), gocloc.NewClocOptions())
+}
+
 func newClocCmd() *cobra.Command {
 	var path string
 	var byFile bool
@@ -40,8 +44,7 @@ Examples:
 				return fmt.Errorf("no git-tracked files found in %s", path)
 			}
 
-			processor := gocloc.NewProcessor(gocloc.NewDefinedLanguages(), gocloc.NewClocOptions())
-			result, err := processor.Analyze(trackedFiles)
+			result, err := newClocProcessor().Analyze(trackedFiles)
 			if err != nil {
 				return fmt.Errorf("cloc failed: %w", err)
 			}
@@ -106,6 +109,8 @@ func gitTrackedFiles(path string) ([]string, string, error) {
 // relativizeResult rewrites all file paths in result to be relative to root.
 // This must be called before applyClocExcludes so patterns like "vendor/" match.
 func relativizeResult(result *gocloc.Result, root string) {
+	// Rebuild under relative-path keys rather than mutating in place (can't
+	// safely rewrite map keys while ranging); pre-size to the 1:1 entry count.
 	newFiles := make(map[string]*gocloc.ClocFile, len(result.Files))
 	for absPath, f := range result.Files {
 		rel, err := filepath.Rel(root, absPath)

@@ -18,12 +18,7 @@ type EntityEffortResult struct {
 
 // EntityEffort returns revision count per (entity, author) pair.
 func EntityEffort(commits []model.Commit, _ model.Options) []EntityEffortResult {
-	type key struct{ entity, author string }
-	// count distinct revisions per (entity, author)
-	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
-
-	// total revisions per entity
-	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
+	authorRevs, totalRevs := revsPerEntityAuthor(commits)
 
 	results := make([]EntityEffortResult, 0, len(authorRevs))
 	for k, revs := range authorRevs {
@@ -62,33 +57,12 @@ type MainDevByRevsResult struct {
 
 // MainDevByRevs returns the author with the most revisions per entity.
 func MainDevByRevs(commits []model.Commit, _ model.Options) []MainDevByRevsResult {
-	type key struct{ entity, author string }
-	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
-	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
-
-	type bestEntry struct {
-		author string
-		revs   int
+	authorRevs, totalRevs := revsPerEntityAuthor(commits)
+	entries := pickTopContributor(authorRevs, totalRevs)
+	results := make([]MainDevByRevsResult, len(entries))
+	for i, e := range entries {
+		results[i] = MainDevByRevsResult{e.entity, e.author, e.count, e.total, e.ownership}
 	}
-	bestByEntity := map[string]bestEntry{}
-	for k, revs := range authorRevs {
-		cur, ok := bestByEntity[k.entity]
-		if !ok || revs > cur.revs {
-			bestByEntity[k.entity] = bestEntry{k.author, revs}
-		}
-	}
-
-	results := make([]MainDevByRevsResult, 0, len(bestByEntity))
-	for entity, best := range bestByEntity {
-		total := totalRevs[entity]
-		var ownership float64
-		if total > 0 {
-			ownership = float64(best.revs) / float64(total) * 100.0
-		}
-		results = append(results, MainDevByRevsResult{entity, best.author, best.revs, total, ownership})
-	}
-	slices.SortFunc(results, func(a, b MainDevByRevsResult) int { return cmp.Compare(a.Entity, b.Entity) })
-
 	return results
 }
 
@@ -114,9 +88,7 @@ type FragmentationResult struct {
 // fractal = 1 - Σ(author_revs/total_revs)²
 // 0 = single author, approaching 1 = many equal contributors.
 func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResult {
-	type key struct{ entity, author string }
-	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
-	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
+	authorRevs, totalRevs := revsPerEntityAuthor(commits)
 
 	// collect authors per entity
 	entityAuthors := map[string][]string{}
@@ -130,7 +102,7 @@ func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResul
 		var sumSq float64
 		if total > 0 {
 			for _, author := range authors {
-				ratio := float64(authorRevs[key{entity, author}]) / float64(total)
+				ratio := float64(authorRevs[entityAuthorKey{entity, author}]) / float64(total)
 				sumSq += ratio * ratio
 			}
 		}
