@@ -18,12 +18,7 @@ type EntityEffortResult struct {
 
 // EntityEffort returns revision count per (entity, author) pair.
 func EntityEffort(commits []model.Commit, _ model.Options) []EntityEffortResult {
-	type key struct{ entity, author string }
-	// count distinct revisions per (entity, author)
-	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
-
-	// total revisions per entity
-	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
+	authorRevs, totalRevs := revsPerEntityAuthor(commits)
 
 	results := make([]EntityEffortResult, 0, len(authorRevs))
 	for k, revs := range authorRevs {
@@ -62,9 +57,7 @@ type MainDevByRevsResult struct {
 
 // MainDevByRevs returns the author with the most revisions per entity.
 func MainDevByRevs(commits []model.Commit, _ model.Options) []MainDevByRevsResult {
-	type key struct{ entity, author string }
-	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
-	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
+	authorRevs, totalRevs := revsPerEntityAuthor(commits)
 
 	type bestEntry struct {
 		author string
@@ -114,9 +107,7 @@ type FragmentationResult struct {
 // fractal = 1 - Σ(author_revs/total_revs)²
 // 0 = single author, approaching 1 = many equal contributors.
 func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResult {
-	type key struct{ entity, author string }
-	authorRevs := countDistinct(commits, func(c model.Commit) key { return key{c.Entity, c.Author} }, func(c model.Commit) string { return c.Rev })
-	totalRevs := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
+	authorRevs, totalRevs := revsPerEntityAuthor(commits)
 
 	// collect authors per entity
 	entityAuthors := map[string][]string{}
@@ -130,7 +121,7 @@ func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResul
 		var sumSq float64
 		if total > 0 {
 			for _, author := range authors {
-				ratio := float64(authorRevs[key{entity, author}]) / float64(total)
+				ratio := float64(authorRevs[entityAuthorKey{entity, author}]) / float64(total)
 				sumSq += ratio * ratio
 			}
 		}

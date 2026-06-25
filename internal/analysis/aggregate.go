@@ -7,6 +7,8 @@ import (
 	"gomaat/internal/model"
 )
 
+type entityAuthorKey struct{ entity, author string }
+
 // countDistinct counts, for each key returned by keyFn, the number of
 // distinct values returned by valFn across commits.
 func countDistinct[K comparable](commits []model.Commit, keyFn func(model.Commit) K, valFn func(model.Commit) string) map[K]int {
@@ -24,6 +26,18 @@ func countDistinct[K comparable](commits []model.Commit, keyFn func(model.Commit
 		counts[k] = len(s)
 	}
 	return counts
+}
+
+// revsPerEntityAuthor returns per-(entity,author) distinct revision counts and
+// per-entity distinct revision counts, computed in one pass each via countDistinct.
+func revsPerEntityAuthor(commits []model.Commit) (map[entityAuthorKey]int, map[string]int) {
+	authorRevs := countDistinct(commits,
+		func(c model.Commit) entityAuthorKey { return entityAuthorKey{c.Entity, c.Author} },
+		func(c model.Commit) string { return c.Rev })
+	totalRevs := countDistinct(commits,
+		func(c model.Commit) string { return c.Entity },
+		func(c model.Commit) string { return c.Rev })
+	return authorRevs, totalRevs
 }
 
 // churnAgg holds added/deleted line totals and a distinct revision count for
@@ -73,11 +87,10 @@ type topContributorEntry struct {
 // findTopContributor returns, per entity, the author with the highest value
 // from valueFn, along with their count, the entity total, and ownership %.
 func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []topContributorEntry {
-	type key struct{ entity, author string }
-	byKey := map[key]int{}
+	byKey := map[entityAuthorKey]int{}
 	totalByEntity := map[string]int{}
 	for _, c := range commits {
-		k := key{c.Entity, c.Author}
+		k := entityAuthorKey{c.Entity, c.Author}
 		v := valueFn(c)
 		byKey[k] += v
 		totalByEntity[c.Entity] += v

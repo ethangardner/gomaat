@@ -103,11 +103,10 @@ type EntityOwnershipResult struct {
 
 // EntityOwnership returns churn per (entity, author) pair.
 func EntityOwnership(commits []model.Commit, _ model.Options) []EntityOwnershipResult {
-	type key struct{ entity, author string }
 	type entry struct{ added, deleted int }
-	byKey := map[key]*entry{}
+	byKey := map[entityAuthorKey]*entry{}
 	for _, c := range commits {
-		k := key{c.Entity, c.Author}
+		k := entityAuthorKey{c.Entity, c.Author}
 		e, ok := byKey[k]
 		if !ok {
 			e = &entry{}
