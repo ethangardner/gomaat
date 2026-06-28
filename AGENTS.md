@@ -10,11 +10,12 @@ gomaat is a Go port of [code-maat](https://github.com/adamtornhill/code-maat) â€
 
 ```bash
 make build         # compile to ./bin/gomaat
-make check         # fmt + vet + test (mirrors CI, minus golangci-lint)
+make check         # fmt + vet + lint + test (mirrors CI)
 make test          # go test ./...
 make test-verbose  # go test -v ./...
 make fmt           # gofmt all packages
 make vet           # go vet ./...
+make lint          # golangci-lint run
 make tidy          # go mod tidy && go mod verify
 make watchtest     # rerun tests on file change (requires entr)
 ```

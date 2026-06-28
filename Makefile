@@ -4,7 +4,7 @@ BUILD_DIR  := ./bin
 
 GO         := $(shell which go 2>/dev/null || echo /usr/local/go/bin/go)
 
-.PHONY: all build install fmt vet test clean tidy check
+.PHONY: all build install fmt vet test lint clean tidy check
 
 all: fmt vet test build
 
@@ -36,13 +36,17 @@ test-verbose:
 watchtest:
 	find . -name '*.go' | entr -c $(GO) test ./...
 
+## lint: run golangci-lint
+lint:
+	golangci-lint run
+
 ## tidy: tidy and verify go.mod / go.sum
 tidy:
 	$(GO) mod tidy
 	$(GO) mod verify
 
-## check: fmt + vet + test (CI-style, no build artifact)
-check: fmt vet test
+## check: fmt + vet + lint + test (CI-style, no build artifact)
+check: fmt vet lint test
 
 ## clean: remove the build directory
 clean:

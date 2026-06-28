@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"strings"
 
 	"gomaat/internal/model"
 )
@@ -175,9 +174,4 @@ func dedupe(ss []string) []string {
 		}
 	}
 	return ss[:j]
-}
-
-func splitPairKey(key string) [2]string {
-	a, b, _ := strings.Cut(key, "\x00")
-	return [2]string{a, b}
 }
