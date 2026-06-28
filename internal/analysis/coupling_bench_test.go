@@ -7,13 +7,12 @@ import (
 	"gomaat/internal/model"
 )
 
-// b.Loop() (Go 1.24+) is preferred over the classic `for i := 0; i < b.N; i++` form:
-// it excludes setup code from timing automatically and prevents the compiler from
-// optimizing away the loop body when b.N is 0 on a dry run.
-
 func BenchmarkCoupling(b *testing.B) {
 	commits := makeBenchCommits(10_000, 20)
 	opts := model.Options{MaxChangesetSize: 100, MinRevs: 1, MinSharedRevs: 1, MaxCoupling: 100}
+	// b.Loop() (Go 1.24+) is preferred over the classic `for i := 0; i < b.N; i++` form:
+	// it excludes setup code from timing automatically and prevents the compiler from
+	// optimizing away the loop body when b.N is 0 on a dry run.
 	for b.Loop() {
 		Coupling(commits, opts)
 	}
