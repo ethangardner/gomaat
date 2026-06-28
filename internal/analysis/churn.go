@@ -8,69 +8,40 @@ import (
 	"gomaat/internal/model"
 )
 
-type AbsChurnResult struct {
-	Date    string
-	Added   int
-	Deleted int
-	Commits int
-}
-
 // AbsChurn returns lines added/deleted aggregated by date.
-func AbsChurn(commits []model.Commit, _ model.Options) []AbsChurnResult {
+func AbsChurn(commits []model.Commit, _ model.Options) []ChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Date })
 	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
 
-	results := make([]AbsChurnResult, len(aggs))
+	results := make([]ChurnResult, len(aggs))
 	for i, a := range aggs {
-		results[i] = AbsChurnResult{a.key, a.added, a.deleted, a.commits}
+		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
 	}
 	return results
 }
 
-func FormatAbsChurn(results []AbsChurnResult, _ model.Options) [][]string {
-	out := [][]string{{"date", "added", "deleted", "commits"}}
-	for _, r := range results {
-		out = append(out, []string{r.Date, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted), fmt.Sprint(r.Commits)})
-	}
-	return out
-}
-
-type AuthorChurnResult struct {
-	Author  string
-	Added   int
-	Deleted int
-	Commits int
+func FormatAbsChurn(results []ChurnResult, _ model.Options) [][]string {
+	return formatChurn(results, "date")
 }
 
 // AuthorChurn returns lines added/deleted aggregated by author.
-func AuthorChurn(commits []model.Commit, _ model.Options) []AuthorChurnResult {
+func AuthorChurn(commits []model.Commit, _ model.Options) []ChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Author })
 	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
 
-	results := make([]AuthorChurnResult, len(aggs))
+	results := make([]ChurnResult, len(aggs))
 	for i, a := range aggs {
-		results[i] = AuthorChurnResult{a.key, a.added, a.deleted, a.commits}
+		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
 	}
 	return results
 }
 
-func FormatAuthorChurn(results []AuthorChurnResult, _ model.Options) [][]string {
-	out := [][]string{{"author", "added", "deleted", "commits"}}
-	for _, r := range results {
-		out = append(out, []string{r.Author, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted), fmt.Sprint(r.Commits)})
-	}
-	return out
-}
-
-type EntityChurnResult struct {
-	Entity  string
-	Added   int
-	Deleted int
-	Commits int
+func FormatAuthorChurn(results []ChurnResult, _ model.Options) [][]string {
+	return formatChurn(results, "author")
 }
 
 // EntityChurn returns lines added/deleted aggregated by entity, sorted by added desc.
-func EntityChurn(commits []model.Commit, _ model.Options) []EntityChurnResult {
+func EntityChurn(commits []model.Commit, _ model.Options) []ChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Entity })
 	slices.SortFunc(aggs, func(a, b churnAgg) int {
 		if c := cmp.Compare(b.added, a.added); c != 0 {
@@ -79,17 +50,21 @@ func EntityChurn(commits []model.Commit, _ model.Options) []EntityChurnResult {
 		return cmp.Compare(a.key, b.key)
 	})
 
-	results := make([]EntityChurnResult, len(aggs))
+	results := make([]ChurnResult, len(aggs))
 	for i, a := range aggs {
-		results[i] = EntityChurnResult{a.key, a.added, a.deleted, a.commits}
+		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
 	}
 	return results
 }
 
-func FormatEntityChurn(results []EntityChurnResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "added", "deleted", "commits"}}
+func FormatEntityChurn(results []ChurnResult, _ model.Options) [][]string {
+	return formatChurn(results, "entity")
+}
+
+func formatChurn(results []ChurnResult, keyHeader string) [][]string {
+	out := [][]string{{keyHeader, "added", "deleted", "commits"}}
 	for _, r := range results {
-		out = append(out, []string{r.Entity, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted), fmt.Sprint(r.Commits)})
+		out = append(out, []string{r.Key, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted), fmt.Sprint(r.Commits)})
 	}
 	return out
 }
@@ -138,62 +113,20 @@ func FormatEntityOwnership(results []EntityOwnershipResult, _ model.Options) [][
 	return out
 }
 
-type MainDevResult struct {
-	Entity     string
-	MainDev    string
-	Added      int
-	TotalAdded int
-	Ownership  float64
-}
-
 // MainDev returns the author with the most lines added per entity.
-func MainDev(commits []model.Commit, _ model.Options) []MainDevResult {
-	entries := findTopContributor(commits, func(c model.Commit) int { return c.LocAdded })
-	results := make([]MainDevResult, len(entries))
-	for i, e := range entries {
-		results[i] = MainDevResult{e.entity, e.author, e.count, e.total, e.ownership}
-	}
-	return results
+func MainDev(commits []model.Commit, _ model.Options) []ContributorResult {
+	return findTopContributor(commits, func(c model.Commit) int { return c.LocAdded })
 }
 
-func FormatMainDev(results []MainDevResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "main-dev", "added", "total-added", "ownership"}}
-	for _, r := range results {
-		out = append(out, []string{
-			r.Entity, r.MainDev,
-			fmt.Sprint(r.Added), fmt.Sprint(r.TotalAdded),
-			fmt.Sprintf("%.2f", r.Ownership),
-		})
-	}
-	return out
-}
-
-type RefactoringMainDevResult struct {
-	Entity       string
-	MainDev      string
-	Removed      int
-	TotalRemoved int
-	Ownership    float64
+func FormatMainDev(results []ContributorResult, _ model.Options) [][]string {
+	return formatContributor(results, "added", "total-added")
 }
 
 // RefactoringMainDev returns the author with the most lines deleted per entity.
-func RefactoringMainDev(commits []model.Commit, _ model.Options) []RefactoringMainDevResult {
-	entries := findTopContributor(commits, func(c model.Commit) int { return c.LocDeleted })
-	results := make([]RefactoringMainDevResult, len(entries))
-	for i, e := range entries {
-		results[i] = RefactoringMainDevResult{e.entity, e.author, e.count, e.total, e.ownership}
-	}
-	return results
+func RefactoringMainDev(commits []model.Commit, _ model.Options) []ContributorResult {
+	return findTopContributor(commits, func(c model.Commit) int { return c.LocDeleted })
 }
 
-func FormatRefactoringMainDev(results []RefactoringMainDevResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "main-dev", "removed", "total-removed", "ownership"}}
-	for _, r := range results {
-		out = append(out, []string{
-			r.Entity, r.MainDev,
-			fmt.Sprint(r.Removed), fmt.Sprint(r.TotalRemoved),
-			fmt.Sprintf("%.2f", r.Ownership),
-		})
-	}
-	return out
+func FormatRefactoringMainDev(results []ContributorResult, _ model.Options) [][]string {
+	return formatContributor(results, "removed", "total-removed")
 }

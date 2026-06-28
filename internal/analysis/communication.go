@@ -39,8 +39,8 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 	}
 
 	// Generate all 2-selections (with replacement) and count frequencies.
-	// key: "author\x00peer" — self pairs use the same author twice.
-	freqs := map[string]int{}
+	// Self-pairs (a==b) give author's total entity count.
+	freqs := map[pairKey]int{}
 	for _, authors := range entityAuthors {
 		authorList := make([]string, 0, len(authors))
 		for a := range authors {
@@ -49,7 +49,7 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 		// all ordered pairs including self-pairs
 		for _, a := range authorList {
 			for _, b := range authorList {
-				freqs[a+"\x00"+b]++
+				freqs[pairKey{a, b}]++
 			}
 		}
 	}
@@ -57,13 +57,12 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 	// Build results from non-self pairs.
 	var results []CommunicationResult
 	for key, shared := range freqs {
-		parts := splitPairKey(key)
-		me, peer := parts[0], parts[1]
+		me, peer := key.a, key.b
 		if me == peer {
 			continue
 		}
-		myTotal := freqs[me+"\x00"+me]
-		peerTotal := freqs[peer+"\x00"+peer]
+		myTotal := freqs[pairKey{me, me}]
+		peerTotal := freqs[pairKey{peer, peer}]
 		avg := int(math.Ceil((float64(myTotal) + float64(peerTotal)) / 2.0))
 		if avg == 0 {
 			continue

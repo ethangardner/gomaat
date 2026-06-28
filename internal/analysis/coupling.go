@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"strings"
 
 	"gomaat/internal/model"
 )
@@ -20,24 +19,15 @@ type CouplingResult struct {
 	Shared  int
 }
 
+type pairKey struct{ a, b string }
+
 // Coupling detects modules that tend to change together (temporal coupling).
 func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
-	// group entities by revision
-	revEntities := map[string][]string{}
-	for _, c := range commits {
-		revEntities[c.Rev] = append(revEntities[c.Rev], c.Entity)
-	}
-
 	// count co-occurrences and per-module revision totals
-	// pairKey: canonical sorted pair "A\x00B"
-	pairShared := map[string]int{}
+	pairShared := map[pairKey]int{}
 	moduleRevs := map[string]int{}
 
-	for _, entities := range revEntities {
-		dedupedEntities := dedupe(entities)
-		if len(dedupedEntities) > opts.MaxChangesetSize {
-			continue
-		}
+	for _, dedupedEntities := range filteredChangesets(commits, opts) {
 		// track each module's appearance (for total revisions)
 		for _, e := range dedupedEntities {
 			moduleRevs[e]++
@@ -49,15 +39,14 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 				if a > b {
 					a, b = b, a
 				}
-				pairShared[a+"\x00"+b]++
+				pairShared[pairKey{a, b}]++
 			}
 		}
 	}
 
 	var results []CouplingResult
 	for key, shared := range pairShared {
-		parts := splitPairKey(key)
-		a, b := parts[0], parts[1]
+		a, b := key.a, key.b
 		revsA := moduleRevs[a]
 		revsB := moduleRevs[b]
 		avg := (float64(revsA) + float64(revsB)) / 2.0
@@ -127,17 +116,8 @@ type SumOfCouplingResult struct {
 
 // SumOfCoupling aggregates coupling counts per entity (how many co-changes it participates in).
 func SumOfCoupling(commits []model.Commit, opts model.Options) []SumOfCouplingResult {
-	revEntities := map[string][]string{}
-	for _, c := range commits {
-		revEntities[c.Rev] = append(revEntities[c.Rev], c.Entity)
-	}
-
 	soc := map[string]int{}
-	for _, entities := range revEntities {
-		dedupedEntities := dedupe(entities)
-		if len(dedupedEntities) > opts.MaxChangesetSize {
-			continue
-		}
+	for _, dedupedEntities := range filteredChangesets(commits, opts) {
 		for _, e := range dedupedEntities {
 			soc[e] += len(dedupedEntities) - 1
 		}
@@ -165,6 +145,22 @@ func FormatSumOfCoupling(results []SumOfCouplingResult, _ model.Options) [][]str
 	return out
 }
 
+func filteredChangesets(commits []model.Commit, opts model.Options) [][]string {
+	revEntities := map[string][]string{}
+	for _, c := range commits {
+		revEntities[c.Rev] = append(revEntities[c.Rev], c.Entity)
+	}
+	var out [][]string
+	for _, entities := range revEntities {
+		deduped := dedupe(entities)
+		if len(deduped) > opts.MaxChangesetSize {
+			continue
+		}
+		out = append(out, deduped)
+	}
+	return out
+}
+
 func dedupe(ss []string) []string {
 	if len(ss) <= 1 {
 		return ss
@@ -178,9 +174,4 @@ func dedupe(ss []string) []string {
 		}
 	}
 	return ss[:j]
-}
-
-func splitPairKey(key string) [2]string {
-	a, b, _ := strings.Cut(key, "\x00")
-	return [2]string{a, b}
 }

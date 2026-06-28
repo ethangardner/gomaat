@@ -2,12 +2,32 @@ package analysis
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 
 	"gomaat/internal/model"
 )
 
 type entityAuthorKey struct{ entity, author string }
+
+// ChurnResult holds added/deleted line totals and distinct commit count for one key.
+// Used by AbsChurn (key=date), AuthorChurn (key=author), and EntityChurn (key=entity).
+type ChurnResult struct {
+	Key     string
+	Added   int
+	Deleted int
+	Commits int
+}
+
+// ContributorResult holds the top contributor per entity and their ownership percentage.
+// Used by MainDev, RefactoringMainDev, and MainDevByRevs.
+type ContributorResult struct {
+	Entity      string
+	Contributor string
+	Count       int
+	Total       int
+	Ownership   float64
+}
 
 // countDistinct counts, for each key returned by keyFn, the number of
 // distinct values returned by valFn across commits.
@@ -76,18 +96,10 @@ func aggregateChurn(commits []model.Commit, keyFn func(model.Commit) string) []c
 	return aggs
 }
 
-type topContributorEntry struct {
-	entity    string
-	author    string
-	count     int
-	total     int
-	ownership float64
-}
-
 // pickTopContributor selects, per entity, the author with the highest count
 // from pre-computed per-(entity,author) counts and per-entity totals, and
 // computes ownership %.
-func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]int) []topContributorEntry {
+func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]int) []ContributorResult {
 	type best struct {
 		author string
 		count  int
@@ -100,22 +112,22 @@ func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]
 		}
 	}
 
-	results := make([]topContributorEntry, 0, len(bestByEntity))
+	results := make([]ContributorResult, 0, len(bestByEntity))
 	for entity, b := range bestByEntity {
 		total := totalByEntity[entity]
 		var ownership float64
 		if total > 0 {
 			ownership = float64(b.count) / float64(total) * 100.0
 		}
-		results = append(results, topContributorEntry{entity, b.author, b.count, total, ownership})
+		results = append(results, ContributorResult{entity, b.author, b.count, total, ownership})
 	}
-	slices.SortFunc(results, func(a, b topContributorEntry) int { return cmp.Compare(a.entity, b.entity) })
+	slices.SortFunc(results, func(a, b ContributorResult) int { return cmp.Compare(a.Entity, b.Entity) })
 	return results
 }
 
 // findTopContributor returns, per entity, the author with the highest value
 // from valueFn, along with their count, the entity total, and ownership %.
-func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []topContributorEntry {
+func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []ContributorResult {
 	byKey := map[entityAuthorKey]int{}
 	totalByEntity := map[string]int{}
 	for _, c := range commits {
@@ -125,4 +137,18 @@ func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) 
 		totalByEntity[c.Entity] += v
 	}
 	return pickTopContributor(byKey, totalByEntity)
+}
+
+// formatContributor renders ContributorResult rows to CSV, with caller-supplied
+// column headers for the count and total columns.
+func formatContributor(results []ContributorResult, countHeader, totalHeader string) [][]string {
+	out := [][]string{{"entity", "main-dev", countHeader, totalHeader, "ownership"}}
+	for _, r := range results {
+		out = append(out, []string{
+			r.Entity, r.Contributor,
+			fmt.Sprint(r.Count), fmt.Sprint(r.Total),
+			fmt.Sprintf("%.2f", r.Ownership),
+		})
+	}
+	return out
 }

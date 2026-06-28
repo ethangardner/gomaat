@@ -47,35 +47,14 @@ func FormatEntityEffort(results []EntityEffortResult, _ model.Options) [][]strin
 	return out
 }
 
-type MainDevByRevsResult struct {
-	Entity    string
-	MainDev   string
-	Added     int // revisions from main dev
-	TotalRevs int
-	Ownership float64
-}
-
 // MainDevByRevs returns the author with the most revisions per entity.
-func MainDevByRevs(commits []model.Commit, _ model.Options) []MainDevByRevsResult {
+func MainDevByRevs(commits []model.Commit, _ model.Options) []ContributorResult {
 	authorRevs, totalRevs := revsPerEntityAuthor(commits)
-	entries := pickTopContributor(authorRevs, totalRevs)
-	results := make([]MainDevByRevsResult, len(entries))
-	for i, e := range entries {
-		results[i] = MainDevByRevsResult{e.entity, e.author, e.count, e.total, e.ownership}
-	}
-	return results
+	return pickTopContributor(authorRevs, totalRevs)
 }
 
-func FormatMainDevByRevs(results []MainDevByRevsResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "main-dev", "added", "total-added", "ownership"}}
-	for _, r := range results {
-		out = append(out, []string{
-			r.Entity, r.MainDev,
-			fmt.Sprint(r.Added), fmt.Sprint(r.TotalRevs),
-			fmt.Sprintf("%.2f", r.Ownership),
-		})
-	}
-	return out
+func FormatMainDevByRevs(results []ContributorResult, _ model.Options) [][]string {
+	return formatContributor(results, "revs", "total-revs")
 }
 
 type FragmentationResult struct {
