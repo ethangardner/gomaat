@@ -18,7 +18,6 @@ type Options struct {
 	MaxCoupling      float64
 	MaxChangesetSize int
 	AgeTimeNow       time.Time
-	Rows             int // 0 = no limit
 	VerboseResults   bool
 }
 
