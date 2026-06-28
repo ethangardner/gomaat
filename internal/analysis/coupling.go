@@ -39,12 +39,8 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 			continue
 		}
 		// track each module's appearance (for total revisions)
-		seenInRev := map[string]struct{}{}
 		for _, e := range dedupedEntities {
-			if _, seen := seenInRev[e]; !seen {
-				moduleRevs[e]++
-				seenInRev[e] = struct{}{}
-			}
+			moduleRevs[e]++
 		}
 		// generate all pairs
 		for i := range len(dedupedEntities) {
@@ -170,15 +166,18 @@ func FormatSumOfCoupling(results []SumOfCouplingResult, _ model.Options) [][]str
 }
 
 func dedupe(ss []string) []string {
-	seen := map[string]struct{}{}
-	var out []string
-	for _, s := range ss {
-		if _, ok := seen[s]; !ok {
-			seen[s] = struct{}{}
-			out = append(out, s)
+	if len(ss) <= 1 {
+		return ss
+	}
+	slices.Sort(ss)
+	j := 1
+	for i := 1; i < len(ss); i++ {
+		if ss[i] != ss[i-1] {
+			ss[j] = ss[i]
+			j++
 		}
 	}
-	return out
+	return ss[:j]
 }
 
 func splitPairKey(key string) [2]string {
