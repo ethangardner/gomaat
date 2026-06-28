@@ -53,15 +53,13 @@ func load(r io.Reader) ([]group, error) {
 		rawPath := strings.TrimSpace(before)
 		name := strings.TrimSpace(after)
 
-		var pat *regexp.Regexp
-		var compileErr error
+		pattern := "^" + regexp.QuoteMeta(rawPath) + "/"
 		if strings.HasPrefix(rawPath, "^") {
-			pat, compileErr = regexp.Compile(rawPath)
-		} else {
-			pat, compileErr = regexp.Compile("^" + regexp.QuoteMeta(rawPath) + "/")
+			pattern = rawPath
 		}
-		if compileErr != nil {
-			return nil, fmt.Errorf("invalid pattern %q: %w", rawPath, compileErr)
+		pat, err := regexp.Compile(pattern)
+		if err != nil {
+			return nil, fmt.Errorf("invalid pattern %q: %w", rawPath, err)
 		}
 		groups = append(groups, group{pat, name})
 	}
