@@ -189,6 +189,7 @@ func clocLanguageRows(result *gocloc.Result) [][]string {
 			strconv.Itoa(int(lang.Comments)),
 			strconv.Itoa(int(lang.Code)),
 		})
+
 	}
 
 	t := result.Total

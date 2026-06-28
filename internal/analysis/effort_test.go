@@ -107,7 +107,7 @@ func TestMainDevByRevs(t *testing.T) {
 		t.Fatalf("expected 1 result, got %d", len(results))
 	}
 	// Alice: 2 revs out of 2 total → 100%
-	if results[0].MainDev != "Alice" || results[0].Added != 2 || results[0].TotalRevs != 2 || results[0].Ownership != 100.0 {
+	if results[0].Contributor != "Alice" || results[0].Count != 2 || results[0].Total != 2 || results[0].Ownership != 100.0 {
 		t.Errorf("got %v", results[0])
 	}
 

@@ -19,10 +19,10 @@ func TestAbsChurn(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 	// sorted by date asc
-	if results[0].Date != "2024-01-01" || results[0].Added != 13 || results[0].Deleted != 6 || results[0].Commits != 1 {
+	if results[0].Key != "2024-01-01" || results[0].Added != 13 || results[0].Deleted != 6 || results[0].Commits != 1 {
 		t.Errorf("result 0: got %v, want {2024-01-01 13 6 1}", results[0])
 	}
-	if results[1].Date != "2024-01-02" || results[1].Added != 2 || results[1].Deleted != 8 || results[1].Commits != 1 {
+	if results[1].Key != "2024-01-02" || results[1].Added != 2 || results[1].Deleted != 8 || results[1].Commits != 1 {
 		t.Errorf("result 1: got %v, want {2024-01-02 2 8 1}", results[1])
 	}
 
@@ -42,10 +42,10 @@ func TestAuthorChurn(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 	// sorted by author asc: Alice before Bob
-	if results[0].Author != "Alice" || results[0].Added != 13 || results[0].Deleted != 6 || results[0].Commits != 1 {
+	if results[0].Key != "Alice" || results[0].Added != 13 || results[0].Deleted != 6 || results[0].Commits != 1 {
 		t.Errorf("Alice result: got %v, want {Alice 13 6 1}", results[0])
 	}
-	if results[1].Author != "Bob" || results[1].Added != 2 || results[1].Deleted != 8 || results[1].Commits != 1 {
+	if results[1].Key != "Bob" || results[1].Added != 2 || results[1].Deleted != 8 || results[1].Commits != 1 {
 		t.Errorf("Bob result: got %v, want {Bob 2 8 1}", results[1])
 	}
 
@@ -61,10 +61,10 @@ func TestEntityChurn(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 	// sorted by added desc: foo.go (12) before bar.go (3)
-	if results[0].Entity != "foo.go" || results[0].Added != 12 || results[0].Deleted != 13 || results[0].Commits != 2 {
+	if results[0].Key != "foo.go" || results[0].Added != 12 || results[0].Deleted != 13 || results[0].Commits != 2 {
 		t.Errorf("foo.go result: got %v, want {foo.go 12 13 2}", results[0])
 	}
-	if results[1].Entity != "bar.go" || results[1].Added != 3 || results[1].Deleted != 1 || results[1].Commits != 1 {
+	if results[1].Key != "bar.go" || results[1].Added != 3 || results[1].Deleted != 1 || results[1].Commits != 1 {
 		t.Errorf("bar.go result: got %v, want {bar.go 3 1 1}", results[1])
 	}
 
@@ -98,11 +98,11 @@ func TestMainDev(t *testing.T) {
 	}
 	// sorted by entity: bar.go, foo.go
 	// bar.go: Alice 3/3 = 100%
-	if results[0].Entity != "bar.go" || results[0].MainDev != "Alice" || results[0].Added != 3 || results[0].TotalAdded != 3 || results[0].Ownership != 100.0 {
+	if results[0].Entity != "bar.go" || results[0].Contributor != "Alice" || results[0].Count != 3 || results[0].Total != 3 || results[0].Ownership != 100.0 {
 		t.Errorf("bar.go result: got %v, want {bar.go Alice 3 3 100.00}", results[0])
 	}
 	// foo.go: Alice (10 added) beats Bob (2 added), 10/12 ≈ 83.33%
-	if results[1].Entity != "foo.go" || results[1].MainDev != "Alice" || results[1].Ownership < 83.3 || results[1].Ownership > 83.4 {
+	if results[1].Entity != "foo.go" || results[1].Contributor != "Alice" || results[1].Ownership < 83.3 || results[1].Ownership > 83.4 {
 		t.Errorf("foo.go result: got %v, want entity=foo.go dev=Alice ownership ≈ 83.33", results[1])
 	}
 
@@ -118,7 +118,7 @@ func TestRefactoringMainDev(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 	// foo.go: Bob deleted 8, Alice deleted 5 → Bob is refactoring main dev, 8/13 ≈ 61.54%
-	if results[1].Entity != "foo.go" || results[1].MainDev != "Bob" || results[1].Ownership < 61.5 || results[1].Ownership > 61.6 {
+	if results[1].Entity != "foo.go" || results[1].Contributor != "Bob" || results[1].Ownership < 61.5 || results[1].Ownership > 61.6 {
 		t.Errorf("foo.go result: got %v, want entity=foo.go dev=Bob ownership ≈ 61.54", results[1])
 	}
 
