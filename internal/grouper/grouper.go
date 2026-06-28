@@ -46,12 +46,12 @@ func load(r io.Reader) ([]group, error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		parts := strings.SplitN(line, "=>", 2)
-		if len(parts) != 2 {
+		before, after, found := strings.Cut(line, "=>")
+		if !found {
 			return nil, fmt.Errorf("invalid group spec line: %q", line)
 		}
-		rawPath := strings.TrimSpace(parts[0])
-		name := strings.TrimSpace(parts[1])
+		rawPath := strings.TrimSpace(before)
+		name := strings.TrimSpace(after)
 
 		var pat *regexp.Regexp
 		var compileErr error

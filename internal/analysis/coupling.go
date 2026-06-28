@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"slices"
+	"strings"
 
 	"gomaat/internal/model"
 )
@@ -181,12 +182,6 @@ func dedupe(ss []string) []string {
 }
 
 func splitPairKey(key string) [2]string {
-	idx := 0
-	for i, b := range key {
-		if b == '\x00' {
-			idx = i
-			break
-		}
-	}
-	return [2]string{key[:idx], key[idx+1:]}
+	a, b, _ := strings.Cut(key, "\x00")
+	return [2]string{a, b}
 }
