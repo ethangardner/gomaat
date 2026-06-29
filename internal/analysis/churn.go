@@ -13,11 +13,7 @@ func AbsChurn(commits []model.Commit, _ model.Options) []ChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Date })
 	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
 
-	results := make([]ChurnResult, len(aggs))
-	for i, a := range aggs {
-		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
-	}
-	return results
+	return aggsToChurnResults(aggs)
 }
 
 func FormatAbsChurn(results []ChurnResult, _ model.Options) [][]string {
@@ -29,11 +25,7 @@ func AuthorChurn(commits []model.Commit, _ model.Options) []ChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Author })
 	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
 
-	results := make([]ChurnResult, len(aggs))
-	for i, a := range aggs {
-		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
-	}
-	return results
+	return aggsToChurnResults(aggs)
 }
 
 func FormatAuthorChurn(results []ChurnResult, _ model.Options) [][]string {
@@ -50,11 +42,7 @@ func EntityChurn(commits []model.Commit, _ model.Options) []ChurnResult {
 		return cmp.Compare(a.key, b.key)
 	})
 
-	results := make([]ChurnResult, len(aggs))
-	for i, a := range aggs {
-		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
-	}
-	return results
+	return aggsToChurnResults(aggs)
 }
 
 func FormatEntityChurn(results []ChurnResult, _ model.Options) [][]string {

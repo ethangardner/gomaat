@@ -102,9 +102,6 @@ func parseNumstat(s string) int {
 	if s == "-" {
 		return 0
 	}
-	n, err := strconv.Atoi(s)
-	if err != nil {
-		return 0
-	}
+	n, _ := strconv.Atoi(s)
 	return n
 }

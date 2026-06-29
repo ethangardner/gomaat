@@ -162,16 +162,6 @@ func filteredChangesets(commits []model.Commit, opts model.Options) [][]string {
 }
 
 func dedupe(ss []string) []string {
-	if len(ss) <= 1 {
-		return ss
-	}
 	slices.Sort(ss)
-	j := 1
-	for i := 1; i < len(ss); i++ {
-		if ss[i] != ss[i-1] {
-			ss[j] = ss[i]
-			j++
-		}
-	}
-	return ss[:j]
+	return slices.Compact(ss)
 }

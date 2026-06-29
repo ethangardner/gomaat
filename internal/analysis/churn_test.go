@@ -26,14 +26,7 @@ func TestAbsChurn(t *testing.T) {
 		t.Errorf("result 1: got %v, want {2024-01-02 2 8 1}", results[1])
 	}
 
-	// Verify formatter
-	rows := FormatAbsChurn(results, model.Options{})
-	if rows[0][0] != "date" {
-		t.Fatalf("expected header, got %v", rows[0])
-	}
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatAbsChurn(results, model.Options{}), "date", 3)
 }
 
 func TestAuthorChurn(t *testing.T) {
@@ -49,10 +42,7 @@ func TestAuthorChurn(t *testing.T) {
 		t.Errorf("Bob result: got %v, want {Bob 2 8 1}", results[1])
 	}
 
-	rows := FormatAuthorChurn(results, model.Options{})
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatAuthorChurn(results, model.Options{}), "author", 3)
 }
 
 func TestEntityChurn(t *testing.T) {
@@ -68,10 +58,7 @@ func TestEntityChurn(t *testing.T) {
 		t.Errorf("bar.go result: got %v, want {bar.go 3 1 1}", results[1])
 	}
 
-	rows := FormatEntityChurn(results, model.Options{})
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatEntityChurn(results, model.Options{}), "entity", 3)
 }
 
 func TestEntityOwnership(t *testing.T) {
@@ -85,10 +72,7 @@ func TestEntityOwnership(t *testing.T) {
 		t.Errorf("bar.go/Alice result: got %v, want {bar.go Alice 3 1}", results[0])
 	}
 
-	rows := FormatEntityOwnership(results, model.Options{})
-	if len(rows) != 4 {
-		t.Fatalf("expected 4 rows (header + 3), got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatEntityOwnership(results, model.Options{}), "entity", 4)
 }
 
 func TestMainDev(t *testing.T) {
@@ -106,10 +90,7 @@ func TestMainDev(t *testing.T) {
 		t.Errorf("foo.go result: got %v, want entity=foo.go dev=Alice ownership ≈ 83.33", results[1])
 	}
 
-	rows := FormatMainDev(results, model.Options{})
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatMainDev(results, model.Options{}), "entity", 3)
 }
 
 func TestRefactoringMainDev(t *testing.T) {
@@ -122,8 +103,5 @@ func TestRefactoringMainDev(t *testing.T) {
 		t.Errorf("foo.go result: got %v, want entity=foo.go dev=Bob ownership ≈ 61.54", results[1])
 	}
 
-	rows := FormatRefactoringMainDev(results, model.Options{})
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatRefactoringMainDev(results, model.Options{}), "entity", 3)
 }

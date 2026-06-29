@@ -1,11 +1,11 @@
 package teammapper
 
 import (
-	"os"
 	"strings"
 	"testing"
 
 	"gomaat/internal/model"
+	"gomaat/internal/testhelpers"
 )
 
 func TestLoad(t *testing.T) {
@@ -66,19 +66,9 @@ func TestApply(t *testing.T) {
 }
 
 func TestLoadFile(t *testing.T) {
-	f, err := os.CreateTemp("", "gomaat-teams-*.csv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.Remove(f.Name()) }()
-	if _, err := f.WriteString("Alice,Backend\nBob,Frontend\n"); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
+	path := testhelpers.WriteTempFile(t, "teams.csv", "Alice,Backend\nBob,Frontend\n")
 
-	lookup, err := LoadFile(f.Name())
+	lookup, err := LoadFile(path)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

@@ -85,14 +85,7 @@ func TestEntityEffort(t *testing.T) {
 		t.Errorf("foo.go/Bob result: got %v", results[2])
 	}
 
-	// Verify formatter
-	rows := FormatEntityEffort(results, model.Options{})
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header, got %v", rows[0])
-	}
-	if len(rows) != 4 {
-		t.Fatalf("expected 4 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatEntityEffort(results, model.Options{}), "entity", 4)
 }
 
 func TestMainDevByRevs(t *testing.T) {

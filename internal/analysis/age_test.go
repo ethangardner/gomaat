@@ -48,14 +48,7 @@ func TestAge(t *testing.T) {
 		t.Errorf("result 1: got %v, want {old.go 6}", results[1])
 	}
 
-	// Verify formatter
-	rows := FormatAge(results, opts)
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header, got %v", rows[0])
-	}
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatAge(results, opts), "entity", 3)
 }
 
 func TestAgeUsesLatestDate(t *testing.T) {

@@ -113,7 +113,7 @@ func filterExcludesStream(src io.Reader, dst io.Writer, excludes []string) error
 	for {
 		line, err := reader.ReadBytes('\n')
 		if len(line) > 0 {
-			lineNoNewline := bytes.TrimSuffix(bytes.TrimSuffix(line, []byte("\n")), []byte("\r"))
+			lineNoNewline := bytes.TrimRight(line, "\r\n")
 			if !numstatLineMatchesExclude(string(lineNoNewline), excludes) {
 				if _, writeErr := dst.Write(line); writeErr != nil {
 					return writeErr

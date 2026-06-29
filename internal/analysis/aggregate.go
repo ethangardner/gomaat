@@ -96,6 +96,14 @@ func aggregateChurn(commits []model.Commit, keyFn func(model.Commit) string) []c
 	return aggs
 }
 
+func aggsToChurnResults(aggs []churnAgg) []ChurnResult {
+	results := make([]ChurnResult, len(aggs))
+	for i, a := range aggs {
+		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
+	}
+	return results
+}
+
 // pickTopContributor selects, per entity, the author with the highest count
 // from pre-computed per-(entity,author) counts and per-entity totals, and
 // computes ownership %.

@@ -3,6 +3,7 @@ package output
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -44,21 +45,13 @@ func TestWriteRowLimit(t *testing.T) {
 }
 
 func TestWriteFile(t *testing.T) {
-	f, err := os.CreateTemp("", "gomaat-out-*.csv")
-	if err != nil {
-		t.Fatal(err)
-	}
-	name := f.Name()
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.Remove(name) }()
+	path := filepath.Join(t.TempDir(), "out.csv")
 
 	rows := [][]string{{"entity"}, {"foo.go"}}
-	if err := WriteFile(name, rows, 0); err != nil {
+	if err := WriteFile(path, rows, 0); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	data, _ := os.ReadFile(name)
+	data, _ := os.ReadFile(path)
 	if !strings.Contains(string(data), "foo.go") {
 		t.Errorf("expected foo.go in output file, got: %q", string(data))
 	}

@@ -29,14 +29,7 @@ func TestAuthors(t *testing.T) {
 		t.Errorf("result 1: got %v, want {bar.go 1 1}", results[1])
 	}
 
-	// Verify formatter
-	rows := FormatAuthors(results, model.Options{})
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header row, got %v", rows[0])
-	}
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatAuthors(results, model.Options{}), "entity", 3)
 }
 
 func TestAuthorsDeduplicatesRevisions(t *testing.T) {
