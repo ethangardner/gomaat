@@ -20,14 +20,3 @@ type Options struct {
 	AgeTimeNow       time.Time
 	VerboseResults   bool
 }
-
-func DefaultOptions() Options {
-	return Options{
-		MinRevs:          5,
-		MinSharedRevs:    5,
-		MinCoupling:      30,
-		MaxCoupling:      100,
-		MaxChangesetSize: 30,
-		AgeTimeNow:       time.Now(),
-	}
-}

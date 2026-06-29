@@ -102,6 +102,8 @@ func parseNumstat(s string) int {
 	if s == "-" {
 		return 0
 	}
+	// git numstat produces integers or "-" (handled above); treat anything
+	// else as 0 rather than failing the entire parse.
 	n, _ := strconv.Atoi(s)
 	return n
 }
