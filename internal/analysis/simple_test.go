@@ -26,14 +26,8 @@ func TestRevisions(t *testing.T) {
 		t.Errorf("result 1: got %v, want {bar.go 1}", results[1])
 	}
 
-	// Verify formatter
 	rows := FormatRevisions(results, model.Options{})
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header, got %v", rows[0])
-	}
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, rows, "entity", 3)
 	if rows[1][0] != "foo.go" || rows[1][1] != "2" {
 		t.Errorf("row 1: got %v, want [foo.go 2]", rows[1])
 	}
@@ -79,14 +73,8 @@ func TestIdentity(t *testing.T) {
 		t.Errorf("result 0: got %v, want entity foo.go and rev r1", results[0])
 	}
 
-	// Verify formatter
 	rows := FormatIdentity(results, model.Options{})
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header, got %v", rows[0])
-	}
-	if len(rows) != 4 { // header + 3 commits
-		t.Fatalf("expected 4 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, rows, "entity", 4)
 	r := rows[1]
 	if r[0] != "foo.go" || r[1] != "r1" || r[2] != "2024-01-01" || r[3] != "Alice" || r[4] != "5" || r[5] != "2" {
 		t.Errorf("row 1: got %v, want [foo.go r1 2024-01-01 Alice 5 2]", r)

@@ -33,14 +33,7 @@ func TestCommunication(t *testing.T) {
 		t.Errorf("result 1: got %v, want {Alice Bob ...}", results[1])
 	}
 
-	// Verify formatter
-	rows := FormatCommunication(results, model.Options{})
-	if rows[0][0] != "author" {
-		t.Fatalf("expected header, got %v", rows[0])
-	}
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatCommunication(results, model.Options{}), "author", 3)
 }
 
 func TestCommunicationSingleAuthor(t *testing.T) {
@@ -54,8 +47,5 @@ func TestCommunicationSingleAuthor(t *testing.T) {
 		t.Errorf("expected 0 results, got %d", len(results))
 	}
 
-	rows := FormatCommunication(results, model.Options{})
-	if len(rows) != 1 {
-		t.Errorf("expected header only (no pairs), got %d rows", len(rows))
-	}
+	assertFormattedRows(t, FormatCommunication(results, model.Options{}), "author", 1)
 }

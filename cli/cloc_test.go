@@ -278,19 +278,7 @@ func TestClocFileRowsColumns(t *testing.T) {
 	if len(rows) != 2 {
 		t.Fatalf("expected 2 rows (header + 1 file), got %d", len(rows))
 	}
-	row := rows[1]
-	checks := []struct{ col, want string }{
-		{row[0], "foo.go"},
-		{row[1], "Go"},
-		{row[2], "3"},
-		{row[3], "7"},
-		{row[4], "42"},
-	}
-	for _, c := range checks {
-		if c.col != c.want {
-			t.Errorf("column value: got %q, want %q", c.col, c.want)
-		}
-	}
+	checkHeader(t, rows[1], []string{"foo.go", "Go", "3", "7", "42"})
 }
 
 func initGitRepo(t *testing.T, dir string) {

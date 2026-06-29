@@ -33,24 +33,15 @@ func TestCouplingBasic(t *testing.T) {
 	}
 
 	// {a.go,b.go}: avg=2.5 → degree=80, avgRevs=3 (ceil)
-	r1 := results[0]
-	if r1.Entity != "a.go" || r1.Coupled != "b.go" || r1.Degree != 80 || r1.AvgRevs != 3 {
-		t.Errorf("result 0: got %v, want {a.go b.go 80 3 ...}", r1)
+	if results[0].Entity != "a.go" || results[0].Coupled != "b.go" || results[0].Degree != 80 || results[0].AvgRevs != 3 {
+		t.Errorf("result 0: got %v, want {a.go b.go 80 3}", results[0])
 	}
 	// {a.go,c.go}: avg=2 → degree=50, avgRevs=2
-	r2 := results[1]
-	if r2.Entity != "a.go" || r2.Coupled != "c.go" || r2.Degree != 50 || r2.AvgRevs != 2 {
-		t.Errorf("result 1: got %v, want {a.go c.go 50 2 ...}", r2)
+	if results[1].Entity != "a.go" || results[1].Coupled != "c.go" || results[1].Degree != 50 || results[1].AvgRevs != 2 {
+		t.Errorf("result 1: got %v, want {a.go c.go 50 2}", results[1])
 	}
 
-	// Verify formatter
-	rows := FormatCoupling(results, looseOpts)
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header row, got %v", rows[0])
-	}
-	if len(rows) != 3 {
-		t.Fatalf("expected 3 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatCoupling(results, looseOpts), "entity", 3)
 }
 
 func TestCouplingVerbose(t *testing.T) {
@@ -126,12 +117,5 @@ func TestSumOfCoupling(t *testing.T) {
 		t.Errorf("result 2: got %v, want {c.go 1}", results[2])
 	}
 
-	// Verify formatter
-	rows := FormatSumOfCoupling(results, looseOpts)
-	if rows[0][0] != "entity" {
-		t.Fatalf("expected header, got %v", rows[0])
-	}
-	if len(rows) != 4 {
-		t.Fatalf("expected 4 rows, got %d", len(rows))
-	}
+	assertFormattedRows(t, FormatSumOfCoupling(results, looseOpts), "entity", 4)
 }

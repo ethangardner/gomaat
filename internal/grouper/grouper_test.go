@@ -1,11 +1,11 @@
 package grouper
 
 import (
-	"os"
 	"strings"
 	"testing"
 
 	"gomaat/internal/model"
+	"gomaat/internal/testhelpers"
 )
 
 func TestLoad(t *testing.T) {
@@ -69,19 +69,9 @@ func TestApplyRegexPattern(t *testing.T) {
 }
 
 func TestLoadFile(t *testing.T) {
-	f, err := os.CreateTemp("", "gomaat-groups-*.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = os.Remove(f.Name()) }()
-	if _, err := f.WriteString("src/api => API\n"); err != nil {
-		t.Fatal(err)
-	}
-	if err := f.Close(); err != nil {
-		t.Fatal(err)
-	}
+	path := testhelpers.WriteTempFile(t, "groups.txt", "src/api => API\n")
 
-	groups, err := LoadFile(f.Name())
+	groups, err := LoadFile(path)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
