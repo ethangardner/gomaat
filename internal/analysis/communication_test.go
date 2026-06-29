@@ -3,7 +3,7 @@ package analysis
 import (
 	"testing"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 func TestCommunication(t *testing.T) {

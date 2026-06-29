@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"gomaat/internal/model"
-	"gomaat/internal/testhelpers"
+	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 const sampleLog = `--abc123--2024-01-15--Alice

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 func TestMonthsBetween(t *testing.T) {

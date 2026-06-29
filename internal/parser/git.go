@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 // ParseFile reads a git-format log file and returns all commits.

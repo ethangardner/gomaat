@@ -3,7 +3,7 @@ package analysis
 import (
 	"fmt"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 func Identity(commits []model.Commit, _ model.Options) []model.Commit {

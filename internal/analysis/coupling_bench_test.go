@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 func BenchmarkCoupling(b *testing.B) {

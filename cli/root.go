@@ -7,12 +7,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gomaat/internal/analysis"
-	"gomaat/internal/grouper"
-	"gomaat/internal/model"
-	"gomaat/internal/output"
-	"gomaat/internal/parser"
-	"gomaat/internal/teammapper"
+	"github.com/ethangardner/gomaat/internal/analysis"
+	"github.com/ethangardner/gomaat/internal/grouper"
+	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/output"
+	"github.com/ethangardner/gomaat/internal/parser"
+	"github.com/ethangardner/gomaat/internal/teammapper"
 )
 
 // persistent flag values (shared across all analysis subcommands)

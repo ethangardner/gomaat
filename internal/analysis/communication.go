@@ -6,7 +6,7 @@ import (
 	"math"
 	"slices"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 type CommunicationResult struct {

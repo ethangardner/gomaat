@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 type group struct {

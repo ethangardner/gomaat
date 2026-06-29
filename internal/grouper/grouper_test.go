@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"gomaat/internal/model"
-	"gomaat/internal/testhelpers"
+	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 func TestLoad(t *testing.T) {
