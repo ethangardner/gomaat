@@ -3,6 +3,7 @@ package analysis
 import (
 	"cmp"
 	"fmt"
+	"os"
 	"slices"
 	"time"
 
@@ -33,6 +34,7 @@ func Age(commits []model.Commit, opts model.Options) []AgeResult {
 	for entity, dateStr := range lastDate {
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: skipping %q: unparseable date %q\n", entity, dateStr)
 			continue
 		}
 		months := monthsBetween(t, now)

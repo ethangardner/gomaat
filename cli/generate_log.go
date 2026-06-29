@@ -97,17 +97,6 @@ Examples:
 	return cmd
 }
 
-// filterExcludes removes numstat lines whose path matches any exclude pattern.
-// Patterns ending in "/" match directory prefixes; others are matched as globs
-// against both the full path and the base filename.
-func filterExcludes(data []byte, excludes []string) []byte {
-	var out bytes.Buffer
-	if err := filterExcludesStream(bytes.NewReader(data), &out, excludes); err != nil {
-		return data
-	}
-	return out.Bytes()
-}
-
 func filterExcludesStream(src io.Reader, dst io.Writer, excludes []string) error {
 	reader := bufio.NewReader(src)
 	for {

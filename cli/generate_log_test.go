@@ -49,8 +49,11 @@ func TestFilterExcludes(t *testing.T) {
 		"",
 	}, "\n")
 
-	out := filterExcludes([]byte(input), []string{"vendor/", "*.pb.go"})
-	result := string(out)
+	var out bytes.Buffer
+	if err := filterExcludesStream(strings.NewReader(input), &out, []string{"vendor/", "*.pb.go"}); err != nil {
+		t.Fatalf("filterExcludesStream: %v", err)
+	}
+	result := out.String()
 
 	kept := []string{"src/foo.go", "src/bar.go", "--abc123", "--def456"}
 	for _, s := range kept {
@@ -69,9 +72,12 @@ func TestFilterExcludes(t *testing.T) {
 
 func TestFilterExcludesNoPatterns(t *testing.T) {
 	input := "5\t3\tvendor/foo.go\n"
-	out := filterExcludes([]byte(input), nil)
-	if string(out) != input {
-		t.Errorf("filterExcludes with no patterns should return input unchanged")
+	var out bytes.Buffer
+	if err := filterExcludesStream(strings.NewReader(input), &out, nil); err != nil {
+		t.Fatalf("filterExcludesStream: %v", err)
+	}
+	if out.String() != input {
+		t.Errorf("filterExcludesStream with no patterns should return input unchanged")
 	}
 }
 
@@ -94,31 +100,6 @@ func TestNumstatLineMatchesExclude(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("numstatLineMatchesExclude(%q, %v) = %v, want %v", tt.line, tt.excludes, got, tt.want)
 		}
-	}
-}
-
-func TestFilterExcludesStreamMatchesFilterExcludes(t *testing.T) {
-	input := strings.Join([]string{
-		"--abc123--2024-01-15--Alice",
-		"5\t3\tsrc/foo.go",
-		"2\t1\tvendor/github.com/lib/lib.go",
-		"1\t0\tsrc/types.pb.go",
-		"",
-		"--def456--2024-02-01--Bob",
-		"3\t2\tsrc/bar.go",
-		"4\t0\tsrc/api/gen.pb.go",
-		"",
-	}, "\n")
-
-	want := filterExcludes([]byte(input), []string{"vendor/", "*.pb.go"})
-
-	var got bytes.Buffer
-	if err := filterExcludesStream(strings.NewReader(input), &got, []string{"vendor/", "*.pb.go"}); err != nil {
-		t.Fatalf("filterExcludesStream: %v", err)
-	}
-
-	if got.String() != string(want) {
-		t.Fatalf("stream filter mismatch\n got:\n%s\nwant:\n%s", got.String(), string(want))
 	}
 }
 
