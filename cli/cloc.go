@@ -13,7 +13,7 @@ import (
 	"github.com/hhatto/gocloc"
 	"github.com/spf13/cobra"
 
-	"gomaat/internal/output"
+	"github.com/ethangardner/gomaat/internal/output"
 )
 
 func newClocProcessor() *gocloc.Processor {

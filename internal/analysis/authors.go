@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"slices"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 type AuthorsResult struct {

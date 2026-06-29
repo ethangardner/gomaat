@@ -6,7 +6,7 @@ import (
 	"slices"
 	"time"
 
-	"gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/model"
 )
 
 type AgeResult struct {

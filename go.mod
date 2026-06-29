@@ -1,4 +1,4 @@
-module gomaat
+module github.com/ethangardner/gomaat
 
 go 1.26.3
 
