@@ -129,6 +129,19 @@ func (errWriter) Write(_ []byte) (int, error) {
 	return 0, io.ErrClosedPipe
 }
 
+func TestFilterExcludesStreamReaderError(t *testing.T) {
+	err := filterExcludesStream(errReader{}, &bytes.Buffer{}, nil)
+	if err == nil {
+		t.Fatal("expected reader error, got nil")
+	}
+}
+
+type errReader struct{}
+
+func (errReader) Read(_ []byte) (int, error) {
+	return 0, io.ErrUnexpectedEOF
+}
+
 func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
 	input := "1\t0\tvendor/foo.go\r\n2\t0\tsrc/keep.go\r\n"
 

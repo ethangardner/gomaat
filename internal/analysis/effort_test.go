@@ -124,3 +124,21 @@ func TestFragmentationSortOrder(t *testing.T) {
 		t.Errorf("expected bar.go (higher fractal) first, got %q", results[0].Entity)
 	}
 }
+
+func TestFragmentationTiebreaker(t *testing.T) {
+	// Two single-author entities both have fractal=0; tie-breaker sorts alphabetically by entity name.
+	commits := []model.Commit{
+		{Rev: "r1", Author: "Alice", Entity: "b.go"},
+		{Rev: "r2", Author: "Bob", Entity: "a.go"},
+	}
+	results := Fragmentation(commits, model.Options{})
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	if results[0].Fractal != results[1].Fractal {
+		t.Fatalf("expected equal fractal values for tie-breaker test, got %v and %v", results[0].Fractal, results[1].Fractal)
+	}
+	if results[0].Entity != "a.go" {
+		t.Errorf("expected a.go first (alphabetical tie-breaker), got %q", results[0].Entity)
+	}
+}

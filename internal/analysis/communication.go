@@ -29,7 +29,22 @@ type CommunicationResult struct {
 //  6. average = ceil((self_A + self_B) / 2)
 //  7. strength = int((shared / average) * 100)
 func Communication(commits []model.Commit, _ model.Options) []CommunicationResult {
-	// Collect distinct authors per entity
+	entityAuthors := groupAuthorsByEntity(commits)
+	freqs := countPairFrequencies(entityAuthors)
+	results := computeResults(freqs)
+
+	slices.SortFunc(results, func(a, b CommunicationResult) int {
+		if c := cmp.Compare(b.Strength, a.Strength); c != 0 {
+			return c
+		}
+		return cmp.Compare(b.Author, a.Author)
+	})
+
+	return results
+}
+
+// groupAuthorsByEntity returns a set of distinct authors for each entity across all commits.
+func groupAuthorsByEntity(commits []model.Commit) map[string]map[string]struct{} {
 	entityAuthors := map[string]map[string]struct{}{}
 	for _, c := range commits {
 		if _, ok := entityAuthors[c.Entity]; !ok {
@@ -37,24 +52,27 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 		}
 		entityAuthors[c.Entity][c.Author] = struct{}{}
 	}
+	return entityAuthors
+}
 
-	// Generate all 2-selections (with replacement) and count frequencies.
-	// Self-pairs (a==b) give author's total entity count.
+// countPairFrequencies counts how many entities each ordered author pair (including self-pairs)
+// co-authored. Self-pairs [A,A] accumulate A's total entity count; cross-pairs [A,B] accumulate
+// the number of entities shared between A and B.
+func countPairFrequencies(authorsByEntity map[string]map[string]struct{}) map[pairKey]int {
 	freqs := map[pairKey]int{}
-	for _, authors := range entityAuthors {
-		authorList := make([]string, 0, len(authors))
-		for a := range authors {
-			authorList = append(authorList, a)
-		}
+	for _, authors := range authorsByEntity {
 		// all ordered pairs including self-pairs
-		for _, a := range authorList {
-			for _, b := range authorList {
+		for a := range authors {
+			for b := range authors {
 				freqs[pairKey{a, b}]++
 			}
 		}
 	}
+	return freqs
+}
 
-	// Build results from non-self pairs.
+// computeResults converts pair frequencies into CommunicationResult rows, skipping self-pairs.
+func computeResults(freqs map[pairKey]int) []CommunicationResult {
 	var results []CommunicationResult
 	for key, shared := range freqs {
 		me, peer := key.a, key.b
@@ -70,14 +88,6 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 		strength := int((float64(shared) / float64(avg)) * 100.0)
 		results = append(results, CommunicationResult{me, peer, shared, avg, strength})
 	}
-
-	slices.SortFunc(results, func(a, b CommunicationResult) int {
-		if c := cmp.Compare(b.Strength, a.Strength); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Author, a.Author)
-	})
-
 	return results
 }
 
