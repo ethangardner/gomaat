@@ -69,25 +69,16 @@ type FragmentationResult struct {
 func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResult {
 	authorRevs, totalRevs := revsPerEntityAuthor(commits)
 
-	// collect authors per entity
-	entityAuthors := map[string][]string{}
-	for k := range authorRevs {
-		entityAuthors[k.entity] = append(entityAuthors[k.entity], k.author)
+	sumSqPerEntity := map[string]float64{}
+	for k, revs := range authorRevs {
+		ratio := float64(revs) / float64(totalRevs[k.entity])
+		sumSqPerEntity[k.entity] += ratio * ratio
 	}
 
-	results := make([]FragmentationResult, 0, len(entityAuthors))
-	for entity, authors := range entityAuthors {
-		total := totalRevs[entity]
-		var sumSq float64
-		if total > 0 {
-			for _, author := range authors {
-				ratio := float64(authorRevs[entityAuthorKey{entity, author}]) / float64(total)
-				sumSq += ratio * ratio
-			}
-		}
-		fractal := 1.0 - sumSq
-		fractal = math.Round(fractal*100) / 100
-		results = append(results, FragmentationResult{entity, fractal, total})
+	results := make([]FragmentationResult, 0, len(sumSqPerEntity))
+	for entity, sumSq := range sumSqPerEntity {
+		fractal := math.Round((1.0-sumSq)*100) / 100
+		results = append(results, FragmentationResult{entity, fractal, totalRevs[entity]})
 	}
 	slices.SortFunc(results, func(a, b FragmentationResult) int {
 		if c := cmp.Compare(b.Fractal, a.Fractal); c != 0 {

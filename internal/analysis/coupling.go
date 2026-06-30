@@ -23,22 +23,13 @@ type pairKey struct{ a, b string }
 
 // Coupling detects modules that tend to change together (temporal coupling).
 func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
-	// count co-occurrences and per-module revision totals
 	pairShared := map[pairKey]int{}
 	moduleRevs := map[string]int{}
 
-	for _, dedupedEntities := range filteredChangesets(commits, opts) {
-		// track each module's appearance (for total revisions)
-		for _, e := range dedupedEntities {
-			moduleRevs[e]++
-		}
-		// generate all pairs
-		for i := range len(dedupedEntities) {
-			for j := i + 1; j < len(dedupedEntities); j++ {
-				a, b := dedupedEntities[i], dedupedEntities[j]
-				if a > b {
-					a, b = b, a
-				}
+	for _, entities := range filteredChangesets(commits, opts) {
+		for i, a := range entities {
+			moduleRevs[a]++
+			for _, b := range entities[i+1:] {
 				pairShared[pairKey{a, b}]++
 			}
 		}
@@ -46,28 +37,20 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 
 	var results []CouplingResult
 	for key, shared := range pairShared {
-		a, b := key.a, key.b
-		revsA := moduleRevs[a]
-		revsB := moduleRevs[b]
+		revsA, revsB := moduleRevs[key.a], moduleRevs[key.b]
 		avg := (float64(revsA) + float64(revsB)) / 2.0
 		degree := (float64(shared) / avg) * 100.0
 
-		if avg < float64(opts.MinRevs) {
-			continue
-		}
-		if shared < opts.MinSharedRevs {
-			continue
-		}
-		if degree < opts.MinCoupling {
-			continue
-		}
-		if math.Floor(degree) > opts.MaxCoupling {
+		if avg < float64(opts.MinRevs) ||
+			shared < opts.MinSharedRevs ||
+			degree < opts.MinCoupling ||
+			math.Floor(degree) > opts.MaxCoupling {
 			continue
 		}
 
 		results = append(results, CouplingResult{
-			Entity:  a,
-			Coupled: b,
+			Entity:  key.a,
+			Coupled: key.b,
 			Degree:  int(degree),
 			AvgRevs: int(math.Ceil(avg)),
 			RevA:    revsA,
@@ -87,24 +70,19 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 }
 
 func FormatCoupling(results []CouplingResult, opts model.Options) [][]string {
-	var headers []string
+	headers := []string{"entity", "coupled", "degree", "average-revs"}
 	if opts.VerboseResults {
-		headers = []string{"entity", "coupled", "degree", "average-revs", "first-entity-revisions", "second-entity-revisions", "shared-revisions"}
-	} else {
-		headers = []string{"entity", "coupled", "degree", "average-revs"}
+		headers = append(headers, "first-entity-revisions", "second-entity-revisions", "shared-revisions")
 	}
 
-	out := [][]string{headers}
+	out := make([][]string, 0, len(results)+1)
+	out = append(out, headers)
 	for _, r := range results {
+		row := []string{r.Entity, r.Coupled, fmt.Sprint(r.Degree), fmt.Sprint(r.AvgRevs)}
 		if opts.VerboseResults {
-			out = append(out, []string{
-				r.Entity, r.Coupled,
-				fmt.Sprint(r.Degree), fmt.Sprint(r.AvgRevs),
-				fmt.Sprint(r.RevA), fmt.Sprint(r.RevB), fmt.Sprint(r.Shared),
-			})
-		} else {
-			out = append(out, []string{r.Entity, r.Coupled, fmt.Sprint(r.Degree), fmt.Sprint(r.AvgRevs)})
+			row = append(row, fmt.Sprint(r.RevA), fmt.Sprint(r.RevB), fmt.Sprint(r.Shared))
 		}
+		out = append(out, row)
 	}
 	return out
 }

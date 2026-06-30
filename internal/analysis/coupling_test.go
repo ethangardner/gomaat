@@ -99,6 +99,49 @@ func TestCouplingEmpty(t *testing.T) {
 	}
 }
 
+func TestCouplingTiebreakerByAvgRevs(t *testing.T) {
+	// a.go+b.go co-change twice, c.go+d.go co-change four times.
+	// Both pairs reach degree=100; avgRevs differs (2 vs 4).
+	// Sort must place the higher-avgRevs pair first (exercises AvgRevs tie-breaker branch).
+	commits := []model.Commit{
+		{Rev: "r1", Entity: "a.go"}, {Rev: "r1", Entity: "b.go"},
+		{Rev: "r2", Entity: "a.go"}, {Rev: "r2", Entity: "b.go"},
+		{Rev: "r3", Entity: "c.go"}, {Rev: "r3", Entity: "d.go"},
+		{Rev: "r4", Entity: "c.go"}, {Rev: "r4", Entity: "d.go"},
+		{Rev: "r5", Entity: "c.go"}, {Rev: "r5", Entity: "d.go"},
+		{Rev: "r6", Entity: "c.go"}, {Rev: "r6", Entity: "d.go"},
+	}
+	results := Coupling(commits, looseOpts)
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	if results[0].Degree != 100 || results[1].Degree != 100 {
+		t.Errorf("expected both degrees=100, got %d and %d", results[0].Degree, results[1].Degree)
+	}
+	if results[0].AvgRevs <= results[1].AvgRevs {
+		t.Errorf("expected higher avgRevs first, got %d then %d", results[0].AvgRevs, results[1].AvgRevs)
+	}
+}
+
+func TestSumOfCouplingTiebreaker(t *testing.T) {
+	// a.go and b.go both appear in the same two commits → equal SOC.
+	// Tie-breaker must sort alphabetically by entity name (exercises entity tie-breaker branch).
+	commits := []model.Commit{
+		{Rev: "r1", Entity: "b.go"}, {Rev: "r1", Entity: "a.go"},
+		{Rev: "r2", Entity: "b.go"}, {Rev: "r2", Entity: "a.go"},
+	}
+	results := SumOfCoupling(commits, looseOpts)
+	if len(results) != 2 {
+		t.Fatalf("expected 2 results, got %d", len(results))
+	}
+	if results[0].Soc != results[1].Soc {
+		t.Fatalf("expected equal SOC values for tie-breaker test, got %d and %d", results[0].Soc, results[1].Soc)
+	}
+	if results[0].Entity != "a.go" {
+		t.Errorf("expected a.go first (alphabetical), got %q", results[0].Entity)
+	}
+}
+
 func TestSumOfCoupling(t *testing.T) {
 	// r1: a.go+b.go, r2: a.go+b.go, r3: a.go+c.go
 	// soc: a.go=3, b.go=2, c.go=1
