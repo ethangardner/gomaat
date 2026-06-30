@@ -43,6 +43,7 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 	return results
 }
 
+// groupAuthorsByEntity returns a set of distinct authors for each entity across all commits.
 func groupAuthorsByEntity(commits []model.Commit) map[string]map[string]struct{} {
 	entityAuthors := map[string]map[string]struct{}{}
 	for _, c := range commits {
@@ -54,6 +55,9 @@ func groupAuthorsByEntity(commits []model.Commit) map[string]map[string]struct{}
 	return entityAuthors
 }
 
+// countPairFrequencies counts how many entities each ordered author pair (including self-pairs)
+// co-authored. Self-pairs [A,A] accumulate A's total entity count; cross-pairs [A,B] accumulate
+// the number of entities shared between A and B.
 func countPairFrequencies(authorsByEntity map[string]map[string]struct{}) map[pairKey]int {
 	freqs := map[pairKey]int{}
 	for _, authors := range authorsByEntity {
@@ -67,6 +71,7 @@ func countPairFrequencies(authorsByEntity map[string]map[string]struct{}) map[pa
 	return freqs
 }
 
+// computeResults converts pair frequencies into CommunicationResult rows, skipping self-pairs.
 func computeResults(freqs map[pairKey]int) []CommunicationResult {
 	var results []CommunicationResult
 	for key, shared := range freqs {
