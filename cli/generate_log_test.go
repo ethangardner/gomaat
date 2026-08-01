@@ -3,6 +3,10 @@ package cli
 import (
 	"bytes"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -13,17 +17,13 @@ func TestMatchesExcludePattern(t *testing.T) {
 		pattern string
 		want    bool
 	}{
-		// directory prefix
 		{"vendor/github.com/foo/bar.go", "vendor/", true},
 		{"vendor/foo.go", "vendor/", true},
 		{"src/vendor/foo.go", "vendor/", false},
-		// glob against base name
 		{"src/api/types.pb.go", "*.pb.go", true},
 		{"src/api/types.go", "*.pb.go", false},
-		// glob against full path
 		{"src/generated/types.pb.go", "src/generated/*.pb.go", true},
 		{"src/other/types.pb.go", "src/generated/*.pb.go", false},
-		// exact match
 		{"go.sum", "go.sum", true},
 		{"go.mod", "go.sum", false},
 	}
@@ -33,6 +33,82 @@ func TestMatchesExcludePattern(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("matchesExcludePattern(%q, %q) = %v, want %v", tt.path, tt.pattern, got, tt.want)
 		}
+	}
+}
+
+func TestBuildExcludePathspecArgs(t *testing.T) {
+	tests := []struct {
+		name     string
+		excludes []string
+		want     []string
+	}{
+		{"nil excludes", nil, nil},
+		{"empty excludes", []string{}, nil},
+		{"only glob patterns", []string{"*.pb.go"}, nil},
+		{"single dir pattern", []string{"vendor/"}, []string{"--", ".", ":(exclude,literal)vendor/"}},
+		{
+			"multiple dir patterns",
+			[]string{"vendor/", "data/"},
+			[]string{"--", ".", ":(exclude,literal)vendor/", ":(exclude,literal)data/"},
+		},
+		{
+			"mixed dir and glob patterns",
+			[]string{"vendor/", "*.pb.go"},
+			[]string{"--", ".", ":(exclude,literal)vendor/"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildExcludePathspecArgs(tt.excludes)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildExcludePathspecArgs(%v) = %v, want %v", tt.excludes, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRunGitLogExcludesDirectory(t *testing.T) {
+	dir := t.TempDir()
+	for _, args := range [][]string{
+		{"init"},
+		{"config", "user.email", "test@example.com"},
+		{"config", "user.name", "Test"},
+	} {
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+
+	dataDir := filepath.Join(dir, "data")
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dataDir, "big.csv"), []byte("a,b,c\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src_main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := exec.Command("git", "-C", dir, "add", "-A").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dir, "commit", "-m", "initial").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	if err := runGitLog(dir, "", []string{"data/"}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	result := out.String()
+	if !strings.Contains(result, "src_main.go") {
+		t.Errorf("expected src_main.go in output, got:\n%s", result)
+	}
+	if strings.Contains(result, "data/") || strings.Contains(result, "big.csv") {
+		t.Errorf("expected data/ to be excluded from output, got:\n%s", result)
 	}
 }
 

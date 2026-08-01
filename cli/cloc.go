@@ -36,7 +36,7 @@ Examples:
   gomaat cloc --exclude vendor/ --exclude '*.pb.go'
   gomaat cloc --by-file -o results.csv`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			trackedFiles, repoRoot, err := gitTrackedFiles(path)
+			trackedFiles, repoRoot, err := gitTrackedFiles(path, excludes)
 			if err != nil {
 				return err
 			}
@@ -76,9 +76,8 @@ Examples:
 	return cmd
 }
 
-// gitTrackedFiles returns the absolute paths of all files tracked by git under
-// path, along with the resolved absolute path used as the repo root.
-func gitTrackedFiles(path string) ([]string, string, error) {
+// gitTrackedFiles returns absolute paths of tracked files under path.
+func gitTrackedFiles(path string, excludes []string) ([]string, string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return nil, "", err
@@ -93,7 +92,8 @@ func gitTrackedFiles(path string) ([]string, string, error) {
 		return nil, "", fmt.Errorf("git rev-parse --show-toplevel returned empty repository root")
 	}
 
-	out, err := exec.Command("git", "-C", repoRoot, "ls-files").CombinedOutput()
+	lsArgs := append([]string{"-C", repoRoot, "ls-files"}, buildExcludePathspecArgs(excludes)...)
+	out, err := exec.Command("git", lsArgs...).CombinedOutput()
 	if err != nil {
 		return nil, "", fmt.Errorf("git ls-files failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
@@ -131,7 +131,6 @@ func relativizeResult(result *gocloc.Result, root string) {
 	}
 }
 
-// applyClocExcludes removes excluded files from result and adjusts language and total counts.
 func applyClocExcludes(result *gocloc.Result, excludes []string) {
 	for filePath, f := range result.Files {
 		if !pathMatchesAnyExclude(filePath, excludes) {

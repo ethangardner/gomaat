@@ -29,26 +29,6 @@ Examples:
   gomaat generate-log --path /path/to/repo --after 2022-06-01 -o logfile.log
   gomaat generate-log --exclude vendor/ --exclude '*.pb.go' -o logfile.log`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
-			gitArgs := []string{
-				"-C", path,
-				"log", "--all", "--numstat",
-				"--date=short",
-				"--pretty=format:--%h--%ad--%aN",
-				"--no-renames",
-			}
-			if after != "" {
-				gitArgs = append(gitArgs, "--after="+after)
-			}
-
-			var stderr strings.Builder
-			gitCmd := exec.Command("git", gitArgs...)
-			gitCmd.Stderr = &stderr
-
-			stdout, err := gitCmd.StdoutPipe()
-			if err != nil {
-				return fmt.Errorf("creating git stdout pipe: %w", err)
-			}
-
 			dst := os.Stdout
 			var outHandle *os.File
 			if outFile != "" {
@@ -64,23 +44,8 @@ Examples:
 				dst = outHandle
 			}
 
-			if err := gitCmd.Start(); err != nil {
-				return fmt.Errorf("starting git log: %w", err)
-			}
-
-			if len(excludes) > 0 {
-				err = filterExcludesStream(stdout, dst, excludes)
-			} else {
-				_, err = io.Copy(dst, stdout)
-			}
-			if err != nil {
-				_ = stdout.Close()
-				_ = gitCmd.Wait()
-				return fmt.Errorf("processing git log output: %w", err)
-			}
-
-			if err := gitCmd.Wait(); err != nil {
-				return fmt.Errorf("git log failed: %w\n%s\nCommand: git %s", err, strings.TrimSpace(stderr.String()), strings.Join(gitArgs, " "))
+			if err := runGitLog(path, after, excludes, dst); err != nil {
+				return err
 			}
 
 			if outFile != "" {
@@ -95,6 +60,67 @@ Examples:
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
 	return cmd
+}
+
+// runGitLog runs git log against path and streams output to dst.
+func runGitLog(path, after string, excludes []string, dst io.Writer) error {
+	gitArgs := []string{
+		"-C", path,
+		"log", "--all", "--numstat",
+		"--date=short",
+		"--pretty=format:--%h--%ad--%aN",
+		"--no-renames",
+	}
+	if after != "" {
+		gitArgs = append(gitArgs, "--after="+after)
+	}
+	gitArgs = append(gitArgs, buildExcludePathspecArgs(excludes)...)
+
+	var stderr strings.Builder
+	gitCmd := exec.Command("git", gitArgs...)
+	gitCmd.Stderr = &stderr
+
+	stdout, err := gitCmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("creating git stdout pipe: %w", err)
+	}
+
+	if err := gitCmd.Start(); err != nil {
+		return fmt.Errorf("starting git log: %w", err)
+	}
+
+	if len(excludes) > 0 {
+		err = filterExcludesStream(stdout, dst, excludes)
+	} else {
+		_, err = io.Copy(dst, stdout)
+	}
+	if err != nil {
+		_ = stdout.Close()
+		_ = gitCmd.Wait()
+		return fmt.Errorf("processing git log output: %w", err)
+	}
+
+	if err := gitCmd.Wait(); err != nil {
+		return fmt.Errorf("git log failed: %w\n%s\nCommand: git %s", err, strings.TrimSpace(stderr.String()), strings.Join(gitArgs, " "))
+	}
+	return nil
+}
+
+func buildExcludePathspecArgs(excludes []string) []string {
+	var dirExcludes []string
+	for _, pattern := range excludes {
+		if strings.HasSuffix(pattern, "/") {
+			dirExcludes = append(dirExcludes, pattern)
+		}
+	}
+	if len(dirExcludes) == 0 {
+		return nil
+	}
+	args := []string{"--", "."}
+	for _, pattern := range dirExcludes {
+		args = append(args, ":(exclude,literal)"+pattern)
+	}
+	return args
 }
 
 func filterExcludesStream(src io.Reader, dst io.Writer, excludes []string) error {

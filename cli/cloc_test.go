@@ -11,14 +11,11 @@ import (
 	"github.com/hhatto/gocloc"
 )
 
-// fileSpec describes a single file for use with buildResult.
 type fileSpec struct {
 	path, lang             string
 	code, comments, blanks int32
 }
 
-// buildResult constructs a *gocloc.Result from file specs. Language-level
-// aggregates are derived from the files so tests don't have to repeat them.
 func buildResult(specs ...fileSpec) *gocloc.Result {
 	langs := map[string]*gocloc.Language{}
 	files := map[string]*gocloc.ClocFile{}
@@ -41,7 +38,6 @@ func buildResult(specs ...fileSpec) *gocloc.Result {
 	return &gocloc.Result{Total: total, Languages: langs, Files: files}
 }
 
-// checkHeader verifies that a CSV header row matches want, column by column.
 func checkHeader(t *testing.T, row, want []string) {
 	t.Helper()
 	if len(row) != len(want) {
@@ -54,7 +50,6 @@ func checkHeader(t *testing.T, row, want []string) {
 	}
 }
 
-// runClocAnalysis runs gocloc over dir and fatals on error.
 func runClocAnalysis(t *testing.T, dir string) *gocloc.Result {
 	t.Helper()
 	result, err := newClocProcessor().Analyze([]string{dir})
@@ -75,9 +70,9 @@ func TestPathMatchesAnyExclude(t *testing.T) {
 		{"src/foo.pb.go", []string{"*.pb.go"}, true},
 		{"src/foo.go", []string{"*.pb.go"}, false},
 		{"src/foo.go", []string{}, false},
-		{"vendor/foo.go", []string{"*.pb.go", "vendor/"}, true}, // second pattern matches
-		{"src/foo.pb.go", []string{"*.pb.go", "vendor/"}, true}, // first pattern matches
-		{"src/foo.go", []string{"*.pb.go", "vendor/"}, false},   // neither matches
+		{"vendor/foo.go", []string{"*.pb.go", "vendor/"}, true},
+		{"src/foo.pb.go", []string{"*.pb.go", "vendor/"}, true},
+		{"src/foo.go", []string{"*.pb.go", "vendor/"}, false},
 	}
 
 	for _, tt := range tests {
@@ -309,7 +304,7 @@ func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, root, err := gitTrackedFiles(dir)
+	files, root, err := gitTrackedFiles(dir, nil)
 	if err != nil {
 		t.Fatalf("gitTrackedFiles: %v", err)
 	}
@@ -319,6 +314,41 @@ func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
 	}
 	if len(files) != 1 || files[0] != tracked {
 		t.Errorf("got %v, want [%s]", files, tracked)
+	}
+}
+
+func TestGitTrackedFilesExcludesDirViaPathspec(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+
+	vendorDir := filepath.Join(dir, "vendor")
+	if err := os.MkdirAll(vendorDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	vendored := filepath.Join(vendorDir, "foo.go")
+	kept := filepath.Join(dir, "main.go")
+	for _, f := range []string{vendored, kept} {
+		if err := os.WriteFile(f, []byte("package main\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := exec.Command("git", "-C", dir, "add", "vendor/foo.go", "main.go").Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	files, _, err := gitTrackedFiles(dir, []string{"vendor/"})
+	if err != nil {
+		t.Fatalf("gitTrackedFiles: %v", err)
+	}
+
+	for _, f := range files {
+		if f == vendored {
+			t.Errorf("expected %q to be excluded by git pathspec, but it was returned: %v", vendored, files)
+		}
+	}
+	if len(files) != 1 || files[0] != kept {
+		t.Errorf("got %v, want [%s]", files, kept)
 	}
 }
 
@@ -339,7 +369,7 @@ func TestGitTrackedFilesFromSubdirectoryUsesRepoRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	files, root, err := gitTrackedFiles(nestedDir)
+	files, root, err := gitTrackedFiles(nestedDir, nil)
 	if err != nil {
 		t.Fatalf("gitTrackedFiles: %v", err)
 	}
@@ -354,7 +384,7 @@ func TestGitTrackedFilesFromSubdirectoryUsesRepoRoot(t *testing.T) {
 
 func TestGitTrackedFilesErrorsOnNonRepo(t *testing.T) {
 	dir := t.TempDir()
-	_, _, err := gitTrackedFiles(dir)
+	_, _, err := gitTrackedFiles(dir, nil)
 	if err == nil {
 		t.Fatal("expected error for non-git directory, got nil")
 	}
