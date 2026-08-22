@@ -11,6 +11,8 @@ builds:
     binary: gomaat
     env:
       - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X github.com/ethangardner/gomaat/cli.version={{.Version}}
     goos:
       - linux
       - darwin

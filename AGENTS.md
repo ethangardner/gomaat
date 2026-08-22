@@ -25,7 +25,7 @@ Run a single test:
 go test ./internal/analysis/ -run TestCoupling -v
 ```
 
-CI (`.github/workflows/ci.yml`) runs `go vet`, `gofmt -l .` (must be empty), `golangci-lint run`, and `go test ./...`. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply.
+CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), `golangci-lint run`, and `go test ./...`. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply.
 
 ## Architecture
 
