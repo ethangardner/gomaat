@@ -24,9 +24,13 @@ var (
 	teamMapFile string
 )
 
+// version is overridden at release build time via -ldflags (see .goreleaser.yml).
+var version = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "gomaat",
-	Short: "Mine and analyze git history",
+	Use:     "gomaat",
+	Short:   "Mine and analyze git history",
+	Version: version,
 	Long: `gomaat mines git version-control history to surface design insights:
 logical coupling, code churn, authorship patterns, code age, and more.
 
