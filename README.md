@@ -108,10 +108,12 @@ gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --outfile logfile.log
 
 The log is generated using:
 ```
-git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames [--after=DATE] [-- . :(exclude)PATTERN ...]
+git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames --no-merges [--after=DATE] [-- . :(exclude)PATTERN ...]
 ```
 
 > **Note:** `--no-renames` means renamed files are tracked as a delete + add rather than a rename. This avoids inflated coupling between old and new paths.
+
+> **Note:** `--no-merges` excludes merge commits, so a combined merge diff never gets double-counted against the commits it merges.
 
 ---
 

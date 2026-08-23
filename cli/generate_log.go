@@ -70,6 +70,7 @@ func runGitLog(path, after string, excludes []string, dst io.Writer) error {
 		"--date=short",
 		"--pretty=format:--%h--%ad--%aN",
 		"--no-renames",
+		"--no-merges",
 	}
 	if after != "" {
 		gitArgs = append(gitArgs, "--after="+after)
