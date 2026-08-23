@@ -112,6 +112,63 @@ func TestRunGitLogExcludesDirectory(t *testing.T) {
 	}
 }
 
+func TestRunGitLogExcludesMergeCommits(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+
+	run("init", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "-A")
+	run("commit", "-m", "initial")
+
+	run("checkout", "-b", "feature")
+	if err := os.WriteFile(filepath.Join(dir, "feature.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "-A")
+	run("commit", "-m", "add feature")
+
+	run("checkout", "main")
+	if err := os.WriteFile(filepath.Join(dir, "other.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "-A")
+	run("commit", "-m", "add other")
+
+	run("merge", "feature", "--no-ff", "-m", "merge feature")
+
+	mergeSHA, err := exec.Command("git", "-C", dir, "rev-parse", "--short", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("rev-parse: %v", err)
+	}
+	mergeHeader := "--" + strings.TrimSpace(string(mergeSHA)) + "--"
+
+	var out bytes.Buffer
+	if err := runGitLog(dir, "", nil, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	result := out.String()
+	if strings.Contains(result, mergeHeader) {
+		t.Errorf("expected merge commit %q to be excluded, got:\n%s", mergeHeader, result)
+	}
+	for _, want := range []string{"main.go", "feature.go", "other.go"} {
+		if !strings.Contains(result, want) {
+			t.Errorf("expected %q from a regular commit in output, got:\n%s", want, result)
+		}
+	}
+}
+
 func TestFilterExcludes(t *testing.T) {
 	input := strings.Join([]string{
 		"--abc123--2024-01-15--Alice",
