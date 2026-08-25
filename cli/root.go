@@ -172,6 +172,7 @@ func init() {
 	rootCmd.AddCommand(simpleCmd("main-dev-by-revs", "Main developer per entity by revision count", analysis.MainDevByRevs, analysis.FormatMainDevByRevs))
 	rootCmd.AddCommand(simpleCmd("fragmentation", "Author fragmentation (fractal value) per entity", analysis.Fragmentation, analysis.FormatFragmentation))
 	rootCmd.AddCommand(simpleCmd("communication", "Team communication needs based on shared code", analysis.Communication, analysis.FormatCommunication))
+	rootCmd.AddCommand(simpleCmd("statistics", "Descriptive statistics for core metrics (files/lines per commit, revisions/authors/soc per entity)", analysis.Statistics, analysis.FormatStatistics))
 
 	// Age subcommand (needs --age-time-now flag)
 	var ageTimeNow string
