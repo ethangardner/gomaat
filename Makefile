@@ -24,13 +24,13 @@ fmt:
 vet:
 	$(GO) vet ./...
 
-## test: run all tests
+## test: run all tests with coverage
 test:
-	$(GO) test ./...
+	$(GO) test -cover ./...
 
-## test-verbose: run all tests with verbose output
+## test-verbose: run all tests with verbose output and coverage
 test-verbose:
-	$(GO) test -v ./...
+	$(GO) test -v -cover ./...
 
 ## watchtest: re-run tests on any .go file change (requires entr)
 watchtest:
