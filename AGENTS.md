@@ -11,8 +11,8 @@ gomaat is a Go port of [code-maat](https://github.com/adamtornhill/code-maat) �
 ```bash
 make build         # compile to ./bin/gomaat
 make check         # fmt + vet + lint + test (mirrors CI)
-make test          # go test ./...
-make test-verbose  # go test -v ./...
+make test          # go test -cover ./...
+make test-verbose  # go test -v -cover ./...
 make fmt           # gofmt all packages
 make vet           # go vet ./...
 make lint          # golangci-lint run
@@ -25,7 +25,7 @@ Run a single test:
 go test ./internal/analysis/ -run TestCoupling -v
 ```
 
-CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), `golangci-lint run`, and `go test ./...`. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply.
+CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), `golangci-lint run`, and `go test -coverprofile=coverage.out ./...` followed by `go tool cover -func=coverage.out` to report per-function coverage. This is visibility only — there's no enforced minimum threshold yet. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply.
 
 ## Architecture
 
