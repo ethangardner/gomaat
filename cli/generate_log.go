@@ -15,6 +15,7 @@ import (
 
 func newGenerateLogCmd() *cobra.Command {
 	var after string
+	var before string
 	var path string
 	var excludes []string
 
@@ -26,6 +27,7 @@ func newGenerateLogCmd() *cobra.Command {
 Examples:
   gomaat generate-log -o logfile.log
   gomaat generate-log --after 2023-01-01 -o logfile.log
+  gomaat generate-log --after 2023-01-01 --before 2023-12-31 -o logfile.log
   gomaat generate-log --path /path/to/repo --after 2022-06-01 -o logfile.log
   gomaat generate-log --exclude vendor/ --exclude '*.pb.go' -o logfile.log`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
@@ -44,7 +46,7 @@ Examples:
 				dst = outHandle
 			}
 
-			if err := runGitLog(path, after, excludes, dst); err != nil {
+			if err := runGitLog(path, after, before, excludes, dst); err != nil {
 				return err
 			}
 
@@ -56,6 +58,7 @@ Examples:
 	}
 
 	cmd.Flags().StringVar(&after, "after", "", "only include commits after this date (YYYY-MM-DD)")
+	cmd.Flags().StringVar(&before, "before", "", "only include commits before this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&path, "path", ".", "path to the git repository")
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
@@ -63,7 +66,7 @@ Examples:
 }
 
 // runGitLog runs git log against path and streams output to dst.
-func runGitLog(path, after string, excludes []string, dst io.Writer) error {
+func runGitLog(path, after, before string, excludes []string, dst io.Writer) error {
 	gitArgs := []string{
 		"-C", path,
 		"log", "--all", "--numstat",
@@ -74,6 +77,9 @@ func runGitLog(path, after string, excludes []string, dst io.Writer) error {
 	}
 	if after != "" {
 		gitArgs = append(gitArgs, "--after="+after)
+	}
+	if before != "" {
+		gitArgs = append(gitArgs, "--before="+before)
 	}
 	gitArgs = append(gitArgs, buildExcludePathspecArgs(excludes)...)
 

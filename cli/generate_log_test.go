@@ -99,7 +99,7 @@ func TestRunGitLogExcludesDirectory(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	if err := runGitLog(dir, "", []string{"data/"}, &out); err != nil {
+	if err := runGitLog(dir, "", "", []string{"data/"}, &out); err != nil {
 		t.Fatalf("runGitLog: %v", err)
 	}
 
@@ -154,7 +154,7 @@ func TestRunGitLogExcludesMergeCommits(t *testing.T) {
 	mergeHeader := "--" + strings.TrimSpace(string(mergeSHA)) + "--"
 
 	var out bytes.Buffer
-	if err := runGitLog(dir, "", nil, &out); err != nil {
+	if err := runGitLog(dir, "", "", nil, &out); err != nil {
 		t.Fatalf("runGitLog: %v", err)
 	}
 
@@ -166,6 +166,52 @@ func TestRunGitLogExcludesMergeCommits(t *testing.T) {
 		if !strings.Contains(result, want) {
 			t.Errorf("expected %q from a regular commit in output, got:\n%s", want, result)
 		}
+	}
+}
+
+func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+
+	run("init", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+
+	commitAt := func(name, date string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("content\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		run("add", "-A")
+		cmd := exec.Command("git", "-C", dir, "commit", "-m", "add "+name)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_DATE="+date,
+			"GIT_COMMITTER_DATE="+date,
+		)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("commit %s: %v", name, err)
+		}
+	}
+
+	commitAt("old.go", "2020-01-01T00:00:00")
+	commitAt("new.go", "2025-01-01T00:00:00")
+
+	var out bytes.Buffer
+	if err := runGitLog(dir, "", "2022-01-01", nil, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	result := out.String()
+	if !strings.Contains(result, "old.go") {
+		t.Errorf("expected old.go (before cutoff) in output, got:\n%s", result)
+	}
+	if strings.Contains(result, "new.go") {
+		t.Errorf("expected new.go (after cutoff) to be excluded, got:\n%s", result)
 	}
 }
 
