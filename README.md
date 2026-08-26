@@ -86,6 +86,7 @@ gomaat generate-log [flags]
 | Flag        | Default         | Description                                                      |
 |-------------|-----------------|------------------------------------------------------------------|
 | `--after`   | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)              |
+| `--before`  | _(all history)_ | Only include commits before this date (`YYYY-MM-DD`)             |
 | `--path`    | `.`             | Path to the git repository                                       |
 | `--outfile`  | stdout          | Write the log to this file                                       |
 | `--exclude` | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs) |
@@ -99,6 +100,9 @@ gomaat generate-log
 # Last two years, save to file
 gomaat generate-log --after 2023-01-01 --outfile logfile.log
 
+# Fixed historical window, e.g. Q1 2025
+gomaat generate-log --after 2025-01-01 --before 2025-04-01 --outfile logfile.log
+
 # Different repo
 gomaat generate-log --path /path/to/project --after 2022-06-01 --outfile logfile.log
 
@@ -108,7 +112,7 @@ gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --outfile logfile.log
 
 The log is generated using:
 ```
-git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames --no-merges [--after=DATE] [-- . :(exclude)PATTERN ...]
+git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames --no-merges [--after=DATE] [--before=DATE] [-- . :(exclude)PATTERN ...]
 ```
 
 > **Note:** `--no-renames` means renamed files are tracked as a delete + add rather than a rename. This avoids inflated coupling between old and new paths.
