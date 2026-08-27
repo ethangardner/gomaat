@@ -13,6 +13,7 @@ type RevisionsResult struct {
 	Revs   int
 }
 
+// Revisions counts the number of revisions for each entity.
 func Revisions(commits []model.Commit, _ model.Options) []RevisionsResult {
 	revsByEntity := countDistinct(commits, func(c model.Commit) string { return c.Entity }, func(c model.Commit) string { return c.Rev })
 

@@ -14,6 +14,7 @@ type AuthorsResult struct {
 	Revs    int
 }
 
+// Authors counts the distinct authors and revisions for each entity.
 func Authors(commits []model.Commit, _ model.Options) []AuthorsResult {
 	type entry struct {
 		authors map[string]struct{}
