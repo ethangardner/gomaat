@@ -44,17 +44,25 @@ jobs:
         run: |
           mkdir -p out/main out/pr
           main/bin/gomaat summary -l gomaat.log -o out/main/summary.csv
+          main/bin/gomaat summary -l gomaat.log --format json -o out/main/summary.json
           main/bin/gomaat revisions -l gomaat.log -o out/main/revisions.csv
+          main/bin/gomaat revisions -l gomaat.log --format json -o out/main/revisions.json
           main/bin/gomaat authors -l gomaat.log -o out/main/authors.csv
+          main/bin/gomaat authors -l gomaat.log --format json -o out/main/authors.json
           main/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 -o out/main/coupling.csv
+          main/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 --format json -o out/main/coupling.json
           main/bin/gomaat cloc --path main -o out/main/cloc.csv
 
       - name: Run analyses with PR build
         run: |
           pr/bin/gomaat summary -l gomaat.log -o out/pr/summary.csv
+          pr/bin/gomaat summary -l gomaat.log --format json -o out/pr/summary.json
           pr/bin/gomaat revisions -l gomaat.log -o out/pr/revisions.csv
+          pr/bin/gomaat revisions -l gomaat.log --format json -o out/pr/revisions.json
           pr/bin/gomaat authors -l gomaat.log -o out/pr/authors.csv
+          pr/bin/gomaat authors -l gomaat.log --format json -o out/pr/authors.json
           pr/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 -o out/pr/coupling.csv
+          pr/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 --format json -o out/pr/coupling.json
           pr/bin/gomaat cloc --path main -o out/pr/cloc.csv
 
       - name: Diff outputs
@@ -63,19 +71,40 @@ jobs:
           # Row order within each analysis isn't guaranteed to be stable across
           # processes (map iteration order), so sort before comparing. No -r
           # limit is used above so the compared sets are complete and deterministic.
+          # CSV files sort by line directly; JSON files are pretty-printed
+          # (multi-line per record) so they're flattened to one compact object
+          # per line with jq before sorting. cloc doesn't go through the
+          # --format flag (it's a bespoke command, not wired into runAnalysis),
+          # so it's CSV-only here.
+          declare -A formats=(
+            [summary]="csv json"
+            [revisions]="csv json"
+            [authors]="csv json"
+            [coupling]="csv json"
+            [cloc]="csv"
+          )
           changed=false
           : > diff.txt
           for f in summary revisions authors coupling cloc; do
-            if ! diff -u -L "main/$f.csv" -L "pr/$f.csv" <(sort "out/main/$f.csv") <(sort "out/pr/$f.csv") > /tmp/diff-$f.txt; then
-              changed=true
-              {
-                echo "### $f"
-                echo '```diff'
-                cat /tmp/diff-$f.txt
-                echo '```'
-                echo
-              } >> diff.txt
-            fi
+            for fmt in ${formats[$f]}; do
+              if [ "$fmt" = "json" ]; then
+                jq -c '.[]' "out/main/$f.json" | sort > /tmp/main-$f-$fmt.txt
+                jq -c '.[]' "out/pr/$f.json" | sort > /tmp/pr-$f-$fmt.txt
+              else
+                sort "out/main/$f.$fmt" > /tmp/main-$f-$fmt.txt
+                sort "out/pr/$f.$fmt" > /tmp/pr-$f-$fmt.txt
+              fi
+              if ! diff -u -L "main/$f.$fmt" -L "pr/$f.$fmt" /tmp/main-$f-$fmt.txt /tmp/pr-$f-$fmt.txt > /tmp/diff-$f-$fmt.txt; then
+                changed=true
+                {
+                  echo "### $f ($fmt)"
+                  echo '```diff'
+                  cat /tmp/diff-$f-$fmt.txt
+                  echo '```'
+                  echo
+                } >> diff.txt
+              fi
+            done
           done
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
           if [ "$changed" = "true" ]; then

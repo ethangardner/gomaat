@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,9 +17,9 @@ import (
 // they would otherwise leak between test cases.
 func resetFlags(t *testing.T) {
 	t.Helper()
-	origLog, origOut, origRows, origGroup, origTeam := logFile, outFile, maxRows, groupFile, teamMapFile
+	origLog, origOut, origRows, origGroup, origTeam, origFormat := logFile, outFile, maxRows, groupFile, teamMapFile, outputFormat
 	t.Cleanup(func() {
-		logFile, outFile, maxRows, groupFile, teamMapFile = origLog, origOut, origRows, origGroup, origTeam
+		logFile, outFile, maxRows, groupFile, teamMapFile, outputFormat = origLog, origOut, origRows, origGroup, origTeam, origFormat
 	})
 }
 
@@ -70,6 +72,43 @@ func TestRunAnalysisBadTeamMapFile(t *testing.T) {
 	err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{})
 	if err == nil {
 		t.Fatal("expected error for missing --team-map-file, got nil")
+	}
+}
+
+func TestRunAnalysisBadFormat(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outputFormat = "yaml"
+
+	err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{})
+	if err == nil {
+		t.Fatal("expected error for invalid --format, got nil")
+	}
+	if !strings.Contains(err.Error(), "--format") {
+		t.Errorf("expected error to mention --format, got: %v", err)
+	}
+}
+
+func TestRunAnalysisJSONFormat(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outputFormat = "json"
+	outFile = filepath.Join(t.TempDir(), "out.json")
+
+	if err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	var got []map[string]string
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+	if len(got) == 0 {
+		t.Error("expected at least one JSON record, got none")
 	}
 }
 

@@ -17,11 +17,12 @@ import (
 
 // persistent flag values (shared across all analysis subcommands)
 var (
-	logFile     string
-	outFile     string
-	maxRows     int
-	groupFile   string
-	teamMapFile string
+	logFile      string
+	outFile      string
+	maxRows      int
+	groupFile    string
+	teamMapFile  string
+	outputFormat string
 )
 
 // version is overridden at release build time via -ldflags (see .goreleaser.yml).
@@ -56,6 +57,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVarP(&maxRows, "rows", "r", 0, "max result rows (0 = no limit)")
 	rootCmd.PersistentFlags().StringVarP(&groupFile, "group", "g", "", "architectural grouping spec file")
 	rootCmd.PersistentFlags().StringVarP(&teamMapFile, "team-map-file", "p", "", "CSV file mapping author to team")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "format", "f", "csv", "output format: csv or json")
 }
 
 // runAnalysis is the shared execution path for all analysis subcommands.
@@ -66,6 +68,9 @@ func init() {
 func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string, opts model.Options) error {
 	if logFile == "" {
 		return fmt.Errorf("--log (-l) is required")
+	}
+	if outputFormat != "csv" && outputFormat != "json" {
+		return fmt.Errorf("--format (-f): expected \"csv\" or \"json\", got %q", outputFormat)
 	}
 
 	commits, err := parser.ParseFile(logFile)
@@ -93,7 +98,13 @@ func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T,
 	rows := format(results, opts)
 
 	if outFile != "" {
+		if outputFormat == "json" {
+			return output.WriteJSONFile(outFile, rows, maxRows)
+		}
 		return output.WriteFile(outFile, rows, maxRows)
+	}
+	if outputFormat == "json" {
+		return output.WriteJSON(os.Stdout, rows, maxRows)
 	}
 	return output.Write(os.Stdout, rows, maxRows)
 }
