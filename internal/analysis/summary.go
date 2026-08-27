@@ -13,6 +13,7 @@ type SummaryResult struct {
 	Authors         int
 }
 
+// Summary computes repo-wide totals: number of commits, entities, entities changed, and authors.
 func Summary(commits []model.Commit, _ model.Options) SummaryResult {
 	revs := map[string]struct{}{}
 	entities := map[string]struct{}{}

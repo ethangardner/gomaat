@@ -6,6 +6,7 @@ import (
 	"github.com/ethangardner/gomaat/internal/model"
 )
 
+// Identity passes commits through unchanged, producing a raw revision listing.
 func Identity(commits []model.Commit, _ model.Options) []model.Commit {
 	return commits
 }
