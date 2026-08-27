@@ -51,6 +51,12 @@ func TestAge(t *testing.T) {
 	assertFormattedRows(t, FormatAge(results, opts), "entity", 3)
 }
 
+func TestAgeEmpty(t *testing.T) {
+	opts := model.Options{AgeTimeNow: time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC)}
+	results := Age(nil, opts)
+	assertEmptyResults(t, results)
+}
+
 func TestAgeUsesLatestDate(t *testing.T) {
 	// Entity appears in multiple commits; age should reflect the most recent one
 	now := time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC)

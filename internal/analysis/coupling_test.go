@@ -94,9 +94,7 @@ func TestCouplingMaxChangesetSize(t *testing.T) {
 
 func TestCouplingEmpty(t *testing.T) {
 	results := Coupling(nil, looseOpts)
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestCouplingTiebreakerByAvgRevs(t *testing.T) {

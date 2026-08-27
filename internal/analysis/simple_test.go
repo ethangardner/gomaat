@@ -33,6 +33,11 @@ func TestRevisions(t *testing.T) {
 	}
 }
 
+func TestRevisionsEmpty(t *testing.T) {
+	results := Revisions(nil, model.Options{})
+	assertEmptyResults(t, results)
+}
+
 func TestSummary(t *testing.T) {
 	result := Summary(simpleCommits, model.Options{})
 
@@ -63,6 +68,13 @@ func TestSummary(t *testing.T) {
 	}
 }
 
+func TestSummaryEmpty(t *testing.T) {
+	result := Summary(nil, model.Options{})
+	if result.Commits != 0 || result.Entities != 0 || result.EntitiesChanged != 0 || result.Authors != 0 {
+		t.Errorf("expected all-zero result for empty input, got %+v", result)
+	}
+}
+
 func TestIdentity(t *testing.T) {
 	results := Identity(simpleCommits, model.Options{})
 
@@ -79,4 +91,9 @@ func TestIdentity(t *testing.T) {
 	if r[0] != "foo.go" || r[1] != "r1" || r[2] != "2024-01-01" || r[3] != "Alice" || r[4] != "5" || r[5] != "2" {
 		t.Errorf("row 1: got %v, want [foo.go r1 2024-01-01 Alice 5 2]", r)
 	}
+}
+
+func TestIdentityEmpty(t *testing.T) {
+	results := Identity(nil, model.Options{})
+	assertEmptyResults(t, results)
 }
