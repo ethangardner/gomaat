@@ -32,6 +32,13 @@ func TestAuthors(t *testing.T) {
 	assertFormattedRows(t, FormatAuthors(results, model.Options{}), "entity", 3)
 }
 
+func TestAuthorsEmpty(t *testing.T) {
+	results := Authors(nil, model.Options{})
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
+}
+
 func TestAuthorsDeduplicatesRevisions(t *testing.T) {
 	// Same author, same rev, same entity — should count as one revision
 	commits := []model.Commit{

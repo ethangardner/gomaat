@@ -29,6 +29,13 @@ func TestAbsChurn(t *testing.T) {
 	assertFormattedRows(t, FormatAbsChurn(results, model.Options{}), "date", 3)
 }
 
+func TestAbsChurnEmpty(t *testing.T) {
+	results := AbsChurn(nil, model.Options{})
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
+}
+
 func TestAuthorChurn(t *testing.T) {
 	results := AuthorChurn(churnCommits, model.Options{})
 	if len(results) != 2 {
@@ -43,6 +50,13 @@ func TestAuthorChurn(t *testing.T) {
 	}
 
 	assertFormattedRows(t, FormatAuthorChurn(results, model.Options{}), "author", 3)
+}
+
+func TestAuthorChurnEmpty(t *testing.T) {
+	results := AuthorChurn(nil, model.Options{})
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
 }
 
 func TestEntityChurn(t *testing.T) {
@@ -61,6 +75,13 @@ func TestEntityChurn(t *testing.T) {
 	assertFormattedRows(t, FormatEntityChurn(results, model.Options{}), "entity", 3)
 }
 
+func TestEntityChurnEmpty(t *testing.T) {
+	results := EntityChurn(nil, model.Options{})
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
+}
+
 func TestEntityOwnership(t *testing.T) {
 	results := EntityOwnership(churnCommits, model.Options{})
 	// 3 (entity,author) pairs: bar.go/Alice, foo.go/Alice, foo.go/Bob
@@ -73,6 +94,13 @@ func TestEntityOwnership(t *testing.T) {
 	}
 
 	assertFormattedRows(t, FormatEntityOwnership(results, model.Options{}), "entity", 4)
+}
+
+func TestEntityOwnershipEmpty(t *testing.T) {
+	results := EntityOwnership(nil, model.Options{})
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
 }
 
 func TestMainDev(t *testing.T) {
@@ -93,6 +121,13 @@ func TestMainDev(t *testing.T) {
 	assertFormattedRows(t, FormatMainDev(results, model.Options{}), "entity", 3)
 }
 
+func TestMainDevEmpty(t *testing.T) {
+	results := MainDev(nil, model.Options{})
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
+}
+
 func TestRefactoringMainDev(t *testing.T) {
 	results := RefactoringMainDev(churnCommits, model.Options{})
 	if len(results) != 2 {
@@ -104,4 +139,11 @@ func TestRefactoringMainDev(t *testing.T) {
 	}
 
 	assertFormattedRows(t, FormatRefactoringMainDev(results, model.Options{}), "entity", 3)
+}
+
+func TestRefactoringMainDevEmpty(t *testing.T) {
+	results := RefactoringMainDev(nil, model.Options{})
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
 }
