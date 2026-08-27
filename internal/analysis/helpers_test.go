@@ -11,3 +11,10 @@ func assertFormattedRows(t *testing.T, rows [][]string, wantHeader string, wantC
 		t.Fatalf("row count: got %d, want %d", len(rows), wantCount)
 	}
 }
+
+func assertEmptyResults[T any](t *testing.T, results []T) {
+	t.Helper()
+	if len(results) != 0 {
+		t.Errorf("expected 0 results for empty input, got %d", len(results))
+	}
+}

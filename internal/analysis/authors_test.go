@@ -34,9 +34,7 @@ func TestAuthors(t *testing.T) {
 
 func TestAuthorsEmpty(t *testing.T) {
 	results := Authors(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestAuthorsDeduplicatesRevisions(t *testing.T) {

@@ -31,9 +31,7 @@ func TestAbsChurn(t *testing.T) {
 
 func TestAbsChurnEmpty(t *testing.T) {
 	results := AbsChurn(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestAuthorChurn(t *testing.T) {
@@ -54,9 +52,7 @@ func TestAuthorChurn(t *testing.T) {
 
 func TestAuthorChurnEmpty(t *testing.T) {
 	results := AuthorChurn(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestEntityChurn(t *testing.T) {
@@ -77,9 +73,7 @@ func TestEntityChurn(t *testing.T) {
 
 func TestEntityChurnEmpty(t *testing.T) {
 	results := EntityChurn(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestEntityOwnership(t *testing.T) {
@@ -98,9 +92,7 @@ func TestEntityOwnership(t *testing.T) {
 
 func TestEntityOwnershipEmpty(t *testing.T) {
 	results := EntityOwnership(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestMainDev(t *testing.T) {
@@ -123,9 +115,7 @@ func TestMainDev(t *testing.T) {
 
 func TestMainDevEmpty(t *testing.T) {
 	results := MainDev(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestRefactoringMainDev(t *testing.T) {
@@ -143,7 +133,5 @@ func TestRefactoringMainDev(t *testing.T) {
 
 func TestRefactoringMainDevEmpty(t *testing.T) {
 	results := RefactoringMainDev(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }

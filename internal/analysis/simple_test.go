@@ -35,9 +35,7 @@ func TestRevisions(t *testing.T) {
 
 func TestRevisionsEmpty(t *testing.T) {
 	results := Revisions(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
 
 func TestSummary(t *testing.T) {
@@ -97,7 +95,5 @@ func TestIdentity(t *testing.T) {
 
 func TestIdentityEmpty(t *testing.T) {
 	results := Identity(nil, model.Options{})
-	if len(results) != 0 {
-		t.Errorf("expected 0 results for empty input, got %d", len(results))
-	}
+	assertEmptyResults(t, results)
 }
