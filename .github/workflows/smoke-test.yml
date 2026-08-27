@@ -1,4 +1,4 @@
-name: Dogfood Diff
+name: Smoke Test Diff
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  dogfood:
+  smoke-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
@@ -115,7 +115,7 @@ jobs:
       - name: Build comment body
         run: |
           {
-            echo "## gomaat dogfood diff"
+            echo "## gomaat smoke test diff"
             echo
             echo "Comparison of \`gomaat\` analyses run against \`main\`'s git history,"
             echo "using a build of \`main\` vs. a build of this PR."
@@ -132,5 +132,5 @@ jobs:
       - name: Post sticky comment
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # pin v3.0.4
         with:
-          header: gomaat-dogfood
+          header: gomaat-smoke-test
           path: comment.md
