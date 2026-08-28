@@ -333,3 +333,17 @@ func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
 		t.Fatalf("unexpected output: %q", out.String())
 	}
 }
+
+func TestGenerateLogRejectsNonCSVFormat(t *testing.T) {
+	resetFlags(t)
+	outputFormat = "json"
+
+	cmd := newGenerateLogCmd()
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error for --format json, got nil")
+	}
+	if !strings.Contains(err.Error(), "--format") {
+		t.Errorf("expected error to mention --format, got: %v", err)
+	}
+}

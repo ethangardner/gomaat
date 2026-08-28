@@ -69,8 +69,8 @@ func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T,
 	if logFile == "" {
 		return fmt.Errorf("--log (-l) is required")
 	}
-	if outputFormat != "csv" && outputFormat != "json" {
-		return fmt.Errorf("--format (-f): expected \"csv\" or \"json\", got %q", outputFormat)
+	if err := validateOutputFormat(); err != nil {
+		return err
 	}
 
 	commits, err := parser.ParseFile(logFile)
@@ -97,16 +97,28 @@ func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T,
 	results := fn(commits, opts)
 	rows := format(results, opts)
 
-	if outFile != "" {
-		if outputFormat == "json" {
-			return output.WriteJSONFile(outFile, rows, maxRows)
-		}
-		return output.WriteFile(outFile, rows, maxRows)
+	return writeRows(rows)
+}
+
+// validateOutputFormat checks outputFormat against the formats writeRows supports.
+func validateOutputFormat() error {
+	if outputFormat != "csv" && outputFormat != "json" {
+		return fmt.Errorf("--format (-f): expected \"csv\" or \"json\", got %q", outputFormat)
 	}
+	return nil
+}
+
+// writeRows writes rows to outFile (or stdout if unset) in outputFormat.
+func writeRows(rows [][]string) error {
+	writeFile, writeStdout := output.WriteFile, output.Write
 	if outputFormat == "json" {
-		return output.WriteJSON(os.Stdout, rows, maxRows)
+		writeFile, writeStdout = output.WriteJSONFile, output.WriteJSON
 	}
-	return output.Write(os.Stdout, rows, maxRows)
+
+	if outFile != "" {
+		return writeFile(outFile, rows, maxRows)
+	}
+	return writeStdout(os.Stdout, rows, maxRows)
 }
 
 // couplingOpts holds coupling-specific flag values.

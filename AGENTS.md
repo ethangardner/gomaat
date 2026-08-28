@@ -39,7 +39,7 @@ log file --[parser.ParseFile]--> []model.Commit
         --[teammapper.Apply]-->   (optional, if -p given: remap Author -> team, drop unmapped)
         --[analysis.XXX]-->       typed result (e.g. []XXXResult)
         --[analysis.FormatXXX]--> [][]string  (header row + data rows)
-        --[output.Write/WriteFile]--> CSV to stdout or file
+        --[output.Write/WriteJSON]--> CSV or JSON (per --format/-f) to stdout or file
 ```
 
 - `internal/parser`: parses the custom log format produced by `generate-log`
@@ -48,7 +48,7 @@ log file --[parser.ParseFile]--> []model.Commit
 - `internal/model`: shared `Commit` struct and `Options` (all CLI flags that affect analysis, e.g. `MinRevs`, `MinCoupling`, `MaxChangesetSize`, `AgeTimeNow`, `VerboseResults`).
 - `internal/grouper`: maps file paths to architectural group names via prefix or `^`-prefixed regex rules; commits matching no group are dropped.
 - `internal/teammapper`: maps author names to team names via CSV; commits for unmapped authors are dropped.
-- `internal/output`: thin CSV writer shared by every subcommand; first row of `[][]string` is the header, `-r/--rows` caps data rows.
+- `internal/output`: thin CSV/JSON writer shared by every subcommand; first row of `[][]string` is the header (also used as JSON object keys), `-r/--rows` caps data rows. `--format/-f` selects `csv` (default) or `json`; `cloc` supports it too via the same `writeRows` dispatch in `cli/root.go`, but `generate-log` rejects anything but `csv` since it streams raw git-log text, not tabular rows.
 
 ### Analysis functions
 
@@ -68,7 +68,7 @@ func FormatXXX(results T, opts model.Options) [][]string  // render to CSV rows
 
 ### CLI structure (`cli/` package)
 
-- `root.go`: cobra root command, persistent flags (`--log/-l`, `--outfile/-o`, `--rows/-r`, `--group/-g`, `--team-map-file/-p`), and subcommand registration.
+- `root.go`: cobra root command, persistent flags (`--log/-l`, `--outfile/-o`, `--rows/-r`, `--group/-g`, `--team-map-file/-p`, `--format/-f`), and subcommand registration.
 - `generate_log.go`: runs the canonical `git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames --no-merges [...]` and streams it through `--exclude` glob filtering. `--no-merges` is baked in deliberately too — it keeps a combined merge diff from being double-counted against the commits it merges.
 - `cloc.go`: wraps `gocloc` over `git ls-files` output (so it respects gitignore), with the same `--exclude` filtering logic as `generate-log`.
 

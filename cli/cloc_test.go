@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -457,5 +458,51 @@ func TestClocIntegrationExclude(t *testing.T) {
 	}
 	if result.Total.Total != 1 {
 		t.Errorf("total file count: got %d, want 1", result.Total.Total)
+	}
+}
+
+func TestClocJSONFormat(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dir, "add", "main.go").Run(); err != nil {
+		t.Fatal(err)
+	}
+	outputFormat = "json"
+	outFile = filepath.Join(t.TempDir(), "out.json")
+
+	cmd := newClocCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	var got []map[string]string
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+	if len(got) == 0 {
+		t.Error("expected at least one JSON record, got none")
+	}
+}
+
+func TestClocBadFormat(t *testing.T) {
+	resetFlags(t)
+	outputFormat = "yaml"
+
+	cmd := newClocCmd()
+	if err := cmd.RunE(cmd, nil); err == nil {
+		t.Fatal("expected error for invalid --format, got nil")
+	} else if !strings.Contains(err.Error(), "--format") {
+		t.Errorf("expected error to mention --format, got: %v", err)
 	}
 }
