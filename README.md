@@ -88,7 +88,7 @@ gomaat generate-log [flags]
 | `--after`   | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)              |
 | `--before`  | _(all history)_ | Only include commits before this date (`YYYY-MM-DD`)             |
 | `--path`    | `.`             | Path to the git repository                                       |
-| `--outfile`  | stdout          | Write the log to this file                                       |
+| `--outfile` | stdout          | Write the log to this file                                       |
 | `--exclude` | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs) |
 
 **Examples:**
@@ -130,11 +130,11 @@ These flags are available on every analysis subcommand.
 | Flag              | Short | Default      | Description                                                 |
 |-------------------|-------|--------------|-------------------------------------------------------------|
 | `--log`           | `-l`  | _(required)_ | Path to the git log file                                    |
-| `--outfile`       | `-o`  | stdout       | Write output to this file                                    |
+| `--outfile`       | `-o`  | stdout       | Write output to this file                                   |
 | `--rows`          | `-r`  | 0 (no limit) | Maximum number of result rows                               |
 | `--group`         | `-g`  | _(none)_     | [Architectural grouping](#architectural-grouping) spec file |
 | `--team-map-file` | `-p`  | _(none)_     | [Team mapping](#team-mapping) CSV file                      |
-| `--format`        | `-f`  | `csv`        | Output format: `csv` or `json`                               |
+| `--format`        | `-f`  | `csv`        | Output format: `csv` or `json`                              |
 
 ---
 
