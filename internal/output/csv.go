@@ -10,16 +10,13 @@ import (
 // Write writes rows as CSV to w. The first row is treated as the header.
 // If limit > 0, at most limit data rows (excluding the header) are written.
 func Write(w io.Writer, rows [][]string, limit int) error {
-	if len(rows) == 0 {
+	header, data, ok := splitHeaderData(rows, limit)
+	if !ok {
 		return nil
 	}
 	cw := csv.NewWriter(w)
-	if err := cw.Write(rows[0]); err != nil {
+	if err := cw.Write(header); err != nil {
 		return fmt.Errorf("writing header: %w", err)
-	}
-	data := rows[1:]
-	if limit > 0 && limit < len(data) {
-		data = data[:limit]
 	}
 	if err := cw.WriteAll(data); err != nil {
 		return fmt.Errorf("writing rows: %w", err)

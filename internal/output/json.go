@@ -11,13 +11,9 @@ import (
 // treated as the header and used as the object keys for each data row. If
 // limit > 0, at most limit data rows (excluding the header) are written.
 func WriteJSON(w io.Writer, rows [][]string, limit int) error {
-	if len(rows) == 0 {
+	header, data, ok := splitHeaderData(rows, limit)
+	if !ok {
 		return nil
-	}
-	header := rows[0]
-	data := rows[1:]
-	if limit > 0 && limit < len(data) {
-		data = data[:limit]
 	}
 
 	records := make([]map[string]string, len(data))
