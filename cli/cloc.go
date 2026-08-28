@@ -3,7 +3,6 @@ package cli
 import (
 	"cmp"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -12,8 +11,6 @@ import (
 
 	"github.com/hhatto/gocloc"
 	"github.com/spf13/cobra"
-
-	"github.com/ethangardner/gomaat/internal/output"
 )
 
 func newClocProcessor() *gocloc.Processor {
@@ -36,6 +33,10 @@ Examples:
   gomaat cloc --exclude vendor/ --exclude '*.pb.go'
   gomaat cloc --by-file -o results.csv`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := validateOutputFormat(); err != nil {
+				return err
+			}
+
 			trackedFiles, repoRoot, err := gitTrackedFiles(path, excludes)
 			if err != nil {
 				return err
@@ -62,10 +63,7 @@ Examples:
 				rows = clocLanguageRows(result)
 			}
 
-			if outFile != "" {
-				return output.WriteFile(outFile, rows, maxRows)
-			}
-			return output.Write(os.Stdout, rows, maxRows)
+			return writeRows(rows)
 		},
 	}
 

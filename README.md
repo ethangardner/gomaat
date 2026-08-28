@@ -88,7 +88,7 @@ gomaat generate-log [flags]
 | `--after`   | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)              |
 | `--before`  | _(all history)_ | Only include commits before this date (`YYYY-MM-DD`)             |
 | `--path`    | `.`             | Path to the git repository                                       |
-| `--outfile`  | stdout          | Write the log to this file                                       |
+| `--outfile` | stdout          | Write the log to this file                                       |
 | `--exclude` | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs) |
 
 **Examples:**
@@ -119,6 +119,8 @@ git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renam
 
 > **Note:** `--no-merges` excludes merge commits, so a combined merge diff never gets double-counted against the commits it merges.
 
+> **Note:** `generate-log`'s output is raw git log text (the format `internal/parser` reads), not CSV, so `--format` is a no-op here — `--format json` is rejected since there's no tabular data to convert.
+
 ---
 
 ## Global Flags
@@ -128,16 +130,17 @@ These flags are available on every analysis subcommand.
 | Flag              | Short | Default      | Description                                                 |
 |-------------------|-------|--------------|-------------------------------------------------------------|
 | `--log`           | `-l`  | _(required)_ | Path to the git log file                                    |
-| `--outfile`       | `-o`  | stdout       | Write CSV output to this file                               |
+| `--outfile`       | `-o`  | stdout       | Write output to this file                                   |
 | `--rows`          | `-r`  | 0 (no limit) | Maximum number of result rows                               |
 | `--group`         | `-g`  | _(none)_     | [Architectural grouping](#architectural-grouping) spec file |
 | `--team-map-file` | `-p`  | _(none)_     | [Team mapping](#team-mapping) CSV file                      |
+| `--format`        | `-f`  | `csv`        | Output format: `csv` or `json`                              |
 
 ---
 
 ## Analyses
 
-All analyses write CSV to stdout by default. Use `-o <file>` to write to a file instead.
+All analyses write CSV to stdout by default. Use `-o <file>` to write to a file instead, or `--format json` (`-f json`) to write a JSON array of objects instead of CSV.
 
 ---
 
@@ -561,8 +564,9 @@ gomaat cloc [flags]
 | `--path`    | `.`          | Directory to analyze                                             |
 | `--by-file` | `false`      | Show results per file instead of per language                    |
 | `--exclude` | _(none)_     | Exclude paths matching this pattern (repeatable, supports globs) |
-| `--outfile` | stdout       | Write CSV output to this file                                    |
+| `--outfile` | stdout       | Write output to this file                                        |
 | `--rows`    | 0 (no limit) | Maximum number of result rows                                    |
+| `--format`  | `csv`        | Output format: `csv` or `json`                                   |
 
 **Output (by language, default):**
 
@@ -603,6 +607,9 @@ gomaat cloc --by-file -o cloc.csv
 
 # Top 10 largest files by code
 gomaat cloc --by-file -r 10
+
+# Per-language breakdown as JSON
+gomaat cloc --format json
 ```
 
 The `--exclude` patterns follow the same rules as `generate-log --exclude`: patterns ending in `/` match directory prefixes; all others are matched as globs against both the full path and the base filename.

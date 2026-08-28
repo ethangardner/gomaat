@@ -31,6 +31,13 @@ Examples:
   gomaat generate-log --path /path/to/repo --after 2022-06-01 -o logfile.log
   gomaat generate-log --exclude vendor/ --exclude '*.pb.go' -o logfile.log`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
+			if err := validateOutputFormat(); err != nil {
+				return err
+			}
+			if outputFormat == "json" {
+				return fmt.Errorf("--format (-f): generate-log writes raw git log text, not tabular data, so JSON output is not supported")
+			}
+
 			dst := os.Stdout
 			var outHandle *os.File
 			if outFile != "" {
