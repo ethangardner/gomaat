@@ -8,8 +8,9 @@ import (
 )
 
 // WriteJSON writes rows as a JSON array of objects to w. The first row is
-// treated as the header and used as the object keys for each data row. If
-// limit > 0, at most limit data rows (excluding the header) are written.
+// treated as the header and used as the object keys for each data row. Every
+// data row must have the same length as the header; a mismatch is an error.
+// If limit > 0, at most limit data rows (excluding the header) are written.
 func WriteJSON(w io.Writer, rows [][]string, limit int) error {
 	header, data, ok := splitHeaderData(rows, limit)
 	if !ok {
@@ -18,11 +19,12 @@ func WriteJSON(w io.Writer, rows [][]string, limit int) error {
 
 	records := make([]map[string]string, len(data))
 	for i, row := range data {
+		if len(row) != len(header) {
+			return fmt.Errorf("writing json: row %d has %d columns, want %d (header width)", i, len(row), len(header))
+		}
 		record := make(map[string]string, len(header))
 		for j, col := range header {
-			if j < len(row) {
-				record[col] = row[j]
-			}
+			record[col] = row[j]
 		}
 		records[i] = record
 	}

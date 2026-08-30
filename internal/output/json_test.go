@@ -82,6 +82,34 @@ func TestWriteJSONFile(t *testing.T) {
 	}
 }
 
+func TestWriteJSONRowShorterThanHeader(t *testing.T) {
+	rows := [][]string{
+		{"entity", "n-revs"},
+		{"foo.go"},
+	}
+	var buf bytes.Buffer
+	if err := WriteJSON(&buf, rows, 0); err == nil {
+		t.Fatal("expected error for row shorter than header, got nil")
+	}
+	if buf.Len() != 0 {
+		t.Errorf("expected no output written on error, got %q", buf.String())
+	}
+}
+
+func TestWriteJSONRowLongerThanHeader(t *testing.T) {
+	rows := [][]string{
+		{"entity"},
+		{"foo.go", "10"},
+	}
+	var buf bytes.Buffer
+	if err := WriteJSON(&buf, rows, 0); err == nil {
+		t.Fatal("expected error for row longer than header, got nil")
+	}
+	if buf.Len() != 0 {
+		t.Errorf("expected no output written on error, got %q", buf.String())
+	}
+}
+
 func TestWriteJSONEmpty(t *testing.T) {
 	var buf bytes.Buffer
 	if err := WriteJSON(&buf, nil, 0); err != nil {
