@@ -18,6 +18,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [coupling](#coupling)
   - [soc](#soc-sum-of-coupling)
   - [summary](#summary)
+  - [statistics](#statistics)
   - [abs-churn](#abs-churn)
   - [author-churn](#author-churn)
   - [entity-churn](#entity-churn)
@@ -55,6 +56,8 @@ Or build a binary directly:
 ```bash
 go build -o gomaat ./cmd/gomaat/
 ```
+
+Check the installed version with `gomaat --version`.
 
 ---
 
@@ -272,6 +275,43 @@ number-of-commits,1432
 number-of-entities,318
 number-of-entities-changed,8741
 number-of-authors,24
+```
+
+---
+
+### statistics
+
+Descriptive statistics (count, min, q1, median, q3, max, mean, sample-stddev) for five core metrics: files and lines changed per commit, and revisions/authors/sum-of-coupling per entity. Useful for spotting outliers and understanding the overall shape of a codebase's history at a glance.
+
+```
+gomaat statistics -l logfile.log
+```
+
+**Output:**
+
+| Column   | Description                      |
+|----------|-----------------------------------|
+| `metric` | Which metric this row describes  |
+| `count`  | Number of data points            |
+| `min`    | Minimum value                    |
+| `q1`     | First quartile                   |
+| `median` | Median value                     |
+| `q3`     | Third quartile                   |
+| `max`    | Maximum value                    |
+| `mean`   | Arithmetic mean                  |
+| `stddev` | Sample standard deviation        |
+
+`metric` is always the following five rows, in this order: `files-changed-per-commit`, `lines-changed-per-commit`, `revisions-per-entity`, `authors-per-entity`, `soc-per-entity`.
+
+Unlike other analyses, `statistics` always reports on the whole dataset — it ignores coupling-style threshold flags (`--min-revs`, `--max-changeset-size`, etc.) since it's a codebase health report, not a filtered query.
+
+```
+metric,count,min,q1,median,q3,max,mean,stddev
+files-changed-per-commit,48,1.00,1.00,2.00,5.00,28.00,4.73,6.06
+lines-changed-per-commit,48,1.00,17.50,54.00,177.25,2244.00,194.75,399.44
+revisions-per-entity,56,1.00,2.00,4.00,5.25,11.00,4.05,2.75
+authors-per-entity,56,1.00,1.00,1.00,1.00,1.00,1.00,0.00
+soc-per-entity,56,0.00,13.00,45.00,70.50,110.00,45.96,33.76
 ```
 
 ---
