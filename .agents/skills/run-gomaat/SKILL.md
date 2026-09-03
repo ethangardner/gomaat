@@ -11,7 +11,7 @@ it end to end.
 
 ## Prerequisites
 
-- Go (this repo uses `go.mod`'s `go 1.26.3`; `go` must be on `PATH` —
+- Go (this repo uses `go.mod`'s `go 1.27.1`; `go` must be on `PATH` —
   `/usr/local/go/bin/go` in this container).
 - `git` on `PATH` (used both by `generate-log` and by `cloc`, which shells
   out to `git ls-files`).
