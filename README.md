@@ -36,6 +36,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
 - [Advanced Usage](#advanced-usage)
   - [Architectural Grouping](#architectural-grouping)
   - [Team Mapping](#team-mapping)
+  - [Tracking Metrics Over Time](#tracking-metrics-over-time)
   - [Limiting Output Rows](#limiting-output-rows)
   - [Writing to a File](#writing-to-a-file)
 
@@ -705,6 +706,43 @@ gomaat fragmentation -l logfile.log -p teams.csv
 ```
 
 Authors not present in the map are excluded from analysis.
+
+---
+
+### Tracking Metrics Over Time
+
+gomaat has no built-in trend command — every analysis operates on a single, static log file. To see how a metric changes over time (e.g. is `statistics`'s `soc-per-entity` getting worse release over release?), generate one log per period with [`generate-log --after/--before`](#generating-a-git-log), run the same analysis against each, tag the results with their period, and combine them yourself. This works for any analysis, but is most useful for whole-dataset reports like `statistics` and `summary`.
+
+There are two ways to window each period, and they answer different questions:
+
+- **Cumulative** — `--before <date>` only, no `--after`. Each log is "everything up to this point," so `statistics`/`summary` show how the codebase's overall shape has evolved to date. Best for metrics like `revisions-per-entity` or `soc-per-entity`, where you care about accumulated history.
+- **Windowed** — `--after <start> --before <end>` per period. Each log contains only that slice's activity, so results reflect what happened *during* the period, not the whole history. Best for churn-style, period-over-period comparisons.
+
+**Example — quarterly cumulative snapshots of `statistics`, combined into one JSON time series:**
+
+```bash
+#!/usr/bin/env bash
+for cutoff in 2024-04-01 2024-07-01 2024-10-01 2025-01-01; do
+  gomaat generate-log --before "$cutoff" --outfile "log-$cutoff.log"
+  gomaat statistics -l "log-$cutoff.log" --format json \
+    | jq --arg period "$cutoff" '[.[] | . + {period: $period}]'
+done | jq -s 'add' > statistics-over-time.json
+```
+
+The result is a single JSON array with one object per metric per period (each carrying a `period` field), ready to load into a spreadsheet, filter with `jq` (e.g. `jq '[.[] | select(.metric=="soc-per-entity")]' statistics-over-time.json` to isolate one metric's trend), or feed into a plotting tool.
+
+Prefer CSV? Prepend a period column with `awk` instead of using `--format json`:
+
+```bash
+echo "period,metric,count,min,q1,median,q3,max,mean,stddev" > statistics-over-time.csv
+for cutoff in 2024-04-01 2024-07-01 2024-10-01 2025-01-01; do
+  gomaat generate-log --before "$cutoff" --outfile "log-$cutoff.log"
+  gomaat statistics -l "log-$cutoff.log" | tail -n +2 \
+    | awk -v period="$cutoff" '{print period "," $0}' >> statistics-over-time.csv
+done
+```
+
+This pattern combines well with [Architectural Grouping](#architectural-grouping) and [Team Mapping](#team-mapping) — add `-g`/`-p` to each per-period run to track one component's or team's metrics over time instead of the whole codebase.
 
 ---
 
