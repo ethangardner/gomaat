@@ -1,6 +1,6 @@
 module github.com/ethangardner/gomaat
 
-go 1.26.3
+go 1.27.1
 
 require (
 	github.com/hhatto/gocloc v0.7.0
