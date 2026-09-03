@@ -27,6 +27,10 @@ go test ./internal/analysis/ -run TestCoupling -v
 
 CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), `golangci-lint run`, and `go test -coverprofile=coverage.out ./...` followed by `go tool cover -func=coverage.out` to report per-function coverage. This is visibility only — there's no enforced minimum threshold yet. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply.
 
+## Changelog
+
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry under `[Unreleased]` in the same PR as any user-facing change — a new/changed/removed CLI flag, subcommand, or output column, or a user-visible bug fix. Skip it for internal-only refactors unless they change the public Go API (e.g. `internal/analysis` function signatures). On tagging a release, `[Unreleased]` is renamed to the version and date.
+
 ## Architecture
 
 ### Pipeline
