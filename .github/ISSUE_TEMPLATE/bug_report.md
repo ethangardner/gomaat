@@ -31,5 +31,4 @@ What actually happened, including any error output.
 
 **Sample log (if relevant)**
 
-If the issue depends on specific git log content, attach or paste a minimal
-`generate-log` output that reproduces it.
+<!-- If the issue depends on specific git log content, attach or paste a minimal `generate-log` output that reproduces it. -->
