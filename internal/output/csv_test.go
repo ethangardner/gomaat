@@ -77,21 +77,25 @@ func TestWriteEmpty(t *testing.T) {
 	}
 }
 
-func TestWriteHeaderError(t *testing.T) {
-	rows := [][]string{{strings.Repeat("x", 5000)}}
-	if err := Write(failWriter{}, rows, 0); err == nil {
-		t.Fatal("expected error writing header, got nil")
-	} else if !strings.Contains(err.Error(), "writing header") {
-		t.Errorf("expected error to mention writing header, got: %v", err)
+func TestWriteErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		rows    [][]string
+		wantErr string
+	}{
+		{"header error", [][]string{{strings.Repeat("x", 5000)}}, "writing header"},
+		{"rows error", [][]string{{"entity"}, {strings.Repeat("y", 5000)}}, "writing rows"},
 	}
-}
-
-func TestWriteRowsError(t *testing.T) {
-	rows := [][]string{{"entity"}, {strings.Repeat("y", 5000)}}
-	if err := Write(failWriter{}, rows, 0); err == nil {
-		t.Fatal("expected error writing rows, got nil")
-	} else if !strings.Contains(err.Error(), "writing rows") {
-		t.Errorf("expected error to mention writing rows, got: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Write(failWriter{}, tt.rows, 0)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("expected error to mention %q, got: %v", tt.wantErr, err)
+			}
+		})
 	}
 }
 

@@ -335,35 +335,25 @@ func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
 }
 
 func TestGenerateLogRejectsNonCSVFormat(t *testing.T) {
-	resetFlags(t)
-	outputFormat = "json"
+	for _, format := range []string{"json", "yaml"} {
+		resetFlags(t)
+		outputFormat = format
 
-	cmd := newGenerateLogCmd()
-	err := cmd.RunE(cmd, nil)
-	if err == nil {
-		t.Fatal("expected error for --format json, got nil")
-	}
-	if !strings.Contains(err.Error(), "--format") {
-		t.Errorf("expected error to mention --format, got: %v", err)
+		cmd := newGenerateLogCmd()
+		err := cmd.RunE(cmd, nil)
+		if err == nil {
+			t.Fatalf("expected error for --format %s, got nil", format)
+		}
+		if !strings.Contains(err.Error(), "--format") {
+			t.Errorf("expected error to mention --format, got: %v", err)
+		}
 	}
 }
 
 func initGenLogRepo(t *testing.T, dir string) {
 	t.Helper()
-	run := func(args ...string) {
-		t.Helper()
-		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
-			t.Fatalf("git %v: %v", args, err)
-		}
-	}
-	run("init", "-b", "main")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test")
-	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "-A")
-	run("commit", "-m", "initial")
+	initGitRepo(t, dir)
+	commitFiles(t, dir, "main.go")
 }
 
 func TestGenerateLogRunEWritesToFile(t *testing.T) {
@@ -379,27 +369,8 @@ func TestGenerateLogRunEWritesToFile(t *testing.T) {
 	if err := cmd.RunE(cmd, nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	data, err := os.ReadFile(outFile)
-	if err != nil {
-		t.Fatalf("reading output file: %v", err)
-	}
-	if !strings.Contains(string(data), "main.go") {
-		t.Errorf("expected main.go in output file, got: %q", string(data))
-	}
-}
-
-func TestGenerateLogRunEBadFormat(t *testing.T) {
-	resetFlags(t)
-	outputFormat = "yaml"
-
-	cmd := newGenerateLogCmd()
-	err := cmd.RunE(cmd, nil)
-	if err == nil {
-		t.Fatal("expected error for --format yaml, got nil")
-	}
-	if !strings.Contains(err.Error(), "--format") {
-		t.Errorf("expected error to mention --format, got: %v", err)
+	if !strings.Contains(readOutputFile(t, outFile), "main.go") {
+		t.Errorf("expected main.go in output file")
 	}
 }
 
@@ -422,23 +393,16 @@ func TestGenerateLogRunEPropagatesRunGitLogError(t *testing.T) {
 
 func TestRunGitLogAfterFiltersCommits(t *testing.T) {
 	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
-			t.Fatalf("git %v: %v", args, err)
-		}
-	}
-
-	run("init", "-b", "main")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test")
+	initGitRepo(t, dir)
 
 	commitAt := func(name, date string) {
 		t.Helper()
 		if err := os.WriteFile(filepath.Join(dir, name), []byte("content\n"), 0644); err != nil {
 			t.Fatal(err)
 		}
-		run("add", "-A")
+		if err := exec.Command("git", "-C", dir, "add", "-A").Run(); err != nil {
+			t.Fatalf("git add: %v", err)
+		}
 		cmd := exec.Command("git", "-C", dir, "commit", "-m", "add "+name)
 		cmd.Env = append(os.Environ(),
 			"GIT_AUTHOR_DATE="+date,
@@ -480,20 +444,7 @@ func TestRunGitLogStartFailsWithoutGitBinary(t *testing.T) {
 
 func TestRunGitLogWriteError(t *testing.T) {
 	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
-			t.Fatalf("git %v: %v", args, err)
-		}
-	}
-	run("init", "-b", "main")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test")
-	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "-A")
-	run("commit", "-m", "initial")
+	initGenLogRepo(t, dir)
 
 	err := runGitLog(dir, "", "", nil, errWriter{})
 	if err == nil {

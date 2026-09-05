@@ -81,39 +81,47 @@ func TestParseFileNotFound(t *testing.T) {
 	}
 }
 
-func TestParseReaderMalformedHeader(t *testing.T) {
-	// A line starting with "--" that doesn't split into 4 parts is skipped,
-	// and any numstat lines that follow it are dropped since currentRev is
-	// never set.
-	input := "--not-enough-dashes\n10\t5\tsrc/foo.go\n"
-	commits, err := ParseReader(strings.NewReader(input))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+func TestParseReaderMalformedInput(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantCommits []model.Commit
+	}{
+		{
+			name:        "malformed header skips commit",
+			input:       "--not-enough-dashes\n10\t5\tsrc/foo.go\n",
+			wantCommits: nil,
+		},
+		{
+			name:  "numstat before header is dropped",
+			input: "10\t5\tsrc/foo.go\n--abc123--2024-01-15--Alice\n3\t0\tsrc/bar.go\n",
+			wantCommits: []model.Commit{
+				{Rev: "abc123", Date: "2024-01-15", Author: "Alice", Entity: "src/bar.go", LocAdded: 3},
+			},
+		},
+		{
+			name:  "malformed numstat line is skipped",
+			input: "--abc123--2024-01-15--Alice\nnot-a-numstat-line\n3\t0\tsrc/bar.go\n",
+			wantCommits: []model.Commit{
+				{Rev: "abc123", Date: "2024-01-15", Author: "Alice", Entity: "src/bar.go", LocAdded: 3},
+			},
+		},
 	}
-	if len(commits) != 0 {
-		t.Errorf("expected 0 commits for malformed header, got %d", len(commits))
-	}
-}
-
-func TestParseReaderNumstatBeforeHeader(t *testing.T) {
-	input := "10\t5\tsrc/foo.go\n--abc123--2024-01-15--Alice\n3\t0\tsrc/bar.go\n"
-	commits, err := ParseReader(strings.NewReader(input))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(commits) != 1 || commits[0].Entity != "src/bar.go" {
-		t.Errorf("expected only src/bar.go to be parsed, got %v", commits)
-	}
-}
-
-func TestParseReaderMalformedNumstatLine(t *testing.T) {
-	input := "--abc123--2024-01-15--Alice\nnot-a-numstat-line\n3\t0\tsrc/bar.go\n"
-	commits, err := ParseReader(strings.NewReader(input))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(commits) != 1 || commits[0].Entity != "src/bar.go" {
-		t.Errorf("expected only src/bar.go to be parsed, got %v", commits)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commits, err := ParseReader(strings.NewReader(tt.input))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(commits) != len(tt.wantCommits) {
+				t.Fatalf("got %d commits, want %d", len(commits), len(tt.wantCommits))
+			}
+			for i, want := range tt.wantCommits {
+				if commits[i] != want {
+					t.Errorf("commit[%d]: got %v, want %v", i, commits[i], want)
+				}
+			}
+		})
 	}
 }
 
