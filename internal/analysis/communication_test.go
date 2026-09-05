@@ -153,22 +153,37 @@ func TestCommunicationSortByStrength(t *testing.T) {
 }
 
 func TestComputeResultsEdgeCases(t *testing.T) {
-	// Single author
-	freqs := map[pairKey]int{
-		{"Alice", "Alice"}: 2,
+	tests := []struct {
+		name  string
+		freqs map[pairKey]int
+	}{
+		{
+			name: "single author",
+			freqs: map[pairKey]int{
+				{"Alice", "Alice"}: 2,
+			},
+		},
+		{
+			name: "disconnected authors",
+			freqs: map[pairKey]int{
+				{"Alice", "Alice"}: 2,
+				{"Bob", "Bob"}:     2,
+			},
+		},
+		{
+			name: "zero average without self-pairs",
+			freqs: map[pairKey]int{
+				{"Alice", "Bob"}: 1,
+				{"Bob", "Alice"}: 1,
+			},
+		},
 	}
-	res := computeResults(freqs)
-	if len(res) != 0 {
-		t.Errorf("expected 0 results for single author, got %d", len(res))
-	}
-
-	// Disconnected authors
-	freqs = map[pairKey]int{
-		{"Alice", "Alice"}: 2,
-		{"Bob", "Bob"}:     2,
-	}
-	res = computeResults(freqs)
-	if len(res) != 0 {
-		t.Errorf("expected 0 results for disconnected authors, got %d", len(res))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := computeResults(tt.freqs)
+			if len(res) != 0 {
+				t.Errorf("expected 0 results, got %d", len(res))
+			}
+		})
 	}
 }

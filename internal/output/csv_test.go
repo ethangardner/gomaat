@@ -2,11 +2,21 @@ package output
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// failWriter always fails. encoding/csv buffers small writes, so a write
+// only reaches failWriter once a field is large enough to force a flush
+// (see the size checks in the tests below).
+type failWriter struct{}
+
+func (failWriter) Write(_ []byte) (int, error) {
+	return 0, errors.New("boom")
+}
 
 func TestWrite(t *testing.T) {
 	rows := [][]string{
@@ -64,5 +74,34 @@ func TestWriteEmpty(t *testing.T) {
 	}
 	if buf.Len() != 0 {
 		t.Errorf("expected empty output, got %q", buf.String())
+	}
+}
+
+func TestWriteErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		rows    [][]string
+		wantErr string
+	}{
+		{"header error", [][]string{{strings.Repeat("x", 5000)}}, "writing header"},
+		{"rows error", [][]string{{"entity"}, {strings.Repeat("y", 5000)}}, "writing rows"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Write(failWriter{}, tt.rows, 0)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("expected error to mention %q, got: %v", tt.wantErr, err)
+			}
+		})
+	}
+}
+
+func TestWriteFileBadPath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "does-not-exist", "out.csv")
+	if err := WriteFile(path, [][]string{{"entity"}}, 0); err == nil {
+		t.Fatal("expected error for unwritable path, got nil")
 	}
 }

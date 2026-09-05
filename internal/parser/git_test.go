@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"errors"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -69,5 +71,69 @@ func TestParseReaderHeaderOnly(t *testing.T) {
 	}
 	if len(commits) != 0 {
 		t.Errorf("expected 0 commits (no file lines), got %d", len(commits))
+	}
+}
+
+func TestParseFileNotFound(t *testing.T) {
+	_, err := ParseFile(filepath.Join(t.TempDir(), "does-not-exist.log"))
+	if err == nil {
+		t.Fatal("expected error for missing file, got nil")
+	}
+}
+
+func TestParseReaderMalformedInput(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantCommits []model.Commit
+	}{
+		{
+			name:        "malformed header skips commit",
+			input:       "--not-enough-dashes\n10\t5\tsrc/foo.go\n",
+			wantCommits: nil,
+		},
+		{
+			name:  "numstat before header is dropped",
+			input: "10\t5\tsrc/foo.go\n--abc123--2024-01-15--Alice\n3\t0\tsrc/bar.go\n",
+			wantCommits: []model.Commit{
+				{Rev: "abc123", Date: "2024-01-15", Author: "Alice", Entity: "src/bar.go", LocAdded: 3},
+			},
+		},
+		{
+			name:  "malformed numstat line is skipped",
+			input: "--abc123--2024-01-15--Alice\nnot-a-numstat-line\n3\t0\tsrc/bar.go\n",
+			wantCommits: []model.Commit{
+				{Rev: "abc123", Date: "2024-01-15", Author: "Alice", Entity: "src/bar.go", LocAdded: 3},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			commits, err := ParseReader(strings.NewReader(tt.input))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if len(commits) != len(tt.wantCommits) {
+				t.Fatalf("got %d commits, want %d", len(commits), len(tt.wantCommits))
+			}
+			for i, want := range tt.wantCommits {
+				if commits[i] != want {
+					t.Errorf("commit[%d]: got %v, want %v", i, commits[i], want)
+				}
+			}
+		})
+	}
+}
+
+type errReader struct{}
+
+func (errReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("boom")
+}
+
+func TestParseReaderScannerError(t *testing.T) {
+	_, err := ParseReader(errReader{})
+	if err == nil {
+		t.Fatal("expected error from scanner, got nil")
 	}
 }

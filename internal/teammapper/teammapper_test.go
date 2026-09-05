@@ -1,6 +1,7 @@
 package teammapper
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -74,6 +75,37 @@ func TestLoadFile(t *testing.T) {
 	}
 	if len(lookup) != 2 {
 		t.Errorf("expected 2 entries, got %d", len(lookup))
+	}
+}
+
+func TestLoadFileNotFound(t *testing.T) {
+	_, err := LoadFile(filepath.Join(t.TempDir(), "does-not-exist.csv"))
+	if err == nil {
+		t.Fatal("expected error for missing team map file, got nil")
+	}
+}
+
+func TestLoadMalformedCSV(t *testing.T) {
+	// An unterminated quoted field is a CSV syntax error.
+	_, err := load(strings.NewReader(`Alice,"Backend` + "\n"))
+	if err == nil {
+		t.Fatal("expected error for malformed CSV, got nil")
+	}
+	if !strings.Contains(err.Error(), "reading team map") {
+		t.Errorf("expected error to mention reading team map, got: %v", err)
+	}
+}
+
+func TestLoadSkipsShortRecords(t *testing.T) {
+	// Every row has a single field, so encoding/csv's FieldsPerRecord check
+	// (derived from the first row) doesn't trip; each row is instead
+	// dropped by teammapper's own len(record) < 2 check.
+	lookup, err := load(strings.NewReader("Alice\nBob\n"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(lookup) != 0 {
+		t.Errorf("expected single-column rows to be skipped, got %v", lookup)
 	}
 }
 

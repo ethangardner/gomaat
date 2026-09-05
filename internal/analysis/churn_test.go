@@ -71,6 +71,17 @@ func TestEntityChurn(t *testing.T) {
 	assertFormattedRows(t, FormatEntityChurn(results, model.Options{}), "entity", 3)
 }
 
+func TestEntityChurnTiesBrokenByKey(t *testing.T) {
+	commits := []model.Commit{
+		{Entity: "zebra.go", LocAdded: 5},
+		{Entity: "apple.go", LocAdded: 5},
+	}
+	results := EntityChurn(commits, model.Options{})
+	if len(results) != 2 || results[0].Key != "apple.go" || results[1].Key != "zebra.go" {
+		t.Errorf("expected tie broken alphabetically (apple.go, zebra.go), got %v", results)
+	}
+}
+
 func TestEntityChurnEmpty(t *testing.T) {
 	results := EntityChurn(nil, model.Options{})
 	assertEmptyResults(t, results)

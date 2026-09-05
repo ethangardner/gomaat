@@ -57,6 +57,26 @@ func TestAgeEmpty(t *testing.T) {
 	assertEmptyResults(t, results)
 }
 
+func TestAgeDefaultsToNowWhenTimeNowUnset(t *testing.T) {
+	commits := []model.Commit{{Entity: "foo.go", Date: time.Now().Format("2006-01-02")}}
+	results := Age(commits, model.Options{})
+	if len(results) != 1 || results[0].AgeMonths != 0 {
+		t.Errorf("expected today's commit to have age 0 using real time.Now(), got %v", results)
+	}
+}
+
+func TestAgeSkipsUnparseableDate(t *testing.T) {
+	now := time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC)
+	commits := []model.Commit{
+		{Entity: "good.go", Date: "2024-06-01"},
+		{Entity: "bad.go", Date: "not-a-date"},
+	}
+	results := Age(commits, model.Options{AgeTimeNow: now})
+	if len(results) != 1 || results[0].Entity != "good.go" {
+		t.Errorf("expected bad.go to be skipped, got %v", results)
+	}
+}
+
 func TestAgeUsesLatestDate(t *testing.T) {
 	// Entity appears in multiple commits; age should reflect the most recent one
 	now := time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC)
