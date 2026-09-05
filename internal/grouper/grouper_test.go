@@ -1,6 +1,7 @@
 package grouper
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -77,6 +78,23 @@ func TestLoadFile(t *testing.T) {
 	}
 	if len(groups) != 1 {
 		t.Errorf("expected 1 group, got %d", len(groups))
+	}
+}
+
+func TestLoadFileNotFound(t *testing.T) {
+	_, err := LoadFile(filepath.Join(t.TempDir(), "does-not-exist.txt"))
+	if err == nil {
+		t.Fatal("expected error for missing group file, got nil")
+	}
+}
+
+func TestLoadMissingArrow(t *testing.T) {
+	_, err := load(strings.NewReader("src/api API\n"))
+	if err == nil {
+		t.Fatal("expected error for line missing '=>', got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid group spec line") {
+		t.Errorf("expected error to mention invalid group spec line, got: %v", err)
 	}
 }
 

@@ -37,6 +37,21 @@ func TestQuantileSingleValue(t *testing.T) {
 	}
 }
 
+func TestQuantileAtUpperBound(t *testing.T) {
+	// p=1.0 puts the interpolation index exactly at the last element
+	// (hi == n), which must clamp to sorted[lo] rather than index out of range.
+	sorted := []float64{1, 2, 3, 4, 5}
+	if got := quantile(sorted, 1.0); got != 5 {
+		t.Errorf("quantile(sorted, 1.0) = %v, want 5", got)
+	}
+}
+
+func TestMeanEmpty(t *testing.T) {
+	if got := mean(nil); got != 0 {
+		t.Errorf("mean(nil) = %v, want 0", got)
+	}
+}
+
 func TestSampleStddevEdgeCases(t *testing.T) {
 	if got := sampleStddev(nil, 0); got != 0 {
 		t.Errorf("sampleStddev(nil) = %v, want 0", got)

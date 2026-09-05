@@ -495,6 +495,127 @@ func TestClocJSONFormat(t *testing.T) {
 	}
 }
 
+func TestClocRunENoTrackedFiles(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+
+	cmd := newClocCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error for repo with no tracked files, got nil")
+	}
+	if !strings.Contains(err.Error(), "no git-tracked files found") {
+		t.Errorf("expected 'no git-tracked files found' error, got: %v", err)
+	}
+}
+
+func TestClocRunEByFile(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dir, "add", "main.go").Run(); err != nil {
+		t.Fatal(err)
+	}
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	cmd := newClocCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("by-file", "true"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "main.go") {
+		t.Errorf("expected main.go in by-file output, got: %q", string(data))
+	}
+}
+
+func TestClocRunEWithExcludes(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	for _, name := range []string{"main.go", "types.pb.go"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("package main\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := exec.Command("git", "-C", dir, "add", "-A").Run(); err != nil {
+		t.Fatal(err)
+	}
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	cmd := newClocCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("exclude", "*.pb.go"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if strings.Contains(string(data), "types.pb.go") {
+		t.Errorf("expected types.pb.go to be excluded, got: %q", string(data))
+	}
+}
+
+func TestClocRunENonRepo(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+
+	cmd := newClocCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error for non-repo path, got nil")
+	}
+	if !strings.Contains(err.Error(), "git rev-parse --show-toplevel failed") {
+		t.Errorf("expected rev-parse context in error, got: %v", err)
+	}
+}
+
+func TestRelativizeResultFallsBackOnRelError(t *testing.T) {
+	// filepath.Rel returns an error when one path is absolute and the other
+	// isn't; relativizeResult must fall back to the original path rather
+	// than propagate the error.
+	result := &gocloc.Result{
+		Files: map[string]*gocloc.ClocFile{
+			"relative/path.go": {Name: "relative/path.go"},
+		},
+	}
+	relativizeResult(result, "/abs/root")
+
+	f, ok := result.Files["relative/path.go"]
+	if !ok {
+		t.Fatalf("expected original path preserved as key, got: %v", result.Files)
+	}
+	if f.Name != "relative/path.go" {
+		t.Errorf("expected Name to fall back to original path, got %q", f.Name)
+	}
+}
+
 func TestClocBadFormat(t *testing.T) {
 	resetFlags(t)
 	outputFormat = "yaml"

@@ -347,3 +347,178 @@ func TestGenerateLogRejectsNonCSVFormat(t *testing.T) {
 		t.Errorf("expected error to mention --format, got: %v", err)
 	}
 }
+
+func initGenLogRepo(t *testing.T, dir string) {
+	t.Helper()
+	run := func(args ...string) {
+		t.Helper()
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+	run("init", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "-A")
+	run("commit", "-m", "initial")
+}
+
+func TestGenerateLogRunEWritesToFile(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGenLogRepo(t, dir)
+	outFile = filepath.Join(t.TempDir(), "out.log")
+
+	cmd := newGenerateLogCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "main.go") {
+		t.Errorf("expected main.go in output file, got: %q", string(data))
+	}
+}
+
+func TestGenerateLogRunEBadFormat(t *testing.T) {
+	resetFlags(t)
+	outputFormat = "yaml"
+
+	cmd := newGenerateLogCmd()
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error for --format yaml, got nil")
+	}
+	if !strings.Contains(err.Error(), "--format") {
+		t.Errorf("expected error to mention --format, got: %v", err)
+	}
+}
+
+func TestGenerateLogRunEPropagatesRunGitLogError(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir() // not a git repo
+
+	cmd := newGenerateLogCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error for non-repo path, got nil")
+	}
+	if !strings.Contains(err.Error(), "git log failed") {
+		t.Errorf("expected 'git log failed' error, got: %v", err)
+	}
+}
+
+func TestRunGitLogAfterFiltersCommits(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+
+	run("init", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+
+	commitAt := func(name, date string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("content\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		run("add", "-A")
+		cmd := exec.Command("git", "-C", dir, "commit", "-m", "add "+name)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_DATE="+date,
+			"GIT_COMMITTER_DATE="+date,
+		)
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("commit %s: %v", name, err)
+		}
+	}
+
+	commitAt("old.go", "2020-01-01T00:00:00")
+	commitAt("new.go", "2025-01-01T00:00:00")
+
+	var out bytes.Buffer
+	if err := runGitLog(dir, "2022-01-01", "", nil, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	result := out.String()
+	if strings.Contains(result, "old.go") {
+		t.Errorf("expected old.go (before cutoff) to be excluded, got:\n%s", result)
+	}
+	if !strings.Contains(result, "new.go") {
+		t.Errorf("expected new.go (after cutoff) in output, got:\n%s", result)
+	}
+}
+
+func TestRunGitLogStartFailsWithoutGitBinary(t *testing.T) {
+	t.Setenv("PATH", "")
+
+	err := runGitLog(".", "", "", nil, io.Discard)
+	if err == nil {
+		t.Fatal("expected error when git binary is not on PATH, got nil")
+	}
+	if !strings.Contains(err.Error(), "starting git log") {
+		t.Errorf("expected 'starting git log' error, got: %v", err)
+	}
+}
+
+func TestRunGitLogWriteError(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+	}
+	run("init", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "Test")
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "-A")
+	run("commit", "-m", "initial")
+
+	err := runGitLog(dir, "", "", nil, errWriter{})
+	if err == nil {
+		t.Fatal("expected error from destination write failure, got nil")
+	}
+	if !strings.Contains(err.Error(), "processing git log output") {
+		t.Errorf("expected 'processing git log output' error, got: %v", err)
+	}
+}
+
+func TestGenerateLogRunEBadOutputPath(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGenLogRepo(t, dir)
+	outFile = filepath.Join(t.TempDir(), "does-not-exist", "out.log")
+
+	cmd := newGenerateLogCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error for unwritable output path, got nil")
+	}
+	if !strings.Contains(err.Error(), "creating output file") {
+		t.Errorf("expected 'creating output file' error, got: %v", err)
+	}
+}

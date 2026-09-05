@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,6 +110,201 @@ func TestRunAnalysisJSONFormat(t *testing.T) {
 	}
 	if len(got) == 0 {
 		t.Error("expected at least one JSON record, got none")
+	}
+}
+
+func TestRunAnalysisValidGroupFile(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	groupFile = testhelpers.WriteTempFile(t, "groups.txt", `^foo\.go$ => FooGroup`+"\n")
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	if err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "FooGroup") {
+		t.Errorf("expected entity remapped to FooGroup, got: %q", string(data))
+	}
+}
+
+func TestRunAnalysisValidTeamMapFile(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	teamMapFile = testhelpers.WriteTempFile(t, "teams.csv", "Jane Doe,TeamA\n")
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	if err := runAnalysis(analysis.AuthorChurn, analysis.FormatAuthorChurn, model.Options{}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "TeamA") {
+		t.Errorf("expected author remapped to TeamA, got: %q", string(data))
+	}
+}
+
+func TestRunAnalysisWritesToStdout(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+
+	origStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	t.Cleanup(func() { os.Stdout = origStdout })
+
+	runErr := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{})
+	_ = w.Close()
+	os.Stdout = origStdout
+
+	if runErr != nil {
+		t.Fatalf("unexpected error: %v", runErr)
+	}
+	var buf strings.Builder
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "foo.go") {
+		t.Errorf("expected foo.go on stdout, got: %q", buf.String())
+	}
+}
+
+func TestSimpleCmdRunE(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	cmd, _, err := rootCmd.Find([]string{"authors"})
+	if err != nil {
+		t.Fatalf("finding authors command: %v", err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "foo.go") {
+		t.Errorf("expected foo.go in output, got: %q", string(data))
+	}
+}
+
+func TestCouplingCmdRunE(t *testing.T) {
+	resetFlags(t)
+	logFile = testhelpers.WriteTempFile(t, "coupling.log", strings.Join([]string{
+		"--abc123--2024-01-01--Jane Doe",
+		"1\t0\tfoo.go",
+		"1\t0\tbar.go",
+		"",
+	}, "\n"))
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	cmd, _, err := rootCmd.Find([]string{"coupling"})
+	if err != nil {
+		t.Fatalf("finding coupling command: %v", err)
+	}
+	if err := cmd.Flags().Set("min-revs", "1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("min-shared-revs", "1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("min-coupling", "0"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "foo.go") || !strings.Contains(string(data), "bar.go") {
+		t.Errorf("expected coupled entities in output, got: %q", string(data))
+	}
+}
+
+func TestAgeCmdValidTimeNow(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	ageCmd, _, err := rootCmd.Find([]string{"age"})
+	if err != nil {
+		t.Fatalf("finding age command: %v", err)
+	}
+	if err := ageCmd.Flags().Set("age-time-now", "2024-06-01"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = ageCmd.Flags().Set("age-time-now", "")
+	})
+
+	if err := ageCmd.RunE(ageCmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "foo.go") {
+		t.Errorf("expected foo.go in output, got: %q", string(data))
+	}
+}
+
+func TestAgeCmdDefaultsToNow(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	ageCmd, _, err := rootCmd.Find([]string{"age"})
+	if err != nil {
+		t.Fatalf("finding age command: %v", err)
+	}
+	if err := ageCmd.Flags().Set("age-time-now", ""); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := ageCmd.RunE(ageCmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "foo.go") {
+		t.Errorf("expected foo.go in output, got: %q", string(data))
+	}
+}
+
+func TestExecuteSuccess(t *testing.T) {
+	resetFlags(t)
+	logFile = ""
+	outFile = ""
+	fixture := validLogFixture(t)
+	outPath := filepath.Join(t.TempDir(), "out.csv")
+
+	origArgs := os.Args
+	t.Cleanup(func() { os.Args = origArgs })
+	os.Args = []string{"gomaat", "authors", "--log", fixture, "--outfile", outPath}
+
+	Execute()
+
+	data, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("reading output file: %v", err)
+	}
+	if !strings.Contains(string(data), "foo.go") {
+		t.Errorf("expected foo.go in output, got: %q", string(data))
 	}
 }
 

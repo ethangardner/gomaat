@@ -119,3 +119,17 @@ func TestWriteJSONEmpty(t *testing.T) {
 		t.Errorf("expected empty output, got %q", buf.String())
 	}
 }
+
+func TestWriteJSONEncodeError(t *testing.T) {
+	rows := [][]string{{"entity"}, {"foo.go"}}
+	if err := WriteJSON(failWriter{}, rows, 0); err == nil {
+		t.Fatal("expected error from encoder write failure, got nil")
+	}
+}
+
+func TestWriteJSONFileBadPath(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "does-not-exist", "out.json")
+	if err := WriteJSONFile(path, [][]string{{"entity"}}, 0); err == nil {
+		t.Fatal("expected error for unwritable path, got nil")
+	}
+}

@@ -172,3 +172,17 @@ func TestComputeResultsEdgeCases(t *testing.T) {
 		t.Errorf("expected 0 results for disconnected authors, got %d", len(res))
 	}
 }
+
+func TestComputeResultsSkipsZeroAverage(t *testing.T) {
+	// A shared pair with no self-pair entries at all: myTotal and peerTotal
+	// both resolve to 0 (missing map keys), so avg == 0 and the pair must
+	// be skipped to avoid a meaningless (or divide-by-zero) strength.
+	freqs := map[pairKey]int{
+		{"Alice", "Bob"}: 1,
+		{"Bob", "Alice"}: 1,
+	}
+	res := computeResults(freqs)
+	if len(res) != 0 {
+		t.Errorf("expected 0 results when avg is 0, got %v", res)
+	}
+}
