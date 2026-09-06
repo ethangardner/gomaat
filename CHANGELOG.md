@@ -3,11 +3,13 @@
 All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
-This project has not yet cut a stable release (see [#25](https://github.com/ethangardner/gomaat/issues/25)); until `v1.0.0`, alpha tags (`v0.1.0-alphaN`) may include breaking changes to flags or output columns without a major-version bump. From `v1.0.0` onward it will follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) from `v1.0.0` onward. The pre-1.0 `v0.1.0-alphaN` tags predate that guarantee and could include breaking changes to flags or output columns without a major-version bump.
 
 **Convention:** entries land under `[Unreleased]` in the same PR as the change they describe — new/changed/removed CLI flags, subcommands, or output columns, and user-visible bug fixes. Internal-only refactors are omitted unless they change the public Go API. When a release is tagged, `[Unreleased]` is renamed to the version and date, and a new empty `[Unreleased]` section is added above it.
 
 ## [Unreleased]
+
+## [v1.0.0] - 2026-09-05
 
 ### Changed
 
@@ -79,7 +81,8 @@ This project has not yet cut a stable release (see [#25](https://github.com/etha
 - `--exclude` glob filtering for `generate-log`.
 - CI: linting and a goreleaser-based release workflow.
 
-[Unreleased]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.7...HEAD
+[Unreleased]: https://github.com/ethangardner/gomaat/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.7...v1.0.0
 [v0.1.0-alpha.7]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.6...v0.1.0-alpha.7
 [v0.1.0-alpha.6]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.5...v0.1.0-alpha.6
 [v0.1.0-alpha.5]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.4...v0.1.0-alpha.5
