@@ -503,14 +503,11 @@ func TestGenerateLogRunEWithNewFilters(t *testing.T) {
 	initGenLogRepo(t, dir)
 	outFile = filepath.Join(t.TempDir(), "out.log")
 
+	excludeAuthors = []string{"nobody-matches-this"}
+	useMailmap = true
+
 	cmd := newGenerateLogCmd()
 	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("exclude-author", "nobody-matches-this"); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("use-mailmap", "true"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -528,11 +525,10 @@ func TestGenerateLogRunEIgnoreRevsFileError(t *testing.T) {
 	initGitRepo(t, dir)
 	commitFiles(t, dir, "keep.go")
 
+	ignoreRevsFile = filepath.Join(dir, "does-not-exist")
+
 	cmd := newGenerateLogCmd()
 	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("ignore-revs-file", filepath.Join(dir, "does-not-exist")); err != nil {
 		t.Fatal(err)
 	}
 

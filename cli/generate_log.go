@@ -11,16 +11,17 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/parser"
 )
 
+// newGenerateLogCmd's after/before/exclude/exclude-author/ignore-revs-file/
+// use-mailmap flags are registered as root-persistent flags (see root.go) so
+// --repo can reuse them via the same package-level vars without a second,
+// divergent flag set.
 func newGenerateLogCmd() *cobra.Command {
-	var after string
-	var before string
 	var path string
-	var excludes []string
-	var excludeAuthors []string
-	var ignoreRevsFile string
-	var useMailmap bool
 
 	cmd := &cobra.Command{
 		Use:   "generate-log",
@@ -84,13 +85,7 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&after, "after", "", "only include commits after this date (YYYY-MM-DD)")
-	cmd.Flags().StringVar(&before, "before", "", "only include commits before this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&path, "path", ".", "path to the git repository")
-	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
-	cmd.Flags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, supports globs, case-sensitive)")
-	cmd.Flags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one SHA per line, '#' comments; same format as git blame --ignore-revs-file)")
-	cmd.Flags().BoolVar(&useMailmap, "use-mailmap", false, "resolve author identities via .mailmap (requires a mailmap file at the repo root; no-op otherwise)")
 
 	return cmd
 }
@@ -153,6 +148,32 @@ func runGitLog(path, after, before string, filters logFilters, dst io.Writer) er
 		return fmt.Errorf("git log failed: %w\n%s\nCommand: git %s", err, strings.TrimSpace(stderr.String()), strings.Join(gitArgs, " "))
 	}
 	return nil
+}
+
+// runGitLogToCommits runs git log against path with filters and parses the
+// result straight into commits, for --repo's direct-analysis shortcut. It
+// writes git's (filtered) output to a temporary file and removes it before
+// returning, rather than streaming through an in-memory pipe concurrently
+// with parsing — simpler to get right, and satisfies --repo's "no
+// intermediate file left behind" requirement just as well.
+func runGitLogToCommits(path, after, before string, filters logFilters) ([]model.Commit, error) {
+	tmp, err := os.CreateTemp("", "gomaat-repo-log-*.log")
+	if err != nil {
+		return nil, fmt.Errorf("creating temporary log file: %w", err)
+	}
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+
+	runErr := runGitLog(path, after, before, filters, tmp)
+	closeErr := tmp.Close()
+	if runErr != nil {
+		return nil, runErr
+	}
+	if closeErr != nil {
+		return nil, fmt.Errorf("closing temporary log file: %w", closeErr)
+	}
+
+	return parser.ParseFile(tmpPath)
 }
 
 // loadIgnoreRevs reads a newline-separated list of commit SHAs, in the same

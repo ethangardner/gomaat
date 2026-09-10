@@ -108,6 +108,8 @@ Check the installed version with `gomaat --version`.
 
 ## Workflow
 
+**Recommended: two-step, reproducible.**
+
 1. **Generate a log** from your git repository.
 2. **Run an analysis** against that log file.
 
@@ -119,13 +121,25 @@ gomaat generate-log --after 2023-01-01 --outfile logfile.log
 gomaat coupling -l logfile.log
 ```
 
-All analyses read from a pre-generated log file rather than calling git directly. This makes repeated analysis fast and allows you to version-control the log for reproducible results.
+Reading from a pre-generated log file makes repeated analysis fast and lets you version-control the log for reproducible results — anyone with the same log file gets the same answer, regardless of what's changed in the repo since.
+
+**Quick, non-reproducible shortcut.**
+
+Every analysis subcommand also accepts `--repo <path>` instead of `-l`, which runs the equivalent of `generate-log` against that path and feeds the result straight into the analysis, with no intermediate file left behind:
+
+```bash
+gomaat coupling --repo .
+```
+
+`--repo` is mutually exclusive with `-l`/`--log`, and supports `generate-log`'s own `--after`/`--before`/`--exclude`/`--exclude-author`/`--ignore-revs-file`/`--use-mailmap` flags (see [Generating a Git Log](#generating-a-git-log)) since it reuses the exact same `git log` invocation. Prefer `--repo` for a quick, one-off look at "what does the repo I'm standing in right now look like" — prefer the two-step flow whenever you want a reproducible or shareable result.
 
 ---
 
 ## Generating a Git Log
 
 The `generate-log` subcommand runs the correct `git log` invocation so you don't have to remember the flags.
+
+> **Note:** `--after`, `--before`, `--exclude`, `--exclude-author`, `--ignore-revs-file`, and `--use-mailmap` below are registered as [global flags](#global-flags), shared with `--repo` (see [Workflow](#workflow)) so both build the exact same underlying `git log` invocation. `--path` and `--outfile`/`-o` remain specific to `generate-log`.
 
 ```
 gomaat generate-log [flags]
@@ -192,14 +206,21 @@ git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renam
 
 These flags are available on every analysis subcommand.
 
-| Flag              | Short | Default      | Description                                                 |
-|-------------------|-------|--------------|-------------------------------------------------------------|
-| `--log`           | `-l`  | _(required)_ | Path to the git log file                                    |
-| `--outfile`       | `-o`  | stdout       | Write output to this file                                   |
-| `--rows`          | `-r`  | 0 (no limit) | Maximum number of result rows                               |
-| `--group`         | `-g`  | _(none)_     | [Architectural grouping](#architectural-grouping) spec file |
-| `--team-map-file` | `-p`  | _(none)_     | [Team mapping](#team-mapping) CSV file                      |
-| `--format`        | `-f`  | `csv`        | Output format: `csv` or `json`                              |
+| Flag                 | Short | Default      | Description                                                                                          |
+|----------------------|-------|--------------|--------------------------------------------------------------------------------------------------------|
+| `--log`              | `-l`  | _(required unless `--repo` is set)_ | Path to the git log file                                                        |
+| `--repo`             |       | _(none)_     | Run analysis directly against this git repository instead of `-l` (mutually exclusive with `--log`)   |
+| `--outfile`          | `-o`  | stdout       | Write output to this file                                                                            |
+| `--rows`             | `-r`  | 0 (no limit) | Maximum number of result rows                                                                        |
+| `--group`            | `-g`  | _(none)_     | [Architectural grouping](#architectural-grouping) spec file                                          |
+| `--team-map-file`    | `-p`  | _(none)_     | [Team mapping](#team-mapping) CSV file                                                                |
+| `--format`           | `-f`  | `csv`        | Output format: `csv` or `json`                                                                       |
+| `--after`            |       | _(none)_     | With `--repo`, or reused by `generate-log`: only include commits after this date (`YYYY-MM-DD`)      |
+| `--before`           |       | _(none)_     | With `--repo`, or reused by `generate-log`: only include commits before this date (`YYYY-MM-DD`)     |
+| `--exclude`          |       | _(none)_     | With `--repo`, or reused by `generate-log`: exclude paths matching this pattern (repeatable, globs)  |
+| `--exclude-author`   |       | _(none)_     | With `--repo`, or reused by `generate-log`: exclude commits by this author name (repeatable, globs)  |
+| `--ignore-revs-file` |       | _(none)_     | With `--repo`, or reused by `generate-log`: drop commits listed in this file                         |
+| `--use-mailmap`      |       | `false`      | With `--repo`, or reused by `generate-log`: resolve author identities via `.mailmap`                 |
 
 ---
 

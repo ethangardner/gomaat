@@ -18,11 +18,22 @@ import (
 // persistent flag values (shared across all analysis subcommands)
 var (
 	logFile      string
+	repoPath     string
 	outFile      string
 	maxRows      int
 	groupFile    string
 	teamMapFile  string
 	outputFormat string
+
+	// git-log-invocation flags, shared between generate-log and --repo (see
+	// runGitLogToCommits in generate_log.go) so both build the same
+	// underlying `git log` command rather than diverging.
+	after          string
+	before         string
+	excludes       []string
+	excludeAuthors []string
+	ignoreRevsFile string
+	useMailmap     bool
 )
 
 // version is overridden at release build time via -ldflags (see .goreleaser.yml).
@@ -53,11 +64,19 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&logFile, "log", "l", "", "git log file to analyze")
+	rootCmd.PersistentFlags().StringVar(&repoPath, "repo", "", "run analysis directly against a git repository instead of a pre-generated log file (mutually exclusive with --log)")
 	rootCmd.PersistentFlags().StringVarP(&outFile, "outfile", "o", "", "write output to file (default: stdout)")
 	rootCmd.PersistentFlags().IntVarP(&maxRows, "rows", "r", 0, "max result rows (0 = no limit)")
 	rootCmd.PersistentFlags().StringVarP(&groupFile, "group", "g", "", "architectural grouping spec file")
 	rootCmd.PersistentFlags().StringVarP(&teamMapFile, "team-map-file", "p", "", "CSV file mapping author to team")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "format", "f", "csv", "output format: csv or json")
+
+	rootCmd.PersistentFlags().StringVar(&after, "after", "", "only include commits after this date (YYYY-MM-DD); with --repo, or reused by generate-log")
+	rootCmd.PersistentFlags().StringVar(&before, "before", "", "only include commits before this date (YYYY-MM-DD); with --repo, or reused by generate-log")
+	rootCmd.PersistentFlags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs); with --repo, or reused by generate-log")
+	rootCmd.PersistentFlags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, supports '*' globs, case-sensitive); with --repo, or reused by generate-log")
+	rootCmd.PersistentFlags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one SHA per line, '#' comments; same format as git blame --ignore-revs-file); with --repo, or reused by generate-log")
+	rootCmd.PersistentFlags().BoolVar(&useMailmap, "use-mailmap", false, "resolve author identities via .mailmap (requires a mailmap file at the repo root; no-op otherwise); with --repo, or reused by generate-log")
 }
 
 // runAnalysis is the shared execution path for all analysis subcommands.
@@ -66,14 +85,35 @@ func init() {
 // so the compiler rejects mismatched compute/format pairs instead of relying
 // on `any` plus a runtime type assertion inside format.
 func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string, opts model.Options) error {
-	if logFile == "" {
-		return fmt.Errorf("--log (-l) is required")
+	if logFile != "" && repoPath != "" {
+		return fmt.Errorf("--log (-l) and --repo are mutually exclusive; use one or the other")
+	}
+	if logFile == "" && repoPath == "" {
+		return fmt.Errorf("either --log (-l) or --repo is required")
 	}
 	if err := validateOutputFormat(); err != nil {
 		return err
 	}
 
-	commits, err := parser.ParseFile(logFile)
+	var commits []model.Commit
+	var err error
+	if repoPath != "" {
+		filters := logFilters{
+			Excludes:       excludes,
+			ExcludeAuthors: excludeAuthors,
+			IgnoreRevs:     nil,
+			UseMailmap:     useMailmap,
+		}
+		if ignoreRevsFile != "" {
+			filters.IgnoreRevs, err = loadIgnoreRevs(ignoreRevsFile)
+			if err != nil {
+				return err
+			}
+		}
+		commits, err = runGitLogToCommits(repoPath, after, before, filters)
+	} else {
+		commits, err = parser.ParseFile(logFile)
+	}
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"os"
@@ -18,9 +19,11 @@ import (
 // they would otherwise leak between test cases.
 func resetFlags(t *testing.T) {
 	t.Helper()
-	origLog, origOut, origRows, origGroup, origTeam, origFormat := logFile, outFile, maxRows, groupFile, teamMapFile, outputFormat
+	origLog, origRepo, origOut, origRows, origGroup, origTeam, origFormat := logFile, repoPath, outFile, maxRows, groupFile, teamMapFile, outputFormat
+	origAfter, origBefore, origExcludes, origExcludeAuthors, origIgnoreRevsFile, origUseMailmap := after, before, excludes, excludeAuthors, ignoreRevsFile, useMailmap
 	t.Cleanup(func() {
-		logFile, outFile, maxRows, groupFile, teamMapFile, outputFormat = origLog, origOut, origRows, origGroup, origTeam, origFormat
+		logFile, repoPath, outFile, maxRows, groupFile, teamMapFile, outputFormat = origLog, origRepo, origOut, origRows, origGroup, origTeam, origFormat
+		after, before, excludes, excludeAuthors, ignoreRevsFile, useMailmap = origAfter, origBefore, origExcludes, origExcludeAuthors, origIgnoreRevsFile, origUseMailmap
 	})
 }
 
@@ -277,6 +280,69 @@ func TestExecuteSuccess(t *testing.T) {
 
 	if !strings.Contains(readOutputFile(t, outPath), "foo.go") {
 		t.Errorf("expected foo.go in output")
+	}
+}
+
+func TestRunAnalysisRepoAndLogMutuallyExclusive(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	repoPath = "."
+
+	err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{})
+	if err == nil {
+		t.Fatal("expected error when both --log and --repo are set, got nil")
+	}
+	if !strings.Contains(err.Error(), "--log") || !strings.Contains(err.Error(), "--repo") {
+		t.Errorf("expected error to mention both --log and --repo, got: %v", err)
+	}
+}
+
+func TestRunAnalysisNeitherLogNorRepo(t *testing.T) {
+	resetFlags(t)
+
+	err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{})
+	if err == nil {
+		t.Fatal("expected error when neither --log nor --repo is set, got nil")
+	}
+	if !strings.Contains(err.Error(), "--log") || !strings.Contains(err.Error(), "--repo") {
+		t.Errorf("expected error to mention both --log and --repo, got: %v", err)
+	}
+}
+
+func TestRunAnalysisRepoPath(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	commitFiles(t, dir, "foo.go", "bar.go")
+
+	// Run via --repo directly.
+	resetFlags(t)
+	repoPath = dir
+	outFile = filepath.Join(t.TempDir(), "via-repo.csv")
+	if err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{}); err != nil {
+		t.Fatalf("unexpected error via --repo: %v", err)
+	}
+	viaRepo := readOutputFile(t, outFile)
+
+	// Run via generate-log + -l for comparison.
+	resetFlags(t)
+	repoPath = ""
+	logPath := filepath.Join(t.TempDir(), "generated.log")
+	var buf bytes.Buffer
+	if err := runGitLog(dir, "", "", logFilters{}, &buf); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+	if err := os.WriteFile(logPath, buf.Bytes(), 0644); err != nil {
+		t.Fatal(err)
+	}
+	logFile = logPath
+	outFile = filepath.Join(t.TempDir(), "via-log.csv")
+	if err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{}); err != nil {
+		t.Fatalf("unexpected error via -l: %v", err)
+	}
+	viaLog := readOutputFile(t, outFile)
+
+	if viaRepo != viaLog {
+		t.Errorf("--repo output differs from generate-log + -l output:\n--repo:\n%s\n-l:\n%s", viaRepo, viaLog)
 	}
 }
 
