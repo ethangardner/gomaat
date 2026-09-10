@@ -131,13 +131,16 @@ The `generate-log` subcommand runs the correct `git log` invocation so you don't
 gomaat generate-log [flags]
 ```
 
-| Flag        | Default         | Description                                                      |
-|-------------|-----------------|------------------------------------------------------------------|
-| `--after`   | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)              |
-| `--before`  | _(all history)_ | Only include commits before this date (`YYYY-MM-DD`)             |
-| `--path`    | `.`             | Path to the git repository                                       |
-| `--outfile` | stdout          | Write the log to this file                                       |
-| `--exclude` | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs) |
+| Flag                 | Default         | Description                                                                                          |
+|----------------------|-----------------|-------------------------------------------------------------------------------------------------------|
+| `--after`            | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)                                                 |
+| `--before`           | _(all history)_ | Only include commits before this date (`YYYY-MM-DD`)                                                |
+| `--path`             | `.`             | Path to the git repository                                                                          |
+| `--outfile`          | stdout          | Write the log to this file                                                                          |
+| `--exclude`          | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs)                                    |
+| `--exclude-author`   | _(none)_        | Exclude commits by this author name (repeatable, supports `*` globs, case-sensitive, matches `%aN`) |
+| `--ignore-revs-file` | _(none)_        | Drop commits listed in this file (one SHA per line, same format as `git blame --ignore-revs-file`)  |
+| `--use-mailmap`      | `false`         | Resolve author identities via a `.mailmap` file at the repo root (native `git log --use-mailmap`)   |
 
 **Examples:**
 
@@ -156,16 +159,30 @@ gomaat generate-log --path /path/to/project --after 2022-06-01 --outfile logfile
 
 # Exclude generated files and vendored dependencies
 gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --outfile logfile.log
+
+# Collapse the same human's commits from different machines/emails into one
+# canonical author (requires a .mailmap file at the repo root)
+gomaat generate-log --use-mailmap --outfile logfile.log
+
+# Drop bot accounts so they don't skew churn/coupling/ownership metrics
+gomaat generate-log --exclude-author "dependabot[bot]" --exclude-author "renovate*" --outfile logfile.log
+
+# Drop a mass-reformat commit (and any other commits listed in the file) by SHA
+gomaat generate-log --ignore-revs-file .git-blame-ignore-revs --outfile logfile.log
 ```
 
 The log is generated using:
 ```
-git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames --no-merges [--after=DATE] [--before=DATE] [-- . :(exclude)PATTERN ...]
+git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renames --no-merges [--use-mailmap] [--after=DATE] [--before=DATE] [-- . :(exclude)PATTERN ...]
 ```
 
 > **Note:** `--no-renames` means renamed files are tracked as a delete + add rather than a rename. This avoids inflated coupling between old and new paths.
 
 > **Note:** `--no-merges` excludes merge commits, so a combined merge diff never gets double-counted against the commits it merges.
+
+> **Note:** the log's rev field is the full commit hash (`%H`), not the abbreviated `%h` used in earlier versions, so it can be matched unambiguously against a `.git-blame-ignore-revs`-style file. `Rev` is treated as an opaque string everywhere it's consumed, so this only changes the value shown in output, not its meaning.
+
+> **Note:** `--ignore-revs-file` is not a native `git log` concept (`--ignore-revs-file` is a `git blame` flag) — gomaat reads the file itself and drops matching commits from its own output after `git log` runs.
 
 > **Note:** `generate-log`'s output is raw git log text (the format `internal/parser` reads), not CSV, so `--format` is a no-op here — `--format json` is rejected since there's no tabular data to convert.
 

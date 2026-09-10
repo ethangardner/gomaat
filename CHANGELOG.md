@@ -9,6 +9,16 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ## [Unreleased]
 
+### Added
+
+- `--use-mailmap` flag on `generate-log` to resolve author identities via a `.mailmap` file at the repo root, so the same person committing under different names/emails collapses to one canonical author. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+
+### Changed
+
+- `generate-log`'s rev field now uses the full commit hash (`%H`) instead of the abbreviated `%h`, so `--ignore-revs-file` can match unambiguously. `Rev` is an opaque string everywhere it's consumed, so this only changes the value in output, not its meaning. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+
 ## [v1.0.0] - 2026-09-05
 
 ### Changed

@@ -99,7 +99,7 @@ func TestRunGitLogExcludesDirectory(t *testing.T) {
 	}
 
 	var out bytes.Buffer
-	if err := runGitLog(dir, "", "", []string{"data/"}, &out); err != nil {
+	if err := runGitLog(dir, "", "", logFilters{Excludes: []string{"data/"}}, &out); err != nil {
 		t.Fatalf("runGitLog: %v", err)
 	}
 
@@ -147,14 +147,14 @@ func TestRunGitLogExcludesMergeCommits(t *testing.T) {
 
 	run("merge", "feature", "--no-ff", "-m", "merge feature")
 
-	mergeSHA, err := exec.Command("git", "-C", dir, "rev-parse", "--short", "HEAD").Output()
+	mergeSHA, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
 	if err != nil {
 		t.Fatalf("rev-parse: %v", err)
 	}
 	mergeHeader := "--" + strings.TrimSpace(string(mergeSHA)) + "--"
 
 	var out bytes.Buffer
-	if err := runGitLog(dir, "", "", nil, &out); err != nil {
+	if err := runGitLog(dir, "", "", logFilters{}, &out); err != nil {
 		t.Fatalf("runGitLog: %v", err)
 	}
 
@@ -202,7 +202,7 @@ func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
 	commitAt("new.go", "2025-01-01T00:00:00")
 
 	var out bytes.Buffer
-	if err := runGitLog(dir, "", "2022-01-01", nil, &out); err != nil {
+	if err := runGitLog(dir, "", "2022-01-01", logFilters{}, &out); err != nil {
 		t.Fatalf("runGitLog: %v", err)
 	}
 
@@ -229,8 +229,8 @@ func TestFilterExcludes(t *testing.T) {
 	}, "\n")
 
 	var out bytes.Buffer
-	if err := filterExcludesStream(strings.NewReader(input), &out, []string{"vendor/", "*.pb.go"}); err != nil {
-		t.Fatalf("filterExcludesStream: %v", err)
+	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/", "*.pb.go"}, nil, nil); err != nil {
+		t.Fatalf("filterLog: %v", err)
 	}
 	result := out.String()
 
@@ -252,11 +252,11 @@ func TestFilterExcludes(t *testing.T) {
 func TestFilterExcludesNoPatterns(t *testing.T) {
 	input := "5\t3\tvendor/foo.go\n"
 	var out bytes.Buffer
-	if err := filterExcludesStream(strings.NewReader(input), &out, nil); err != nil {
-		t.Fatalf("filterExcludesStream: %v", err)
+	if err := filterLog(strings.NewReader(input), &out, nil, nil, nil); err != nil {
+		t.Fatalf("filterLog: %v", err)
 	}
 	if out.String() != input {
-		t.Errorf("filterExcludesStream with no patterns should return input unchanged")
+		t.Errorf("filterLog with no patterns should return input unchanged")
 	}
 }
 
@@ -286,8 +286,8 @@ func TestFilterExcludesStreamPreservesTrailingNewline(t *testing.T) {
 	input := "1\t0\tvendor/foo.go\n2\t0\tsrc/keep.go\n"
 
 	var out bytes.Buffer
-	if err := filterExcludesStream(strings.NewReader(input), &out, []string{"vendor/"}); err != nil {
-		t.Fatalf("filterExcludesStream: %v", err)
+	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
+		t.Fatalf("filterLog: %v", err)
 	}
 
 	if out.String() != "2\t0\tsrc/keep.go\n" {
@@ -296,7 +296,7 @@ func TestFilterExcludesStreamPreservesTrailingNewline(t *testing.T) {
 }
 
 func TestFilterExcludesStreamWriterError(t *testing.T) {
-	err := filterExcludesStream(strings.NewReader("1\t0\tsrc/keep.go\n"), errWriter{}, nil)
+	err := filterLog(strings.NewReader("1\t0\tsrc/keep.go\n"), errWriter{}, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected writer error, got nil")
 	}
@@ -309,7 +309,7 @@ func (errWriter) Write(_ []byte) (int, error) {
 }
 
 func TestFilterExcludesStreamReaderError(t *testing.T) {
-	err := filterExcludesStream(errReader{}, &bytes.Buffer{}, nil)
+	err := filterLog(errReader{}, &bytes.Buffer{}, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected reader error, got nil")
 	}
@@ -325,12 +325,223 @@ func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
 	input := "1\t0\tvendor/foo.go\r\n2\t0\tsrc/keep.go\r\n"
 
 	var out bytes.Buffer
-	if err := filterExcludesStream(strings.NewReader(input), &out, []string{"vendor/"}); err != nil {
-		t.Fatalf("filterExcludesStream: %v", err)
+	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
+		t.Fatalf("filterLog: %v", err)
 	}
 
 	if out.String() != "2\t0\tsrc/keep.go\r\n" {
 		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestFilterLogExcludesAuthor(t *testing.T) {
+	input := strings.Join([]string{
+		"--aaa111--2024-01-15--Alice",
+		"5\t3\tsrc/foo.go",
+		"",
+		"--bbb222--2024-02-01--dependabot[bot]",
+		"3\t2\tgo.mod",
+		"",
+		"--ccc333--2024-03-01--renovate-bot",
+		"1\t1\tgo.sum",
+		"",
+	}, "\n")
+
+	var out bytes.Buffer
+	if err := filterLog(strings.NewReader(input), &out, nil, []string{"dependabot[bot]", "renovate*"}, nil); err != nil {
+		t.Fatalf("filterLog: %v", err)
+	}
+	result := out.String()
+
+	if !strings.Contains(result, "Alice") || !strings.Contains(result, "src/foo.go") {
+		t.Errorf("expected Alice's commit to be kept, got:\n%s", result)
+	}
+	for _, s := range []string{"dependabot", "go.mod", "renovate-bot", "go.sum"} {
+		if strings.Contains(result, s) {
+			t.Errorf("expected %q to be excluded from output, but it was kept:\n%s", s, result)
+		}
+	}
+}
+
+func TestFilterLogIgnoresRevs(t *testing.T) {
+	input := strings.Join([]string{
+		"--aaa111--2024-01-15--Alice",
+		"5\t3\tsrc/foo.go",
+		"",
+		"--bbb222--2024-02-01--Bob",
+		"3\t2\tsrc/bar.go",
+		"",
+	}, "\n")
+
+	var out bytes.Buffer
+	if err := filterLog(strings.NewReader(input), &out, nil, nil, map[string]struct{}{"bbb222": {}}); err != nil {
+		t.Fatalf("filterLog: %v", err)
+	}
+	result := out.String()
+
+	if !strings.Contains(result, "src/foo.go") {
+		t.Errorf("expected src/foo.go (kept commit) in output, got:\n%s", result)
+	}
+	if strings.Contains(result, "src/bar.go") || strings.Contains(result, "Bob") {
+		t.Errorf("expected the ignored-rev commit to be excluded, got:\n%s", result)
+	}
+}
+
+func TestFilterLogCombinesAllFilters(t *testing.T) {
+	input := strings.Join([]string{
+		"--aaa111--2024-01-15--Alice",
+		"5\t3\tsrc/foo.go",
+		"2\t1\tvendor/lib.go",
+		"",
+		"--bbb222--2024-02-01--dependabot[bot]",
+		"3\t2\tgo.mod",
+		"",
+		"--ccc333--2024-03-01--Bob",
+		"1\t1\tsrc/bar.go",
+		"",
+	}, "\n")
+
+	var out bytes.Buffer
+	err := filterLog(strings.NewReader(input), &out,
+		[]string{"vendor/"},
+		[]string{"dependabot*"},
+		map[string]struct{}{"ccc333": {}},
+	)
+	if err != nil {
+		t.Fatalf("filterLog: %v", err)
+	}
+	result := out.String()
+
+	if !strings.Contains(result, "src/foo.go") {
+		t.Errorf("expected src/foo.go to be kept, got:\n%s", result)
+	}
+	for _, s := range []string{"vendor/lib.go", "dependabot", "go.mod", "Bob", "src/bar.go"} {
+		if strings.Contains(result, s) {
+			t.Errorf("expected %q to be excluded from output, but it was kept:\n%s", s, result)
+		}
+	}
+}
+
+func TestMatchesAuthorPattern(t *testing.T) {
+	tests := []struct {
+		author  string
+		pattern string
+		want    bool
+	}{
+		{"dependabot[bot]", "dependabot[bot]", true},
+		{"renovate-bot", "renovate*", true},
+		{"Alice", "renovate*", false},
+		{"alice", "Alice", false}, // case-sensitive
+	}
+
+	for _, tt := range tests {
+		got := matchesAuthorPattern(tt.author, tt.pattern)
+		if got != tt.want {
+			t.Errorf("matchesAuthorPattern(%q, %q) = %v, want %v", tt.author, tt.pattern, got, tt.want)
+		}
+	}
+}
+
+func TestLoadIgnoreRevs(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "ignore-revs")
+	content := "# a comment\naaa111\n\nbbb222\n"
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	revs, err := loadIgnoreRevs(path)
+	if err != nil {
+		t.Fatalf("loadIgnoreRevs: %v", err)
+	}
+
+	want := map[string]struct{}{"aaa111": {}, "bbb222": {}}
+	if !reflect.DeepEqual(revs, want) {
+		t.Errorf("loadIgnoreRevs() = %v, want %v", revs, want)
+	}
+}
+
+func TestLoadIgnoreRevsMissingFile(t *testing.T) {
+	_, err := loadIgnoreRevs(filepath.Join(t.TempDir(), "does-not-exist"))
+	if err == nil {
+		t.Fatal("expected error for missing ignore-revs file, got nil")
+	}
+}
+
+func TestRunGitLogUseMailmap(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+
+	mailmapContent := "Real Name <real@example.com> Test <test@example.com>\n"
+	if err := os.WriteFile(filepath.Join(dir, ".mailmap"), []byte(mailmapContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dir, "add", ".mailmap").Run(); err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command("git", "-C", dir, "commit", "-m", "add mailmap").Run(); err != nil {
+		t.Fatal(err)
+	}
+	commitFiles(t, dir, "main.go")
+
+	var out bytes.Buffer
+	if err := runGitLog(dir, "", "", logFilters{UseMailmap: true}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "Real Name") {
+		t.Errorf("expected mailmap-resolved author 'Real Name' in output, got:\n%s", out.String())
+	}
+	if strings.Contains(out.String(), "--Test\n") {
+		t.Errorf("expected raw author 'Test' to be resolved away, got:\n%s", out.String())
+	}
+}
+
+func TestGenerateLogRunEWithNewFilters(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGenLogRepo(t, dir)
+	outFile = filepath.Join(t.TempDir(), "out.log")
+
+	cmd := newGenerateLogCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("exclude-author", "nobody-matches-this"); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("use-mailmap", "true"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(readOutputFile(t, outFile), "main.go") {
+		t.Errorf("expected main.go in output file")
+	}
+}
+
+func TestGenerateLogRunEIgnoreRevsFileError(t *testing.T) {
+	resetFlags(t)
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	commitFiles(t, dir, "keep.go")
+
+	cmd := newGenerateLogCmd()
+	if err := cmd.Flags().Set("path", dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := cmd.Flags().Set("ignore-revs-file", filepath.Join(dir, "does-not-exist")); err != nil {
+		t.Fatal(err)
+	}
+
+	err := cmd.RunE(cmd, nil)
+	if err == nil {
+		t.Fatal("expected error for missing ignore-revs file, got nil")
+	}
+	if !strings.Contains(err.Error(), "ignore-revs file") {
+		t.Errorf("expected error to mention ignore-revs file, got: %v", err)
 	}
 }
 
@@ -417,7 +628,7 @@ func TestRunGitLogAfterFiltersCommits(t *testing.T) {
 	commitAt("new.go", "2025-01-01T00:00:00")
 
 	var out bytes.Buffer
-	if err := runGitLog(dir, "2022-01-01", "", nil, &out); err != nil {
+	if err := runGitLog(dir, "2022-01-01", "", logFilters{}, &out); err != nil {
 		t.Fatalf("runGitLog: %v", err)
 	}
 
@@ -433,7 +644,7 @@ func TestRunGitLogAfterFiltersCommits(t *testing.T) {
 func TestRunGitLogStartFailsWithoutGitBinary(t *testing.T) {
 	t.Setenv("PATH", "")
 
-	err := runGitLog(".", "", "", nil, io.Discard)
+	err := runGitLog(".", "", "", logFilters{}, io.Discard)
 	if err == nil {
 		t.Fatal("expected error when git binary is not on PATH, got nil")
 	}
@@ -446,7 +657,7 @@ func TestRunGitLogWriteError(t *testing.T) {
 	dir := t.TempDir()
 	initGenLogRepo(t, dir)
 
-	err := runGitLog(dir, "", "", nil, errWriter{})
+	err := runGitLog(dir, "", "", logFilters{}, errWriter{})
 	if err == nil {
 		t.Fatal("expected error from destination write failure, got nil")
 	}
