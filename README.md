@@ -9,6 +9,8 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
 ## Table of Contents
 
 - [Installation](#installation)
+  - [From a GitHub Release](#from-a-github-release)
+  - [From Source](#from-source)
 - [Workflow](#workflow)
 - [Generating a Git Log](#generating-a-git-log)
 - [Global Flags](#global-flags)
@@ -43,6 +45,48 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
 ---
 
 ## Installation
+
+### From a GitHub Release
+
+Prebuilt binaries for Linux, macOS, and Windows are published on the [Releases page](https://github.com/ethangardner/gomaat/releases/latest). Archives are named `gomaat_<version>_<os>_<arch>.tar.gz` (`.zip` on Windows) with a `checksums.txt` alongside them.
+
+**Linux (amd64):**
+
+```bash
+curl -LO https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.0.0_linux_amd64.tar.gz
+tar -xzf gomaat_1.0.0_linux_amd64.tar.gz
+sudo mv gomaat /usr/local/bin/
+```
+
+Use `gomaat_1.0.0_linux_arm64.tar.gz` on arm64 hosts. Replace `1.0.0` with the [latest version number](https://github.com/ethangardner/gomaat/releases/latest).
+
+**macOS (Apple Silicon / Intel):**
+
+```bash
+curl -LO https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.0.0_darwin_arm64.tar.gz
+tar -xzf gomaat_1.0.0_darwin_arm64.tar.gz
+sudo mv gomaat /usr/local/bin/
+```
+
+Use `gomaat_1.0.0_darwin_amd64.tar.gz` on Intel Macs. Replace `1.0.0` with the [latest version number](https://github.com/ethangardner/gomaat/releases/latest). The binary is unsigned, so the first run may require approving it via **System Settings → Privacy & Security** (or run `xattr -d com.apple.quarantine /usr/local/bin/gomaat`).
+
+**Windows (amd64):**
+
+1. Download `gomaat_1.0.0_windows_amd64.zip` from the [latest release](https://github.com/ethangardner/gomaat/releases/latest) (replace `1.0.0` with the current version).
+2. Extract the archive and move `gomaat.exe` into a folder on your `PATH` (e.g. `C:\Program Files\gomaat\`).
+3. Add that folder to `PATH` if it isn't already: **System Properties → Environment Variables → Path → New**.
+
+Or via PowerShell:
+
+```powershell
+Invoke-WebRequest -Uri https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.0.0_windows_amd64.zip -OutFile gomaat.zip
+Expand-Archive gomaat.zip -DestinationPath .
+Move-Item gomaat.exe "C:\Program Files\gomaat\gomaat.exe"
+```
+
+Verify any download against `checksums.txt` from the same release.
+
+### From Source
 
 **Requirements:** Go 1.21 or later, `git` on your `PATH`.
 
