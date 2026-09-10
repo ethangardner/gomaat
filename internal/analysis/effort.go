@@ -47,31 +47,35 @@ func FormatEntityEffort(results []EntityEffortResult, _ model.Options) [][]strin
 	return out
 }
 
-// MainDevByRevs returns the author with the most revisions per entity.
-func MainDevByRevs(commits []model.Commit, _ model.Options) []ContributorResult {
-	authorRevs, totalRevs := revsPerEntityAuthor(commits)
+// MainDevByRevs returns the author with the most revisions per entity,
+// decay-weighted by opts.HalfLifeDays when set.
+func MainDevByRevs(commits []model.Commit, opts model.Options) []ContributorResult {
+	authorRevs, totalRevs := revsPerEntityAuthorForOpts(commits, opts)
 	return pickTopContributor(authorRevs, totalRevs)
 }
 
-func FormatMainDevByRevs(results []ContributorResult, _ model.Options) [][]string {
-	return formatContributor(results, "revs", "total-revs")
+func FormatMainDevByRevs(results []ContributorResult, opts model.Options) [][]string {
+	return formatContributor(results, opts, "revs", "total-revs")
 }
 
+// FragmentationResult.TotalRevs is float64 to accommodate a decay-weighted
+// (--half-life) count; it holds a whole number when decay is disabled.
 type FragmentationResult struct {
 	Entity    string
 	Fractal   float64
-	TotalRevs int
+	TotalRevs float64
 }
 
-// Fragmentation calculates the fractal value (author distribution) per entity.
+// Fragmentation calculates the fractal value (author distribution) per
+// entity, decay-weighted by opts.HalfLifeDays when set.
 // fractal = 1 - Σ(author_revs/total_revs)²
 // 0 = single author, approaching 1 = many equal contributors.
-func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResult {
-	authorRevs, totalRevs := revsPerEntityAuthor(commits)
+func Fragmentation(commits []model.Commit, opts model.Options) []FragmentationResult {
+	authorRevs, totalRevs := revsPerEntityAuthorForOpts(commits, opts)
 
 	sumSqPerEntity := map[string]float64{}
 	for k, revs := range authorRevs {
-		ratio := float64(revs) / float64(totalRevs[k.entity])
+		ratio := revs / totalRevs[k.entity]
 		sumSqPerEntity[k.entity] += ratio * ratio
 	}
 
@@ -90,10 +94,10 @@ func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResul
 	return results
 }
 
-func FormatFragmentation(results []FragmentationResult, _ model.Options) [][]string {
+func FormatFragmentation(results []FragmentationResult, opts model.Options) [][]string {
 	out := [][]string{{"entity", "fractal-value", "total-revs"}}
 	for _, r := range results {
-		out = append(out, []string{r.Entity, fmt.Sprintf("%.2f", r.Fractal), fmt.Sprint(r.TotalRevs)})
+		out = append(out, []string{r.Entity, fmt.Sprintf("%.2f", r.Fractal), formatMetric(r.TotalRevs, opts)})
 	}
 	return out
 }

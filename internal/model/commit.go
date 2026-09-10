@@ -19,4 +19,5 @@ type Options struct {
 	MaxChangesetSize int
 	AgeTimeNow       time.Time
 	VerboseResults   bool
+	HalfLifeDays     float64
 }

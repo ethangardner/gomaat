@@ -34,6 +34,11 @@ var (
 	excludeAuthors []string
 	ignoreRevsFile string
 	useMailmap     bool
+
+	// halfLifeDays is read by simpleCmd/newCouplingCmd and threaded into
+	// every subcommand's model.Options; it's a no-op for analyses that
+	// don't consult it (see model.Options.HalfLifeDays).
+	halfLifeDays float64
 )
 
 // version is overridden at release build time via -ldflags (see .goreleaser.yml).
@@ -77,6 +82,8 @@ func init() {
 	rootCmd.PersistentFlags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, supports '*' globs, case-sensitive); with --repo, or reused by generate-log")
 	rootCmd.PersistentFlags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one SHA per line, '#' comments; same format as git blame --ignore-revs-file); with --repo, or reused by generate-log")
 	rootCmd.PersistentFlags().BoolVar(&useMailmap, "use-mailmap", false, "resolve author identities via .mailmap (requires a mailmap file at the repo root; no-op otherwise); with --repo, or reused by generate-log")
+
+	rootCmd.PersistentFlags().Float64Var(&halfLifeDays, "half-life", 0, "half-life in days for decay-weighting older commits less (e.g. 90); 0 disables decay (default). Respected by revisions, coupling, soc, entity-ownership, fragmentation, main-dev, refactoring-main-dev, and main-dev-by-revs; a no-op elsewhere")
 }
 
 // runAnalysis is the shared execution path for all analysis subcommands.
@@ -185,6 +192,7 @@ func newCouplingCmd[T any](use, short string, fn func([]model.Commit, model.Opti
 				MaxCoupling:      cf.maxCoupling,
 				MaxChangesetSize: cf.maxChangesetSize,
 				VerboseResults:   cf.verboseResults,
+				HalfLifeDays:     halfLifeDays,
 			}
 			return runAnalysis(fn, format, opts)
 		},
@@ -207,7 +215,7 @@ func simpleCmd[T any](use, short string, fn func([]model.Commit, model.Options) 
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAnalysis(fn, format, model.Options{})
+			return runAnalysis(fn, format, model.Options{HalfLifeDays: halfLifeDays})
 		},
 	}
 }

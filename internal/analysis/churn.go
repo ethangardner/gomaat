@@ -57,26 +57,39 @@ func formatChurn(results []ChurnResult, keyHeader string) [][]string {
 	return out
 }
 
+// EntityOwnershipResult's Added/Deleted are float64 to accommodate
+// decay-weighted (--half-life) line counts; they hold whole numbers when
+// decay is disabled.
 type EntityOwnershipResult struct {
 	Entity  string
 	Author  string
-	Added   int
-	Deleted int
+	Added   float64
+	Deleted float64
 }
 
-// EntityOwnership returns churn per (entity, author) pair.
-func EntityOwnership(commits []model.Commit, _ model.Options) []EntityOwnershipResult {
-	type entry struct{ added, deleted int }
+// EntityOwnership returns churn per (entity, author) pair, decay-weighted by
+// opts.HalfLifeDays when set.
+func EntityOwnership(commits []model.Commit, opts model.Options) []EntityOwnershipResult {
+	type entry struct{ added, deleted float64 }
 	byKey := map[entityAuthorKey]*entry{}
+	now := resolveNow(opts)
 	for _, c := range commits {
+		weight := 1.0
+		if opts.HalfLifeDays > 0 {
+			w, ok := decayWeight(c.Date, now, opts.HalfLifeDays)
+			if !ok {
+				continue
+			}
+			weight = w
+		}
 		k := entityAuthorKey{c.Entity, c.Author}
 		e, ok := byKey[k]
 		if !ok {
 			e = &entry{}
 			byKey[k] = e
 		}
-		e.added += c.LocAdded
-		e.deleted += c.LocDeleted
+		e.added += float64(c.LocAdded) * weight
+		e.deleted += float64(c.LocDeleted) * weight
 	}
 
 	results := make([]EntityOwnershipResult, 0, len(byKey))
@@ -93,28 +106,30 @@ func EntityOwnership(commits []model.Commit, _ model.Options) []EntityOwnershipR
 	return results
 }
 
-func FormatEntityOwnership(results []EntityOwnershipResult, _ model.Options) [][]string {
+func FormatEntityOwnership(results []EntityOwnershipResult, opts model.Options) [][]string {
 	out := [][]string{{"entity", "author", "added", "deleted"}}
 	for _, r := range results {
-		out = append(out, []string{r.Entity, r.Author, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted)})
+		out = append(out, []string{r.Entity, r.Author, formatMetric(r.Added, opts), formatMetric(r.Deleted, opts)})
 	}
 	return out
 }
 
-// MainDev returns the author with the most lines added per entity.
-func MainDev(commits []model.Commit, _ model.Options) []ContributorResult {
-	return findTopContributor(commits, func(c model.Commit) int { return c.LocAdded })
+// MainDev returns the author with the most lines added per entity,
+// decay-weighted by opts.HalfLifeDays when set.
+func MainDev(commits []model.Commit, opts model.Options) []ContributorResult {
+	return findTopContributor(commits, opts, func(c model.Commit) int { return c.LocAdded })
 }
 
-func FormatMainDev(results []ContributorResult, _ model.Options) [][]string {
-	return formatContributor(results, "added", "total-added")
+func FormatMainDev(results []ContributorResult, opts model.Options) [][]string {
+	return formatContributor(results, opts, "added", "total-added")
 }
 
-// RefactoringMainDev returns the author with the most lines deleted per entity.
-func RefactoringMainDev(commits []model.Commit, _ model.Options) []ContributorResult {
-	return findTopContributor(commits, func(c model.Commit) int { return c.LocDeleted })
+// RefactoringMainDev returns the author with the most lines deleted per
+// entity, decay-weighted by opts.HalfLifeDays when set.
+func RefactoringMainDev(commits []model.Commit, opts model.Options) []ContributorResult {
+	return findTopContributor(commits, opts, func(c model.Commit) int { return c.LocDeleted })
 }
 
-func FormatRefactoringMainDev(results []ContributorResult, _ model.Options) [][]string {
-	return formatContributor(results, "removed", "total-removed")
+func FormatRefactoringMainDev(results []ContributorResult, opts model.Options) [][]string {
+	return formatContributor(results, opts, "removed", "total-removed")
 }

@@ -41,9 +41,9 @@ var unfilteredOpts = model.Options{MaxChangesetSize: math.MaxInt}
 func Statistics(commits []model.Commit, _ model.Options) []StatisticsResult {
 	filesPerCommit, locPerCommit := perCommitTotals(commits)
 
-	revsPerEntity := extractFloats(Revisions(commits, unfilteredOpts), func(r RevisionsResult) int { return r.Revs })
+	revsPerEntity := extractFloatsF(Revisions(commits, unfilteredOpts), func(r RevisionsResult) float64 { return r.Revs })
 	authorsPerEntity := extractFloats(Authors(commits, unfilteredOpts), func(r AuthorsResult) int { return r.Authors })
-	socPerEntity := extractFloats(SumOfCoupling(commits, unfilteredOpts), func(r SumOfCouplingResult) int { return r.Soc })
+	socPerEntity := extractFloatsF(SumOfCoupling(commits, unfilteredOpts), func(r SumOfCouplingResult) float64 { return r.Soc })
 
 	metrics := []struct {
 		name   string
@@ -130,6 +130,17 @@ func extractFloats[T any](items []T, get func(T) int) []float64 {
 	out := make([]float64, len(items))
 	for i, it := range items {
 		out[i] = float64(get(it))
+	}
+	return out
+}
+
+// extractFloatsF is extractFloats' counterpart for fields that are already
+// float64 (e.g. Revisions/SumOfCoupling results, which carry a
+// decay-weighted value when --half-life is set).
+func extractFloatsF[T any](items []T, get func(T) float64) []float64 {
+	out := make([]float64, len(items))
+	for i, it := range items {
+		out[i] = get(it)
 	}
 	return out
 }

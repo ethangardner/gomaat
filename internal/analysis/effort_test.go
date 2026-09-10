@@ -49,8 +49,8 @@ func TestFragmentation(t *testing.T) {
 			if r.Fractal != tt.fractal {
 				t.Errorf("fractal: got %f, want %f", r.Fractal, tt.fractal)
 			}
-			if r.TotalRevs != tt.totalRevs {
-				t.Errorf("total-revs: got %d, want %d", r.TotalRevs, tt.totalRevs)
+			if r.TotalRevs != float64(tt.totalRevs) {
+				t.Errorf("total-revs: got %v, want %v", r.TotalRevs, tt.totalRevs)
 			}
 
 			// Verify formatter

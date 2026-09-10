@@ -3,7 +3,9 @@ package analysis
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"slices"
+	"time"
 
 	"github.com/ethangardner/gomaat/internal/model"
 )
@@ -20,12 +22,14 @@ type ChurnResult struct {
 }
 
 // ContributorResult holds the top contributor per entity and their ownership percentage.
-// Used by MainDev, RefactoringMainDev, and MainDevByRevs.
+// Used by MainDev, RefactoringMainDev, and MainDevByRevs. Count/Total are
+// float64 so they can carry a decay-weighted (--half-life) value; they hold
+// whole numbers when decay is disabled.
 type ContributorResult struct {
 	Entity      string
 	Contributor string
-	Count       int
-	Total       int
+	Count       float64
+	Total       float64
 	Ownership   float64
 }
 
@@ -58,6 +62,111 @@ func revsPerEntityAuthor(commits []model.Commit) (map[entityAuthorKey]int, map[s
 		func(c model.Commit) string { return c.Entity },
 		func(c model.Commit) string { return c.Rev })
 	return authorRevs, totalRevs
+}
+
+// resolveNow returns opts.AgeTimeNow, defaulting to the current time when
+// unset — the same fallback age.go uses for its own "now" reference, reused
+// here as the decay reference point so --half-life and --age-time-now
+// compose predictably instead of each having its own notion of "now".
+func resolveNow(opts model.Options) time.Time {
+	if opts.AgeTimeNow.IsZero() {
+		return time.Now()
+	}
+	return opts.AgeTimeNow
+}
+
+// decayWeight returns the decay weight 0.5^(ageDays/halfLifeDays) for a
+// commit dated dateStr relative to now. ok is false when dateStr can't be
+// parsed, so callers can skip that commit's contribution rather than
+// silently mis-weighting it.
+func decayWeight(dateStr string, now time.Time, halfLifeDays float64) (weight float64, ok bool) {
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return 0, false
+	}
+	ageDays := now.Sub(t).Hours() / 24
+	if ageDays < 0 {
+		ageDays = 0
+	}
+	return math.Pow(0.5, ageDays/halfLifeDays), true
+}
+
+// countDistinctWeighted is countDistinct's decay-aware counterpart: instead
+// of counting each distinct value returned by valFn once, it sums a
+// per-value decay weight computed from the (first-seen) commit that
+// produced that value. Used when opts.HalfLifeDays > 0; countDistinct
+// remains the plain, undecayed path.
+func countDistinctWeighted[K comparable](commits []model.Commit, keyFn func(model.Commit) K, valFn func(model.Commit) string, now time.Time, halfLifeDays float64) map[K]float64 {
+	dates := map[K]map[string]string{} // key -> distinct value -> its commit date
+	for _, c := range commits {
+		k := keyFn(c)
+		if dates[k] == nil {
+			dates[k] = map[string]string{}
+		}
+		v := valFn(c)
+		if _, seen := dates[k][v]; !seen {
+			dates[k][v] = c.Date
+		}
+	}
+
+	weights := make(map[K]float64, len(dates))
+	for k, vals := range dates {
+		var sum float64
+		for _, date := range vals {
+			if w, ok := decayWeight(date, now, halfLifeDays); ok {
+				sum += w
+			}
+		}
+		weights[k] = sum
+	}
+	return weights
+}
+
+// toFloatMap converts an int-valued map (as returned by countDistinct) to
+// its float64-valued equivalent, for merging with decay-weighted results
+// that share the same map shape.
+func toFloatMap[K comparable](m map[K]int) map[K]float64 {
+	out := make(map[K]float64, len(m))
+	for k, v := range m {
+		out[k] = float64(v)
+	}
+	return out
+}
+
+// revsPerEntityAuthorWeighted is revsPerEntityAuthor's decay-aware
+// counterpart, used when opts.HalfLifeDays > 0.
+func revsPerEntityAuthorWeighted(commits []model.Commit, now time.Time, halfLifeDays float64) (map[entityAuthorKey]float64, map[string]float64) {
+	authorRevs := countDistinctWeighted(commits,
+		func(c model.Commit) entityAuthorKey { return entityAuthorKey{c.Entity, c.Author} },
+		func(c model.Commit) string { return c.Rev }, now, halfLifeDays)
+	totalRevs := countDistinctWeighted(commits,
+		func(c model.Commit) string { return c.Entity },
+		func(c model.Commit) string { return c.Rev }, now, halfLifeDays)
+	return authorRevs, totalRevs
+}
+
+// revsPerEntityAuthorForOpts returns per-(entity,author) and per-entity
+// revision counts as float64: decay-weighted (via
+// revsPerEntityAuthorWeighted) when opts.HalfLifeDays > 0, or plain distinct
+// revision counts (weight 1 per revision) otherwise. Used by MainDevByRevs
+// and Fragmentation, which are decay-aware; EntityEffort intentionally
+// keeps calling the plain, always-undecayed revsPerEntityAuthor instead.
+func revsPerEntityAuthorForOpts(commits []model.Commit, opts model.Options) (map[entityAuthorKey]float64, map[string]float64) {
+	if opts.HalfLifeDays > 0 {
+		return revsPerEntityAuthorWeighted(commits, resolveNow(opts), opts.HalfLifeDays)
+	}
+	authorRevs, totalRevs := revsPerEntityAuthor(commits)
+	return toFloatMap(authorRevs), toFloatMap(totalRevs)
+}
+
+// formatMetric renders a possibly decay-weighted metric: a plain integer
+// string when decay is disabled (byte-identical to the pre-decay int-typed
+// output), or two decimal places when --half-life is active.
+func formatMetric(v float64, opts model.Options) string {
+	if opts.HalfLifeDays <= 0 {
+		return fmt.Sprint(int(v))
+	}
+	return fmt.Sprintf("%.2f", v)
 }
 
 // churnAgg holds added/deleted line totals and a distinct revision count for
@@ -106,11 +215,12 @@ func aggsToChurnResults(aggs []churnAgg) []ChurnResult {
 
 // pickTopContributor selects, per entity, the author with the highest count
 // from pre-computed per-(entity,author) counts and per-entity totals, and
-// computes ownership %.
-func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]int) []ContributorResult {
+// computes ownership %. Counts are float64 to accommodate decay-weighted
+// (--half-life) callers; undecayed callers pass whole-number values.
+func pickTopContributor(byKey map[entityAuthorKey]float64, totalByEntity map[string]float64) []ContributorResult {
 	type best struct {
 		author string
-		count  int
+		count  float64
 	}
 	bestByEntity := map[string]best{}
 	for k, count := range byKey {
@@ -125,7 +235,7 @@ func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]
 		total := totalByEntity[entity]
 		var ownership float64
 		if total > 0 {
-			ownership = float64(b.count) / float64(total) * 100.0
+			ownership = b.count / total * 100.0
 		}
 		results = append(results, ContributorResult{entity, b.author, b.count, total, ownership})
 	}
@@ -133,14 +243,25 @@ func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]
 	return results
 }
 
-// findTopContributor returns, per entity, the author with the highest value
-// from valueFn, along with their count, the entity total, and ownership %.
-func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []ContributorResult {
-	byKey := map[entityAuthorKey]int{}
-	totalByEntity := map[string]int{}
+// findTopContributor returns, per entity, the author with the highest
+// decay-weighted value from valueFn (weight 1 per commit when
+// opts.HalfLifeDays is 0), along with their count, the entity total, and
+// ownership %.
+func findTopContributor(commits []model.Commit, opts model.Options, valueFn func(model.Commit) int) []ContributorResult {
+	byKey := map[entityAuthorKey]float64{}
+	totalByEntity := map[string]float64{}
+	now := resolveNow(opts)
 	for _, c := range commits {
+		weight := 1.0
+		if opts.HalfLifeDays > 0 {
+			w, ok := decayWeight(c.Date, now, opts.HalfLifeDays)
+			if !ok {
+				continue
+			}
+			weight = w
+		}
 		k := entityAuthorKey{c.Entity, c.Author}
-		v := valueFn(c)
+		v := float64(valueFn(c)) * weight
 		byKey[k] += v
 		totalByEntity[c.Entity] += v
 	}
@@ -149,12 +270,12 @@ func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) 
 
 // formatContributor renders ContributorResult rows to CSV, with caller-supplied
 // column headers for the count and total columns.
-func formatContributor(results []ContributorResult, countHeader, totalHeader string) [][]string {
+func formatContributor(results []ContributorResult, opts model.Options, countHeader, totalHeader string) [][]string {
 	out := [][]string{{"entity", "main-dev", countHeader, totalHeader, "ownership"}}
 	for _, r := range results {
 		out = append(out, []string{
 			r.Entity, r.Contributor,
-			fmt.Sprint(r.Count), fmt.Sprint(r.Total),
+			formatMetric(r.Count, opts), formatMetric(r.Total, opts),
 			fmt.Sprintf("%.2f", r.Ownership),
 		})
 	}

@@ -21,9 +21,11 @@ func resetFlags(t *testing.T) {
 	t.Helper()
 	origLog, origRepo, origOut, origRows, origGroup, origTeam, origFormat := logFile, repoPath, outFile, maxRows, groupFile, teamMapFile, outputFormat
 	origAfter, origBefore, origExcludes, origExcludeAuthors, origIgnoreRevsFile, origUseMailmap := after, before, excludes, excludeAuthors, ignoreRevsFile, useMailmap
+	origHalfLife := halfLifeDays
 	t.Cleanup(func() {
 		logFile, repoPath, outFile, maxRows, groupFile, teamMapFile, outputFormat = origLog, origRepo, origOut, origRows, origGroup, origTeam, origFormat
 		after, before, excludes, excludeAuthors, ignoreRevsFile, useMailmap = origAfter, origBefore, origExcludes, origExcludeAuthors, origIgnoreRevsFile, origUseMailmap
+		halfLifeDays = origHalfLife
 	})
 }
 
@@ -343,6 +345,46 @@ func TestRunAnalysisRepoPath(t *testing.T) {
 
 	if viaRepo != viaLog {
 		t.Errorf("--repo output differs from generate-log + -l output:\n--repo:\n%s\n-l:\n%s", viaRepo, viaLog)
+	}
+}
+
+func TestHalfLifeFlagEndToEnd(t *testing.T) {
+	resetFlags(t)
+	logFile = testhelpers.WriteTempFile(t, "half-life.log", strings.Join([]string{
+		"--abc123--2024-01-01--Jane Doe",
+		"1\t0\tfoo.go",
+		"",
+	}, "\n"))
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+	halfLifeDays = 30
+
+	cmd, _, err := rootCmd.Find([]string{"revisions"})
+	if err != nil {
+		t.Fatalf("finding revisions command: %v", err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data := readOutputFile(t, outFile)
+	if !strings.Contains(data, "foo.go") {
+		t.Errorf("expected foo.go in output, got: %q", data)
+	}
+	// A single distinct revision decayed by any half-life still contributes a
+	// weight in (0, 1], formatted with two decimals.
+	if !strings.Contains(data, ".") {
+		t.Errorf("expected a decimal-formatted (decayed) revision count, got: %q", data)
+	}
+}
+
+func TestHalfLifeFlagBadInput(t *testing.T) {
+	resetFlags(t)
+
+	err := rootCmd.PersistentFlags().Set("half-life", "not-a-number")
+	if err == nil {
+		t.Fatal("expected error setting --half-life to a non-numeric value, got nil")
+	}
+	if !strings.Contains(err.Error(), "half-life") {
+		t.Errorf("expected error to mention half-life, got: %v", err)
 	}
 }
 

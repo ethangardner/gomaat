@@ -15,6 +15,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--repo <path>` flag, available on every analysis subcommand, to run an analysis directly against a git repository instead of requiring a pre-generated log file via `-l`. Mutually exclusive with `-l`/`--log`. ([#47](https://github.com/ethangardner/gomaat/issues/47))
+- `--half-life <days>` flag to decay-weight older commits less in `revisions`, `coupling`, `soc`, `entity-ownership`, `fragmentation`, `main-dev`, `refactoring-main-dev`, and `main-dev-by-revs`. Weight is `0.5^(age_in_days / half_life_days)`, using `--age-time-now` (default: today) as the reference date. Disabled by default (`0`), in which case output is byte-for-byte identical to before this flag existed. ([#45](https://github.com/ethangardner/gomaat/issues/45))
 
 ### Changed
 

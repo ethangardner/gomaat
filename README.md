@@ -221,6 +221,33 @@ These flags are available on every analysis subcommand.
 | `--exclude-author`   |       | _(none)_     | With `--repo`, or reused by `generate-log`: exclude commits by this author name (repeatable, globs)  |
 | `--ignore-revs-file` |       | _(none)_     | With `--repo`, or reused by `generate-log`: drop commits listed in this file                         |
 | `--use-mailmap`      |       | `false`      | With `--repo`, or reused by `generate-log`: resolve author identities via `.mailmap`                 |
+| `--half-life`        |       | `0`          | Decay half-life in days (e.g. `90`); `0` disables decay. See [Decay weighting](#decay-weighting)     |
+
+---
+
+## Decay Weighting
+
+Every analysis normally treats a revision from years ago the same as a revision from last week. A file that was hammered on for a month during initial development and hasn't been touched since ranks identically to a file under constant active churn today — but only the second one is an actual hotspot *right now*.
+
+`--half-life <days>` fixes this by weighting each commit's contribution by `0.5^(age_in_days / half_life_days)`, where age is measured relative to `--age-time-now` (default: today, same reference date the [`age`](#age) analysis uses). A commit exactly one half-life old counts for half a revision; two half-lives old, a quarter; and so on. Without `--half-life` (the default), every commit counts for exactly 1, and output is byte-for-byte identical to previous versions of gomaat.
+
+`--half-life` is respected by: [`revisions`](#revisions), [`coupling`](#coupling), [`soc`](#soc), [`entity-ownership`](#entity-ownership), [`fragmentation`](#fragmentation), [`main-dev`](#main-dev), [`refactoring-main-dev`](#refactoring-main-dev), and [`main-dev-by-revs`](#main-dev-by-revs) — it's a no-op on every other subcommand. Affected numeric columns switch from whole numbers to two-decimal-place weighted values whenever `--half-life` is set.
+
+**Example** — the same dataset, with and without decay:
+
+```bash
+$ gomaat revisions -l logfile.log
+entity,n-revs
+src/core/Engine.java,42
+src/legacy/Batch.java,40
+
+$ gomaat revisions -l logfile.log --half-life 90
+entity,n-revs
+src/core/Engine.java,31.85
+src/legacy/Batch.java,2.11
+```
+
+`Engine.java` and `Batch.java` have nearly identical raw revision counts, but `Batch.java`'s revisions are old and `Engine.java`'s are recent — decay weighting surfaces that difference, which the raw count hides.
 
 ---
 
@@ -272,7 +299,7 @@ gomaat revisions -l logfile.log
 | `entity` | File path       |
 | `n-revs` | Total revisions |
 
-Sorted by `n-revs` descending.
+Sorted by `n-revs` descending. Supports [`--half-life`](#decay-weighting) to discount older revisions.
 
 ---
 
@@ -319,6 +346,8 @@ src/User.java,src/Auth.java,61,38
 
 **Tip:** Start with looser thresholds (`-n 2 -m 2 -i 10`) to see the full picture, then tighten them to focus on the strongest signals.
 
+Supports [`--half-life`](#decay-weighting) to discount older shared revisions; `degree`/`average-revs`/verbose columns switch to two-decimal-place weighted values when it's set.
+
 ---
 
 ### soc (Sum of Coupling)
@@ -338,7 +367,7 @@ Accepts the same threshold flags as [coupling](#coupling).
 | `entity` | File path                               |
 | `soc`    | Sum of coupling (total co-change count) |
 
-Sorted by `soc` descending.
+Sorted by `soc` descending. Supports [`--half-life`](#decay-weighting) to discount older co-changes.
 
 ---
 
@@ -479,7 +508,7 @@ gomaat entity-ownership -l logfile.log
 | `added`   | Lines added by this author   |
 | `deleted` | Lines deleted by this author |
 
-Sorted by `entity` ascending.
+Sorted by `entity` ascending. Supports [`--half-life`](#decay-weighting) to discount older lines.
 
 ---
 
@@ -501,7 +530,7 @@ gomaat main-dev -l logfile.log
 | `total-added` | Total lines added to this entity |
 | `ownership`   | Main developer's share (%)       |
 
-Sorted by `entity` ascending.
+Sorted by `entity` ascending. Supports [`--half-life`](#decay-weighting) to discount older lines.
 
 ---
 
@@ -523,7 +552,7 @@ gomaat refactoring-main-dev -l logfile.log
 | `total-removed` | Total lines deleted from this entity |
 | `ownership`     | Main developer's share (%)           |
 
-Sorted by `entity` ascending.
+Sorted by `entity` ascending. Supports [`--half-life`](#decay-weighting) to discount older lines.
 
 ---
 
@@ -562,11 +591,11 @@ gomaat main-dev-by-revs -l logfile.log
 |---------------|--------------------------------|
 | `entity`      | File path                      |
 | `main-dev`    | Author with the most revisions |
-| `added`       | Revisions by main developer    |
-| `total-added` | Total revisions to this entity |
+| `revs`        | Revisions by main developer    |
+| `total-revs`  | Total revisions to this entity |
 | `ownership`   | Main developer's share (%)     |
 
-Sorted by `entity` ascending.
+Sorted by `entity` ascending. Supports [`--half-life`](#decay-weighting) to discount older revisions.
 
 ---
 
@@ -596,7 +625,7 @@ fractal = 1 - Σ(author_revisions / total_revisions)²
 | `fractal-value` | Fragmentation score (0.00–1.00) |
 | `total-revs`    | Total revisions to this entity  |
 
-Sorted by `fractal-value` descending.
+Sorted by `fractal-value` descending. Supports [`--half-life`](#decay-weighting) to discount older revisions.
 
 ---
 

@@ -114,10 +114,10 @@ func TestCouplingTiebreakerByAvgRevs(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 	if results[0].Degree != 100 || results[1].Degree != 100 {
-		t.Errorf("expected both degrees=100, got %d and %d", results[0].Degree, results[1].Degree)
+		t.Errorf("expected both degrees=100, got %v and %v", results[0].Degree, results[1].Degree)
 	}
 	if results[0].AvgRevs <= results[1].AvgRevs {
-		t.Errorf("expected higher avgRevs first, got %d then %d", results[0].AvgRevs, results[1].AvgRevs)
+		t.Errorf("expected higher avgRevs first, got %v then %v", results[0].AvgRevs, results[1].AvgRevs)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestSumOfCouplingTiebreaker(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 	if results[0].Soc != results[1].Soc {
-		t.Fatalf("expected equal SOC values for tie-breaker test, got %d and %d", results[0].Soc, results[1].Soc)
+		t.Fatalf("expected equal SOC values for tie-breaker test, got %v and %v", results[0].Soc, results[1].Soc)
 	}
 	if results[0].Entity != "a.go" {
 		t.Errorf("expected a.go first (alphabetical), got %q", results[0].Entity)
