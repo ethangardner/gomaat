@@ -21,6 +21,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 - `generate-log`'s rev field now uses the full commit hash (`%H`) instead of the abbreviated `%h`, so `--ignore-revs-file` can match unambiguously. `Rev` is an opaque string everywhere it's consumed, so this only changes the value in output, not its meaning. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--after`, `--before`, `--exclude`, `--exclude-author`, `--ignore-revs-file`, and `--use-mailmap` are now global flags (shared with `--repo`) instead of being local to `generate-log`. Existing `generate-log --after ...`-style invocations keep working identically. ([#47](https://github.com/ethangardner/gomaat/issues/47))
+- `--age-time-now`/`-d` is now a global flag instead of being local to `age`, so it also sets the reference date for `--half-life` decay calculations on other subcommands. Existing `age --age-time-now ...` invocations keep working identically. ([#45](https://github.com/ethangardner/gomaat/issues/45))
 
 ## [v1.0.0] - 2026-09-05
 

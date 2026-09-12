@@ -222,6 +222,7 @@ These flags are available on every analysis subcommand.
 | `--ignore-revs-file` |       | _(none)_     | With `--repo`, or reused by `generate-log`: drop commits listed in this file                         |
 | `--use-mailmap`      |       | `false`      | With `--repo`, or reused by `generate-log`: resolve author identities via `.mailmap`                 |
 | `--half-life`        |       | `0`          | Decay half-life in days (e.g. `90`); `0` disables decay. See [Decay weighting](#decay-weighting)     |
+| `--age-time-now`     | `-d`  | today        | Reference date (`YYYY-MM-DD`) for [`age`](#age) and for [`--half-life`](#decay-weighting) decay calculations |
 
 ---
 
@@ -664,6 +665,8 @@ Months since each entity was last modified, relative to a reference date. Old, u
 ```
 gomaat age -l logfile.log [--age-time-now YYYY-MM-DD]
 ```
+
+> **Note:** `--age-time-now`/`-d` is registered as a [global flag](#global-flags) — it's also the reference date used by [`--half-life`](#decay-weighting) decay calculations on other subcommands.
 
 | Flag             | Short | Default | Description                        |
 |------------------|-------|---------|------------------------------------|
