@@ -21,11 +21,11 @@ func resetFlags(t *testing.T) {
 	t.Helper()
 	origLog, origRepo, origOut, origRows, origGroup, origTeam, origFormat := logFile, repoPath, outFile, maxRows, groupFile, teamMapFile, outputFormat
 	origAfter, origBefore, origExcludes, origExcludeAuthors, origIgnoreRevsFile, origUseMailmap := after, before, excludes, excludeAuthors, ignoreRevsFile, useMailmap
-	origHalfLife := halfLifeDays
+	origHalfLife, origAgeTimeNow := halfLifeDays, ageTimeNow
 	t.Cleanup(func() {
 		logFile, repoPath, outFile, maxRows, groupFile, teamMapFile, outputFormat = origLog, origRepo, origOut, origRows, origGroup, origTeam, origFormat
 		after, before, excludes, excludeAuthors, ignoreRevsFile, useMailmap = origAfter, origBefore, origExcludes, origExcludeAuthors, origIgnoreRevsFile, origUseMailmap
-		halfLifeDays = origHalfLife
+		halfLifeDays, ageTimeNow = origHalfLife, origAgeTimeNow
 	})
 }
 
@@ -250,12 +250,7 @@ func TestAgeCmdRunE(t *testing.T) {
 			if err != nil {
 				t.Fatalf("finding age command: %v", err)
 			}
-			if err := ageCmd.Flags().Set("age-time-now", tt.ageTimeNow); err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() {
-				_ = ageCmd.Flags().Set("age-time-now", "")
-			})
+			ageTimeNow = tt.ageTimeNow
 
 			if err := ageCmd.RunE(ageCmd, nil); err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -357,6 +352,12 @@ func TestHalfLifeFlagEndToEnd(t *testing.T) {
 	}, "\n"))
 	outFile = filepath.Join(t.TempDir(), "out.csv")
 	halfLifeDays = 30
+	if err := rootCmd.PersistentFlags().Set("age-time-now", "2024-01-31"); err != nil {
+		t.Fatalf("setting age-time-now flag: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = rootCmd.PersistentFlags().Set("age-time-now", "")
+	})
 
 	cmd, _, err := rootCmd.Find([]string{"revisions"})
 	if err != nil {
@@ -365,14 +366,8 @@ func TestHalfLifeFlagEndToEnd(t *testing.T) {
 	if err := cmd.RunE(cmd, nil); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	data := readOutputFile(t, outFile)
-	if !strings.Contains(data, "foo.go") {
-		t.Errorf("expected foo.go in output, got: %q", data)
-	}
-	// A single distinct revision decayed by any half-life still contributes a
-	// weight in (0, 1], formatted with two decimals.
-	if !strings.Contains(data, ".") {
-		t.Errorf("expected a decimal-formatted (decayed) revision count, got: %q", data)
+	if data := readOutputFile(t, outFile); data != "entity,n-revs\nfoo.go,0.50\n" {
+		t.Errorf("unexpected decay-weighted output: %q", data)
 	}
 }
 
@@ -395,12 +390,7 @@ func TestAgeBadTimeNow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("finding age command: %v", err)
 	}
-	if err := ageCmd.Flags().Set("age-time-now", "not-a-date"); err != nil {
-		t.Fatalf("setting age-time-now flag: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = ageCmd.Flags().Set("age-time-now", "")
-	})
+	ageTimeNow = "not-a-date"
 
 	err = ageCmd.RunE(ageCmd, nil)
 	if err == nil {

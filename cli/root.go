@@ -35,10 +35,10 @@ var (
 	ignoreRevsFile string
 	useMailmap     bool
 
-	// halfLifeDays is read by simpleCmd/newCouplingCmd and threaded into
-	// every subcommand's model.Options; it's a no-op for analyses that
-	// don't consult it (see model.Options.HalfLifeDays).
+	// Analysis option flags are threaded into every subcommand's model.Options;
+	// they are no-ops for analyses that don't consult them.
 	halfLifeDays float64
+	ageTimeNow   string
 )
 
 // version is overridden at release build time via -ldflags (see .goreleaser.yml).
@@ -84,6 +84,21 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&useMailmap, "use-mailmap", false, "resolve author identities via .mailmap (requires a mailmap file at the repo root; no-op otherwise); with --repo, or reused by generate-log")
 
 	rootCmd.PersistentFlags().Float64Var(&halfLifeDays, "half-life", 0, "half-life in days for decay-weighting older commits less (e.g. 90); 0 disables decay (default). Respected by revisions, coupling, soc, entity-ownership, fragmentation, main-dev, refactoring-main-dev, and main-dev-by-revs; a no-op elsewhere")
+	rootCmd.PersistentFlags().StringVarP(&ageTimeNow, "age-time-now", "d", "", "reference date for age and decay calculations (YYYY-MM-DD, default: today)")
+}
+
+func analysisOptions() (model.Options, error) {
+	opts := model.Options{HalfLifeDays: halfLifeDays}
+	if ageTimeNow == "" {
+		return opts, nil
+	}
+
+	t, err := time.Parse("2006-01-02", ageTimeNow)
+	if err != nil {
+		return model.Options{}, fmt.Errorf("--age-time-now: expected YYYY-MM-DD, got %q", ageTimeNow)
+	}
+	opts.AgeTimeNow = t
+	return opts, nil
 }
 
 // runAnalysis is the shared execution path for all analysis subcommands.
@@ -185,15 +200,16 @@ func newCouplingCmd[T any](use, short string, fn func([]model.Commit, model.Opti
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts := model.Options{
-				MinRevs:          cf.minRevs,
-				MinSharedRevs:    cf.minSharedRevs,
-				MinCoupling:      cf.minCoupling,
-				MaxCoupling:      cf.maxCoupling,
-				MaxChangesetSize: cf.maxChangesetSize,
-				VerboseResults:   cf.verboseResults,
-				HalfLifeDays:     halfLifeDays,
+			opts, err := analysisOptions()
+			if err != nil {
+				return err
 			}
+			opts.MinRevs = cf.minRevs
+			opts.MinSharedRevs = cf.minSharedRevs
+			opts.MinCoupling = cf.minCoupling
+			opts.MaxCoupling = cf.maxCoupling
+			opts.MaxChangesetSize = cf.maxChangesetSize
+			opts.VerboseResults = cf.verboseResults
 			return runAnalysis(fn, format, opts)
 		},
 	}
@@ -215,7 +231,11 @@ func simpleCmd[T any](use, short string, fn func([]model.Commit, model.Options) 
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAnalysis(fn, format, model.Options{HalfLifeDays: halfLifeDays})
+			opts, err := analysisOptions()
+			if err != nil {
+				return err
+			}
+			return runAnalysis(fn, format, opts)
 		},
 	}
 }
@@ -238,26 +258,18 @@ func init() {
 	rootCmd.AddCommand(simpleCmd("communication", "Team communication needs based on shared code", analysis.Communication, analysis.FormatCommunication))
 	rootCmd.AddCommand(simpleCmd("statistics", "Descriptive statistics for core metrics (files/lines per commit, revisions/authors/soc per entity)", analysis.Statistics, analysis.FormatStatistics))
 
-	// Age subcommand (needs --age-time-now flag)
-	var ageTimeNow string
+	// Age subcommand
 	ageCmd := &cobra.Command{
 		Use:   "age",
 		Short: "Months since last modification per entity",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts := model.Options{}
-			if ageTimeNow != "" {
-				t, err := time.Parse("2006-01-02", ageTimeNow)
-				if err != nil {
-					return fmt.Errorf("--age-time-now: expected YYYY-MM-DD, got %q", ageTimeNow)
-				}
-				opts.AgeTimeNow = t
-			} else {
-				opts.AgeTimeNow = time.Now()
+			opts, err := analysisOptions()
+			if err != nil {
+				return err
 			}
 			return runAnalysis(analysis.Age, analysis.FormatAge, opts)
 		},
 	}
-	ageCmd.Flags().StringVarP(&ageTimeNow, "age-time-now", "d", "", "reference date for age calculation (YYYY-MM-DD, default: today)")
 	rootCmd.AddCommand(ageCmd)
 
 	// Coupling subcommand (with verbose flag)
