@@ -10,10 +10,9 @@ import (
 
 // AbsChurn returns lines added/deleted aggregated by date.
 func AbsChurn(commits []model.Commit, _ model.Options) []ChurnResult {
-	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Date })
-	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
-
-	return aggsToChurnResults(aggs)
+	results := aggregateChurn(commits, func(c model.Commit) string { return c.Date })
+	slices.SortFunc(results, func(a, b ChurnResult) int { return cmp.Compare(a.Key, b.Key) })
+	return results
 }
 
 func FormatAbsChurn(results []ChurnResult, _ model.Options) [][]string {
@@ -22,10 +21,9 @@ func FormatAbsChurn(results []ChurnResult, _ model.Options) [][]string {
 
 // AuthorChurn returns lines added/deleted aggregated by author.
 func AuthorChurn(commits []model.Commit, _ model.Options) []ChurnResult {
-	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Author })
-	slices.SortFunc(aggs, func(a, b churnAgg) int { return cmp.Compare(a.key, b.key) })
-
-	return aggsToChurnResults(aggs)
+	results := aggregateChurn(commits, func(c model.Commit) string { return c.Author })
+	slices.SortFunc(results, func(a, b ChurnResult) int { return cmp.Compare(a.Key, b.Key) })
+	return results
 }
 
 func FormatAuthorChurn(results []ChurnResult, _ model.Options) [][]string {
@@ -34,15 +32,14 @@ func FormatAuthorChurn(results []ChurnResult, _ model.Options) [][]string {
 
 // EntityChurn returns lines added/deleted aggregated by entity, sorted by added desc.
 func EntityChurn(commits []model.Commit, _ model.Options) []ChurnResult {
-	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Entity })
-	slices.SortFunc(aggs, func(a, b churnAgg) int {
-		if c := cmp.Compare(b.added, a.added); c != 0 {
+	results := aggregateChurn(commits, func(c model.Commit) string { return c.Entity })
+	slices.SortFunc(results, func(a, b ChurnResult) int {
+		if c := cmp.Compare(b.Added, a.Added); c != 0 {
 			return c
 		}
-		return cmp.Compare(a.key, b.key)
+		return cmp.Compare(a.Key, b.Key)
 	})
-
-	return aggsToChurnResults(aggs)
+	return results
 }
 
 func FormatEntityChurn(results []ChurnResult, _ model.Options) [][]string {
@@ -74,13 +71,9 @@ func EntityOwnership(commits []model.Commit, opts model.Options) []EntityOwnersh
 	byKey := map[entityAuthorKey]*entry{}
 	now := resolveNow(opts)
 	for _, c := range commits {
-		weight := 1.0
-		if opts.HalfLifeDays > 0 {
-			w, ok := decayWeight(c.Date, now, opts.HalfLifeDays)
-			if !ok {
-				continue
-			}
-			weight = w
+		weight, ok := commitWeight(c.Date, now, opts)
+		if !ok {
+			continue
 		}
 		k := entityAuthorKey{c.Entity, c.Author}
 		e, ok := byKey[k]

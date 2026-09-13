@@ -30,13 +30,9 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 	now := resolveNow(opts)
 
 	for _, cs := range filteredChangesets(commits, opts) {
-		weight := 1.0
-		if opts.HalfLifeDays > 0 {
-			w, ok := decayWeight(cs.Date, now, opts.HalfLifeDays)
-			if !ok {
-				continue
-			}
-			weight = w
+		weight, ok := commitWeight(cs.Date, now, opts)
+		if !ok {
+			continue
 		}
 		for i, a := range cs.Entities {
 			moduleRevs[a] += weight
@@ -110,13 +106,9 @@ func SumOfCoupling(commits []model.Commit, opts model.Options) []SumOfCouplingRe
 	soc := map[string]float64{}
 	now := resolveNow(opts)
 	for _, cs := range filteredChangesets(commits, opts) {
-		weight := 1.0
-		if opts.HalfLifeDays > 0 {
-			w, ok := decayWeight(cs.Date, now, opts.HalfLifeDays)
-			if !ok {
-				continue
-			}
-			weight = w
+		weight, ok := commitWeight(cs.Date, now, opts)
+		if !ok {
+			continue
 		}
 		for _, e := range cs.Entities {
 			soc[e] += float64(len(cs.Entities)-1) * weight

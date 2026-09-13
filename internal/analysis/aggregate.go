@@ -91,6 +91,16 @@ func decayWeight(dateStr string, now time.Time, halfLifeDays float64) (weight fl
 	return math.Pow(0.5, ageDays/halfLifeDays), true
 }
 
+// commitWeight returns the decay weight for a commit dated dateStr, or 1.0
+// when opts.HalfLifeDays is <= 0. ok is false when decay is enabled and
+// dateStr cannot be parsed.
+func commitWeight(dateStr string, now time.Time, opts model.Options) (float64, bool) {
+	if opts.HalfLifeDays <= 0 {
+		return 1.0, true
+	}
+	return decayWeight(dateStr, now, opts.HalfLifeDays)
+}
+
 // countDistinctWeighted is countDistinct's decay-aware counterpart: instead
 // of counting each distinct value returned by valFn once, it sums a
 // per-value decay weight computed from the (first-seen) commit that
@@ -133,30 +143,29 @@ func toFloatMap[K comparable](m map[K]int) map[K]float64 {
 	return out
 }
 
-// revsPerEntityAuthorWeighted is revsPerEntityAuthor's decay-aware
-// counterpart, used when opts.HalfLifeDays > 0.
-func revsPerEntityAuthorWeighted(commits []model.Commit, now time.Time, halfLifeDays float64) (map[entityAuthorKey]float64, map[string]float64) {
-	authorRevs := countDistinctWeighted(commits,
-		func(c model.Commit) entityAuthorKey { return entityAuthorKey{c.Entity, c.Author} },
-		func(c model.Commit) string { return c.Rev }, now, halfLifeDays)
-	totalRevs := countDistinctWeighted(commits,
-		func(c model.Commit) string { return c.Entity },
-		func(c model.Commit) string { return c.Rev }, now, halfLifeDays)
-	return authorRevs, totalRevs
+// countDistinctForOpts counts distinct values per key returned by valFn and
+// keyFn, decay-weighted when opts.HalfLifeDays > 0, or plain distinct counts
+// (converted to float64) when decay is disabled.
+func countDistinctForOpts[K comparable](commits []model.Commit, opts model.Options, keyFn func(model.Commit) K, valFn func(model.Commit) string) map[K]float64 {
+	if opts.HalfLifeDays > 0 {
+		return countDistinctWeighted(commits, keyFn, valFn, resolveNow(opts), opts.HalfLifeDays)
+	}
+	return toFloatMap(countDistinct(commits, keyFn, valFn))
 }
 
 // revsPerEntityAuthorForOpts returns per-(entity,author) and per-entity
-// revision counts as float64: decay-weighted (via
-// revsPerEntityAuthorWeighted) when opts.HalfLifeDays > 0, or plain distinct
-// revision counts (weight 1 per revision) otherwise. Used by MainDevByRevs
-// and Fragmentation, which are decay-aware; EntityEffort intentionally
-// keeps calling the plain, always-undecayed revsPerEntityAuthor instead.
+// revision counts as float64: decay-weighted when opts.HalfLifeDays > 0,
+// or plain distinct revision counts (weight 1 per revision) otherwise.
+// Used by MainDevByRevs and Fragmentation, which are decay-aware; EntityEffort
+// intentionally keeps calling the plain, always-undecayed revsPerEntityAuthor instead.
 func revsPerEntityAuthorForOpts(commits []model.Commit, opts model.Options) (map[entityAuthorKey]float64, map[string]float64) {
-	if opts.HalfLifeDays > 0 {
-		return revsPerEntityAuthorWeighted(commits, resolveNow(opts), opts.HalfLifeDays)
-	}
-	authorRevs, totalRevs := revsPerEntityAuthor(commits)
-	return toFloatMap(authorRevs), toFloatMap(totalRevs)
+	authorRevs := countDistinctForOpts(commits, opts,
+		func(c model.Commit) entityAuthorKey { return entityAuthorKey{c.Entity, c.Author} },
+		func(c model.Commit) string { return c.Rev })
+	totalRevs := countDistinctForOpts(commits, opts,
+		func(c model.Commit) string { return c.Entity },
+		func(c model.Commit) string { return c.Rev })
+	return authorRevs, totalRevs
 }
 
 // formatMetric renders a possibly decay-weighted metric: a plain integer
@@ -169,18 +178,9 @@ func formatMetric(v float64, opts model.Options) string {
 	return fmt.Sprintf("%.2f", v)
 }
 
-// churnAgg holds added/deleted line totals and a distinct revision count for
-// one key, shared by AbsChurn, AuthorChurn, and EntityChurn.
-type churnAgg struct {
-	key     string
-	added   int
-	deleted int
-	commits int
-}
-
 // aggregateChurn sums LocAdded/LocDeleted and counts distinct revisions per
 // key returned by keyFn.
-func aggregateChurn(commits []model.Commit, keyFn func(model.Commit) string) []churnAgg {
+func aggregateChurn(commits []model.Commit, keyFn func(model.Commit) string) []ChurnResult {
 	type entry struct {
 		added, deleted int
 		revs           map[string]struct{}
@@ -198,17 +198,9 @@ func aggregateChurn(commits []model.Commit, keyFn func(model.Commit) string) []c
 		e.revs[c.Rev] = struct{}{}
 	}
 
-	aggs := make([]churnAgg, 0, len(byKey))
+	results := make([]ChurnResult, 0, len(byKey))
 	for k, e := range byKey {
-		aggs = append(aggs, churnAgg{k, e.added, e.deleted, len(e.revs)})
-	}
-	return aggs
-}
-
-func aggsToChurnResults(aggs []churnAgg) []ChurnResult {
-	results := make([]ChurnResult, len(aggs))
-	for i, a := range aggs {
-		results[i] = ChurnResult{a.key, a.added, a.deleted, a.commits}
+		results = append(results, ChurnResult{k, e.added, e.deleted, len(e.revs)})
 	}
 	return results
 }
@@ -252,13 +244,9 @@ func findTopContributor(commits []model.Commit, opts model.Options, valueFn func
 	totalByEntity := map[string]float64{}
 	now := resolveNow(opts)
 	for _, c := range commits {
-		weight := 1.0
-		if opts.HalfLifeDays > 0 {
-			w, ok := decayWeight(c.Date, now, opts.HalfLifeDays)
-			if !ok {
-				continue
-			}
-			weight = w
+		weight, ok := commitWeight(c.Date, now, opts)
+		if !ok {
+			continue
 		}
 		k := entityAuthorKey{c.Entity, c.Author}
 		v := float64(valueFn(c)) * weight

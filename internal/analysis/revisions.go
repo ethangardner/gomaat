@@ -17,17 +17,9 @@ type RevisionsResult struct {
 // Revisions counts the number of revisions for each entity, decay-weighted
 // by opts.HalfLifeDays when set.
 func Revisions(commits []model.Commit, opts model.Options) []RevisionsResult {
-	var revsByEntity map[string]float64
-	if opts.HalfLifeDays > 0 {
-		revsByEntity = countDistinctWeighted(commits,
-			func(c model.Commit) string { return c.Entity },
-			func(c model.Commit) string { return c.Rev },
-			resolveNow(opts), opts.HalfLifeDays)
-	} else {
-		revsByEntity = toFloatMap(countDistinct(commits,
-			func(c model.Commit) string { return c.Entity },
-			func(c model.Commit) string { return c.Rev }))
-	}
+	revsByEntity := countDistinctForOpts(commits, opts,
+		func(c model.Commit) string { return c.Entity },
+		func(c model.Commit) string { return c.Rev })
 
 	results := make([]RevisionsResult, 0, len(revsByEntity))
 	for entity, revs := range revsByEntity {

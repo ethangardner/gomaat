@@ -176,50 +176,36 @@ func writeRows(rows [][]string) error {
 	return writeStdout(os.Stdout, rows, maxRows)
 }
 
-// couplingOpts holds coupling-specific flag values.
-type couplingFlags struct {
-	minRevs          int
-	minSharedRevs    int
-	minCoupling      float64
-	maxCoupling      float64
-	maxChangesetSize int
-	verboseResults   bool
-}
-
 // T is inferred from fn/format and forwarded to runAnalysis; see its comment
 // for why the type parameter is needed.
-func newCouplingCmd[T any](use, short string, fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string, addFlags func(*cobra.Command, *couplingFlags)) *cobra.Command {
-	cf := &couplingFlags{
-		minRevs:          5,
-		minSharedRevs:    5,
-		minCoupling:      30,
-		maxCoupling:      100,
-		maxChangesetSize: 30,
+func newCouplingCmd[T any](use, short string, fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string, addFlags func(*cobra.Command, *model.Options)) *cobra.Command {
+	opts := model.Options{
+		MinRevs:          5,
+		MinSharedRevs:    5,
+		MinCoupling:      30,
+		MaxCoupling:      100,
+		MaxChangesetSize: 30,
 	}
 	cmd := &cobra.Command{
 		Use:   use,
 		Short: short,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts, err := analysisOptions()
+			baseOpts, err := analysisOptions()
 			if err != nil {
 				return err
 			}
-			opts.MinRevs = cf.minRevs
-			opts.MinSharedRevs = cf.minSharedRevs
-			opts.MinCoupling = cf.minCoupling
-			opts.MaxCoupling = cf.maxCoupling
-			opts.MaxChangesetSize = cf.maxChangesetSize
-			opts.VerboseResults = cf.verboseResults
+			opts.HalfLifeDays = baseOpts.HalfLifeDays
+			opts.AgeTimeNow = baseOpts.AgeTimeNow
 			return runAnalysis(fn, format, opts)
 		},
 	}
-	cmd.Flags().IntVarP(&cf.minRevs, "min-revs", "n", cf.minRevs, "minimum revisions to include entity")
-	cmd.Flags().IntVarP(&cf.minSharedRevs, "min-shared-revs", "m", cf.minSharedRevs, "minimum shared revisions for coupling")
-	cmd.Flags().Float64VarP(&cf.minCoupling, "min-coupling", "i", cf.minCoupling, "minimum coupling percentage")
-	cmd.Flags().Float64VarP(&cf.maxCoupling, "max-coupling", "x", cf.maxCoupling, "maximum coupling percentage")
-	cmd.Flags().IntVarP(&cf.maxChangesetSize, "max-changeset-size", "s", cf.maxChangesetSize, "max modules in changeset for coupling")
+	cmd.Flags().IntVarP(&opts.MinRevs, "min-revs", "n", opts.MinRevs, "minimum revisions to include entity")
+	cmd.Flags().IntVarP(&opts.MinSharedRevs, "min-shared-revs", "m", opts.MinSharedRevs, "minimum shared revisions for coupling")
+	cmd.Flags().Float64VarP(&opts.MinCoupling, "min-coupling", "i", opts.MinCoupling, "minimum coupling percentage")
+	cmd.Flags().Float64VarP(&opts.MaxCoupling, "max-coupling", "x", opts.MaxCoupling, "maximum coupling percentage")
+	cmd.Flags().IntVarP(&opts.MaxChangesetSize, "max-changeset-size", "s", opts.MaxChangesetSize, "max modules in changeset for coupling")
 	if addFlags != nil {
-		addFlags(cmd, cf)
+		addFlags(cmd, &opts)
 	}
 	return cmd
 }
@@ -259,23 +245,12 @@ func init() {
 	rootCmd.AddCommand(simpleCmd("statistics", "Descriptive statistics for core metrics (files/lines per commit, revisions/authors/soc per entity)", analysis.Statistics, analysis.FormatStatistics))
 
 	// Age subcommand
-	ageCmd := &cobra.Command{
-		Use:   "age",
-		Short: "Months since last modification per entity",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			opts, err := analysisOptions()
-			if err != nil {
-				return err
-			}
-			return runAnalysis(analysis.Age, analysis.FormatAge, opts)
-		},
-	}
-	rootCmd.AddCommand(ageCmd)
+	rootCmd.AddCommand(simpleCmd("age", "Months since last modification per entity", analysis.Age, analysis.FormatAge))
 
 	// Coupling subcommand (with verbose flag)
 	couplingCmd := newCouplingCmd("coupling", "Detect temporal coupling between modules", analysis.Coupling, analysis.FormatCoupling,
-		func(cmd *cobra.Command, cf *couplingFlags) {
-			cmd.Flags().BoolVar(&cf.verboseResults, "verbose-results", false, "include extra columns (entity revs, shared revs)")
+		func(cmd *cobra.Command, opts *model.Options) {
+			cmd.Flags().BoolVar(&opts.VerboseResults, "verbose-results", false, "include extra columns (entity revs, shared revs)")
 		},
 	)
 	rootCmd.AddCommand(couplingCmd)
