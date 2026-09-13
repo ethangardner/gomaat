@@ -181,18 +181,14 @@ func loadIgnoreRevs(path string) (map[string]struct{}, error) {
 }
 
 func buildExcludePathspecArgs(excludes []string) []string {
-	var dirExcludes []string
+	var args []string
 	for _, pattern := range excludes {
 		if strings.HasSuffix(pattern, "/") {
-			dirExcludes = append(dirExcludes, pattern)
+			if len(args) == 0 {
+				args = []string{"--", "."}
+			}
+			args = append(args, ":(exclude,literal)"+pattern)
 		}
-	}
-	if len(dirExcludes) == 0 {
-		return nil
-	}
-	args := []string{"--", "."}
-	for _, pattern := range dirExcludes {
-		args = append(args, ":(exclude,literal)"+pattern)
 	}
 	return args
 }
@@ -281,16 +277,7 @@ func matchesAuthorPattern(author, pattern string) bool {
 func numstatLineMatchesExclude(line string, excludes []string) bool {
 	// numstat lines: "<added>\t<deleted>\t<path>"
 	parts := strings.SplitN(line, "\t", 3)
-	if len(parts) != 3 {
-		return false
-	}
-	path := parts[2]
-	for _, pattern := range excludes {
-		if matchesExcludePattern(path, pattern) {
-			return true
-		}
-	}
-	return false
+	return len(parts) == 3 && pathMatchesAnyExclude(parts[2], excludes)
 }
 
 func matchesExcludePattern(path, pattern string) bool {
