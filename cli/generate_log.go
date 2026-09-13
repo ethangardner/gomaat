@@ -45,12 +45,9 @@ Examples:
 				return fmt.Errorf("--format (-f): generate-log writes raw git log text, not tabular data, so JSON output is not supported")
 			}
 
-			var ignoreRevs map[string]struct{}
-			if ignoreRevsFile != "" {
-				ignoreRevs, err = loadIgnoreRevs(ignoreRevsFile)
-				if err != nil {
-					return err
-				}
+			filters, err := currentLogFilters()
+			if err != nil {
+				return err
 			}
 
 			dst := os.Stdout
@@ -68,12 +65,6 @@ Examples:
 				dst = outHandle
 			}
 
-			filters := logFilters{
-				Excludes:       excludes,
-				ExcludeAuthors: excludeAuthors,
-				IgnoreRevs:     ignoreRevs,
-				UseMailmap:     useMailmap,
-			}
 			if err := runGitLog(path, after, before, filters, dst); err != nil {
 				return err
 			}
@@ -97,6 +88,25 @@ type logFilters struct {
 	ExcludeAuthors []string
 	IgnoreRevs     map[string]struct{}
 	UseMailmap     bool
+}
+
+// currentLogFilters builds a logFilters from the persistent root flags,
+// loading ignoreRevsFile if specified.
+func currentLogFilters() (logFilters, error) {
+	var ignoreRevs map[string]struct{}
+	var err error
+	if ignoreRevsFile != "" {
+		ignoreRevs, err = loadIgnoreRevs(ignoreRevsFile)
+		if err != nil {
+			return logFilters{}, err
+		}
+	}
+	return logFilters{
+		Excludes:       excludes,
+		ExcludeAuthors: excludeAuthors,
+		IgnoreRevs:     ignoreRevs,
+		UseMailmap:     useMailmap,
+	}, nil
 }
 
 // runGitLog runs git log against path and streams output to dst.

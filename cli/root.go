@@ -98,17 +98,10 @@ func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T,
 	var commits []model.Commit
 	var err error
 	if repoPath != "" {
-		filters := logFilters{
-			Excludes:       excludes,
-			ExcludeAuthors: excludeAuthors,
-			IgnoreRevs:     nil,
-			UseMailmap:     useMailmap,
-		}
-		if ignoreRevsFile != "" {
-			filters.IgnoreRevs, err = loadIgnoreRevs(ignoreRevsFile)
-			if err != nil {
-				return err
-			}
+		var filters logFilters
+		filters, err = currentLogFilters()
+		if err != nil {
+			return err
 		}
 		commits, err = runGitLogToCommits(repoPath, after, before, filters)
 	} else {
