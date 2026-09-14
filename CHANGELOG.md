@@ -14,10 +14,12 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `--use-mailmap` flag on `generate-log` to resolve author identities via a `.mailmap` file at the repo root, so the same person committing under different names/emails collapses to one canonical author. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- `identity` now includes a `message` column with each commit's full message (subject, body, and trailers such as `Co-Authored-By:`), enabling future message-based analyses. ([#60](https://github.com/ethangardner/gomaat/issues/60))
 
 ### Changed
 
 - `generate-log`'s rev field now uses the full commit hash (`%H`) instead of the abbreviated `%h`, so `--ignore-revs-file` can match unambiguously. `Rev` is an opaque string everywhere it's consumed, so this only changes the value in output, not its meaning. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- **Breaking:** `generate-log`'s log format now delimits commit records with NUL bytes (`%x00`) instead of single-line `--rev--date--author` headers, so it can capture each commit's full message (needed for `identity` above, and for future message-based analyses like defect classification) without a text-based delimiter colliding with message content. Log files produced by older gomaat versions will no longer parse — regenerate them with `gomaat generate-log`. Parsing an old-format file now fails with an explicit, actionable error instead of silently producing an empty report. ([#60](https://github.com/ethangardner/gomaat/issues/60))
 
 ## [v1.0.0] - 2026-09-05
 

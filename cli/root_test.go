@@ -28,7 +28,7 @@ func resetFlags(t *testing.T) {
 // format documented in internal/parser/git.go.
 func validLogFixture(t *testing.T) string {
 	t.Helper()
-	return testhelpers.WriteTempFile(t, "valid.log", "--abc123--2024-01-01--Jane Doe\n1\t2\tfoo.go\n\n")
+	return testhelpers.WriteTempFile(t, "valid.log", nulRecord("abc123", "2024-01-01", "Jane Doe", "initial commit", "1\t2\tfoo.go"))
 }
 
 func readOutputFile(t *testing.T, path string) string {
@@ -197,12 +197,7 @@ func TestSimpleCmdRunE(t *testing.T) {
 
 func TestCouplingCmdRunE(t *testing.T) {
 	resetFlags(t)
-	logFile = testhelpers.WriteTempFile(t, "coupling.log", strings.Join([]string{
-		"--abc123--2024-01-01--Jane Doe",
-		"1\t0\tfoo.go",
-		"1\t0\tbar.go",
-		"",
-	}, "\n"))
+	logFile = testhelpers.WriteTempFile(t, "coupling.log", nulRecord("abc123", "2024-01-01", "Jane Doe", "initial commit", "1\t0\tfoo.go", "1\t0\tbar.go"))
 	outFile = filepath.Join(t.TempDir(), "out.csv")
 
 	cmd, _, err := rootCmd.Find([]string{"coupling"})

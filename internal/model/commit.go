@@ -7,6 +7,7 @@ type Commit struct {
 	Date       string // "YYYY-MM-DD"
 	Author     string
 	Entity     string
+	Message    string // full commit message: subject + body + trailers, raw
 	LocAdded   int
 	LocDeleted int
 }

@@ -88,8 +88,8 @@ func TestIdentity(t *testing.T) {
 	rows := FormatIdentity(results, model.Options{})
 	assertFormattedRows(t, rows, "entity", 4)
 	r := rows[1]
-	if r[0] != "foo.go" || r[1] != "r1" || r[2] != "2024-01-01" || r[3] != "Alice" || r[4] != "5" || r[5] != "2" {
-		t.Errorf("row 1: got %v, want [foo.go r1 2024-01-01 Alice 5 2]", r)
+	if r[0] != "foo.go" || r[1] != "r1" || r[2] != "2024-01-01" || r[3] != "Alice" || r[4] != "" || r[5] != "5" || r[6] != "2" {
+		t.Errorf("row 1: got %v, want [foo.go r1 2024-01-01 Alice \"\" 5 2]", r)
 	}
 }
 
