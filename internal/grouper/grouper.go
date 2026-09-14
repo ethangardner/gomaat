@@ -82,6 +82,13 @@ func Apply(commits []model.Commit, groups []group) []model.Commit {
 	return out
 }
 
+// MatchPath reports the group name for a bare path (not a Commit), or "" if
+// no group matches. Lets callers with non-commit path lists (e.g. hotspots'
+// cloc-derived file paths) apply the same grouping rules Apply uses.
+func MatchPath(path string, groups []group) string {
+	return match(path, groups)
+}
+
 func match(entity string, groups []group) string {
 	for _, g := range groups {
 		if g.pattern.MatchString(entity) {

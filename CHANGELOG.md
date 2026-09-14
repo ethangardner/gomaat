@@ -11,6 +11,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ### Added
 
+- `hotspots` command joining churn (revisions) with size (current lines of code) into a single ranked risk report, with fragmentation as an extra column to distinguish well-understood-but-active files from fragmented ones. ([#49](https://github.com/ethangardner/gomaat/issues/49))
 - `--use-mailmap` flag on `generate-log` to resolve author identities via a `.mailmap` file at the repo root, so the same person committing under different names/emails collapses to one canonical author. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
