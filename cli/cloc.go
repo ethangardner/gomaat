@@ -74,20 +74,30 @@ Examples:
 	return cmd
 }
 
-// gitTrackedFiles returns absolute paths of tracked files under path.
-func gitTrackedFiles(path string, excludes []string) ([]string, string, error) {
+// resolveRepoRoot returns the absolute path to the git repository root
+// containing path.
+func resolveRepoRoot(path string) (string, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
-	repoRootOut, err := exec.Command("git", "-C", absPath, "rev-parse", "--show-toplevel").CombinedOutput()
+	out, err := exec.Command("git", "-C", absPath, "rev-parse", "--show-toplevel").CombinedOutput()
 	if err != nil {
-		return nil, "", fmt.Errorf("git rev-parse --show-toplevel failed: %w: %s", err, strings.TrimSpace(string(repoRootOut)))
+		return "", fmt.Errorf("git rev-parse --show-toplevel failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
-	repoRoot := strings.TrimSpace(string(repoRootOut))
+	repoRoot := strings.TrimSpace(string(out))
 	if repoRoot == "" {
-		return nil, "", fmt.Errorf("git rev-parse --show-toplevel returned empty repository root")
+		return "", fmt.Errorf("git rev-parse --show-toplevel returned empty repository root")
+	}
+	return repoRoot, nil
+}
+
+// gitTrackedFiles returns absolute paths of tracked files under path.
+func gitTrackedFiles(path string, excludes []string) ([]string, string, error) {
+	repoRoot, err := resolveRepoRoot(path)
+	if err != nil {
+		return nil, "", err
 	}
 
 	lsArgs := append([]string{"-C", repoRoot, "ls-files"}, buildExcludePathspecArgs(excludes)...)
