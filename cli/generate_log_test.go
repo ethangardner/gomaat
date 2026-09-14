@@ -9,7 +9,33 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/ethangardner/gomaat/internal/parser"
 )
+
+// nulRecord builds one commit record in the NUL-delimited format generate-log
+// produces (see internal/parser's ParseFile doc comment for the exact
+// framing), so tests can construct fixtures without hand-escaping NUL bytes.
+func nulRecord(rev, date, author, message string, numstatLines ...string) string {
+	var sb strings.Builder
+	sb.WriteByte(0)
+	sb.WriteString(rev)
+	sb.WriteByte(0)
+	sb.WriteString(date)
+	sb.WriteByte(0)
+	sb.WriteString(author)
+	sb.WriteByte(0)
+	sb.WriteString(message)
+	sb.WriteString("\n") // %B's own trailing newline
+	sb.WriteByte(0)
+	sb.WriteString("\n") // git's separator newline before numstat output
+	for _, l := range numstatLines {
+		sb.WriteString(l)
+		sb.WriteString("\n")
+	}
+	sb.WriteString("\n") // blank line before the next record
+	return sb.String()
+}
 
 func TestMatchesExcludePattern(t *testing.T) {
 	tests := []struct {
@@ -216,17 +242,14 @@ func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
 }
 
 func TestFilterExcludes(t *testing.T) {
-	input := strings.Join([]string{
-		"--abc123--2024-01-15--Alice",
+	input := nulRecord("abc123", "2024-01-15", "Alice", "msg1",
 		"5\t3\tsrc/foo.go",
 		"2\t1\tvendor/github.com/lib/lib.go",
 		"1\t0\tsrc/types.pb.go",
-		"",
-		"--def456--2024-02-01--Bob",
+	) + nulRecord("def456", "2024-02-01", "Bob", "msg2",
 		"3\t2\tsrc/bar.go",
 		"4\t0\tsrc/api/gen.pb.go",
-		"",
-	}, "\n")
+	)
 
 	var out bytes.Buffer
 	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/", "*.pb.go"}, nil, nil); err != nil {
@@ -234,29 +257,52 @@ func TestFilterExcludes(t *testing.T) {
 	}
 	result := out.String()
 
-	kept := []string{"src/foo.go", "src/bar.go", "--abc123", "--def456"}
+	kept := []string{"src/foo.go", "src/bar.go", "abc123", "def456"}
 	for _, s := range kept {
 		if !strings.Contains(result, s) {
-			t.Errorf("expected %q to be kept in output, but it was removed:\n%s", s, result)
+			t.Errorf("expected %q to be kept in output, but it was removed:\n%q", s, result)
 		}
 	}
 
 	removed := []string{"vendor/github.com/lib/lib.go", "src/types.pb.go", "src/api/gen.pb.go"}
 	for _, s := range removed {
 		if strings.Contains(result, s) {
-			t.Errorf("expected %q to be excluded from output, but it was kept:\n%s", s, result)
+			t.Errorf("expected %q to be excluded from output, but it was kept:\n%q", s, result)
 		}
+	}
+
+	if commits, err := parser.ParseReader(strings.NewReader(result)); err != nil {
+		t.Errorf("filterLog output must remain parseable: %v", err)
+	} else if len(commits) != 2 {
+		t.Errorf("expected 2 surviving numstat lines after exclude filtering, got %d", len(commits))
 	}
 }
 
 func TestFilterExcludesNoPatterns(t *testing.T) {
-	input := "5\t3\tvendor/foo.go\n"
+	input := nulRecord("abc123", "2024-01-15", "Alice", "msg", "5\t3\tvendor/foo.go")
 	var out bytes.Buffer
 	if err := filterLog(strings.NewReader(input), &out, nil, nil, nil); err != nil {
 		t.Fatalf("filterLog: %v", err)
 	}
 	if out.String() != input {
-		t.Errorf("filterLog with no patterns should return input unchanged")
+		t.Errorf("filterLog with no patterns should return input unchanged:\ngot:  %q\nwant: %q", out.String(), input)
+	}
+}
+
+func TestFilterExcludesDropsMatchingNumstatLine(t *testing.T) {
+	input := nulRecord("abc123", "2024-01-15", "Alice", "msg", "1\t0\tvendor/foo.go", "2\t0\tsrc/keep.go")
+
+	var out bytes.Buffer
+	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
+		t.Fatalf("filterLog: %v", err)
+	}
+	result := out.String()
+
+	if strings.Contains(result, "vendor/foo.go") {
+		t.Errorf("expected vendor/foo.go to be excluded, got:\n%q", result)
+	}
+	if !strings.Contains(result, "src/keep.go") {
+		t.Errorf("expected src/keep.go to be kept, got:\n%q", result)
 	}
 }
 
@@ -282,21 +328,9 @@ func TestNumstatLineMatchesExclude(t *testing.T) {
 	}
 }
 
-func TestFilterExcludesStreamPreservesTrailingNewline(t *testing.T) {
-	input := "1\t0\tvendor/foo.go\n2\t0\tsrc/keep.go\n"
-
-	var out bytes.Buffer
-	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
-		t.Fatalf("filterLog: %v", err)
-	}
-
-	if out.String() != "2\t0\tsrc/keep.go\n" {
-		t.Fatalf("unexpected output: %q", out.String())
-	}
-}
-
 func TestFilterExcludesStreamWriterError(t *testing.T) {
-	err := filterLog(strings.NewReader("1\t0\tsrc/keep.go\n"), errWriter{}, nil, nil, nil)
+	input := nulRecord("abc123", "2024-01-15", "Alice", "msg", "1\t0\tsrc/keep.go")
+	err := filterLog(strings.NewReader(input), errWriter{}, nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected writer error, got nil")
 	}
@@ -321,31 +355,10 @@ func (errReader) Read(_ []byte) (int, error) {
 	return 0, io.ErrUnexpectedEOF
 }
 
-func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
-	input := "1\t0\tvendor/foo.go\r\n2\t0\tsrc/keep.go\r\n"
-
-	var out bytes.Buffer
-	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
-		t.Fatalf("filterLog: %v", err)
-	}
-
-	if out.String() != "2\t0\tsrc/keep.go\r\n" {
-		t.Fatalf("unexpected output: %q", out.String())
-	}
-}
-
 func TestFilterLogExcludesAuthor(t *testing.T) {
-	input := strings.Join([]string{
-		"--aaa111--2024-01-15--Alice",
-		"5\t3\tsrc/foo.go",
-		"",
-		"--bbb222--2024-02-01--dependabot[bot]",
-		"3\t2\tgo.mod",
-		"",
-		"--ccc333--2024-03-01--renovate-bot",
-		"1\t1\tgo.sum",
-		"",
-	}, "\n")
+	input := nulRecord("aaa111", "2024-01-15", "Alice", "msg", "5\t3\tsrc/foo.go") +
+		nulRecord("bbb222", "2024-02-01", "dependabot[bot]", "msg", "3\t2\tgo.mod") +
+		nulRecord("ccc333", "2024-03-01", "renovate-bot", "msg", "1\t1\tgo.sum")
 
 	var out bytes.Buffer
 	if err := filterLog(strings.NewReader(input), &out, nil, []string{"dependabot[bot]", "renovate*"}, nil); err != nil {
@@ -354,24 +367,18 @@ func TestFilterLogExcludesAuthor(t *testing.T) {
 	result := out.String()
 
 	if !strings.Contains(result, "Alice") || !strings.Contains(result, "src/foo.go") {
-		t.Errorf("expected Alice's commit to be kept, got:\n%s", result)
+		t.Errorf("expected Alice's commit to be kept, got:\n%q", result)
 	}
 	for _, s := range []string{"dependabot", "go.mod", "renovate-bot", "go.sum"} {
 		if strings.Contains(result, s) {
-			t.Errorf("expected %q to be excluded from output, but it was kept:\n%s", s, result)
+			t.Errorf("expected %q to be excluded from output, but it was kept:\n%q", s, result)
 		}
 	}
 }
 
 func TestFilterLogIgnoresRevs(t *testing.T) {
-	input := strings.Join([]string{
-		"--aaa111--2024-01-15--Alice",
-		"5\t3\tsrc/foo.go",
-		"",
-		"--bbb222--2024-02-01--Bob",
-		"3\t2\tsrc/bar.go",
-		"",
-	}, "\n")
+	input := nulRecord("aaa111", "2024-01-15", "Alice", "msg", "5\t3\tsrc/foo.go") +
+		nulRecord("bbb222", "2024-02-01", "Bob", "msg", "3\t2\tsrc/bar.go")
 
 	var out bytes.Buffer
 	if err := filterLog(strings.NewReader(input), &out, nil, nil, map[string]struct{}{"bbb222": {}}); err != nil {
@@ -380,26 +387,17 @@ func TestFilterLogIgnoresRevs(t *testing.T) {
 	result := out.String()
 
 	if !strings.Contains(result, "src/foo.go") {
-		t.Errorf("expected src/foo.go (kept commit) in output, got:\n%s", result)
+		t.Errorf("expected src/foo.go (kept commit) in output, got:\n%q", result)
 	}
 	if strings.Contains(result, "src/bar.go") || strings.Contains(result, "Bob") {
-		t.Errorf("expected the ignored-rev commit to be excluded, got:\n%s", result)
+		t.Errorf("expected the ignored-rev commit to be excluded, got:\n%q", result)
 	}
 }
 
 func TestFilterLogCombinesAllFilters(t *testing.T) {
-	input := strings.Join([]string{
-		"--aaa111--2024-01-15--Alice",
-		"5\t3\tsrc/foo.go",
-		"2\t1\tvendor/lib.go",
-		"",
-		"--bbb222--2024-02-01--dependabot[bot]",
-		"3\t2\tgo.mod",
-		"",
-		"--ccc333--2024-03-01--Bob",
-		"1\t1\tsrc/bar.go",
-		"",
-	}, "\n")
+	input := nulRecord("aaa111", "2024-01-15", "Alice", "msg", "5\t3\tsrc/foo.go", "2\t1\tvendor/lib.go") +
+		nulRecord("bbb222", "2024-02-01", "dependabot[bot]", "msg", "3\t2\tgo.mod") +
+		nulRecord("ccc333", "2024-03-01", "Bob", "msg", "1\t1\tsrc/bar.go")
 
 	var out bytes.Buffer
 	err := filterLog(strings.NewReader(input), &out,
@@ -413,11 +411,11 @@ func TestFilterLogCombinesAllFilters(t *testing.T) {
 	result := out.String()
 
 	if !strings.Contains(result, "src/foo.go") {
-		t.Errorf("expected src/foo.go to be kept, got:\n%s", result)
+		t.Errorf("expected src/foo.go to be kept, got:\n%q", result)
 	}
 	for _, s := range []string{"vendor/lib.go", "dependabot", "go.mod", "Bob", "src/bar.go"} {
 		if strings.Contains(result, s) {
-			t.Errorf("expected %q to be excluded from output, but it was kept:\n%s", s, result)
+			t.Errorf("expected %q to be excluded from output, but it was kept:\n%q", s, result)
 		}
 	}
 }

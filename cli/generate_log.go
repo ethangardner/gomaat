@@ -110,7 +110,7 @@ func runGitLog(path, after, before string, filters logFilters, dst io.Writer) er
 		"-C", path,
 		"log", "--all", "--numstat",
 		"--date=short",
-		"--pretty=format:--%H--%ad--%aN",
+		"--pretty=format:%x00%H%x00%ad%x00%aN%x00%B%x00",
 		"--no-renames",
 		"--no-merges",
 	}
@@ -193,52 +193,90 @@ func buildExcludePathspecArgs(excludes []string) []string {
 	return args
 }
 
-// filterLog streams src to dst, dropping whole commits whose author matches
+// filterLog reads all of src, dropping whole commits whose author matches
 // excludeAuthors or whose rev appears in ignoreRevs, and dropping numstat
-// lines under a kept commit that match excludes. Author and rev only appear
-// on a commit's header line ("--<rev>--<date>--<author>"), so keep/drop is
-// decided there and applied to every following line until the next header —
-// only one commit's worth of state is held at a time, never the whole log.
+// lines under a kept commit that match excludes, then writes the surviving
+// commits to dst in the same NUL-delimited record format they arrived in.
+//
+// Commit records are NUL-delimited (see internal/parser's doc comment for
+// the exact framing), so filtering can't be done line-by-line the way it was
+// under the old single-line-header format: a commit message can legitimately
+// span many lines, including blank lines. Splitting the whole input on NUL
+// bytes instead mirrors internal/parser's own field-grouping exactly, so
+// filtering agrees with what the parser will later see.
 func filterLog(src io.Reader, dst io.Writer, excludes, excludeAuthors []string, ignoreRevs map[string]struct{}) error {
-	reader := bufio.NewReader(src)
-	keepCurrent := true
-	for {
-		line, err := reader.ReadBytes('\n')
-		if len(line) > 0 {
-			trimmed := string(bytes.TrimRight(line, "\r\n"))
-			if rev, author, ok := parseHeaderLine(trimmed); ok {
-				_, ignored := ignoreRevs[rev]
-				keepCurrent = !ignored && !authorExcluded(author, excludeAuthors)
-			}
-			if keepCurrent && !numstatLineMatchesExclude(trimmed, excludes) {
-				if _, writeErr := dst.Write(line); writeErr != nil {
-					return writeErr
-				}
-			}
+	data, err := io.ReadAll(src)
+	if err != nil {
+		return err
+	}
+	if len(data) == 0 {
+		return nil
+	}
+
+	fields := bytes.Split(data, []byte{0})
+	fields = fields[1:] // drop the empty prefix before the first commit's leading NUL
+
+	for i := 0; i+4 < len(fields); i += 5 {
+		rev := string(fields[i])
+		date := fields[i+1]
+		author := string(fields[i+2])
+		message := fields[i+3]
+		numstatBlock := fields[i+4]
+
+		if _, ignored := ignoreRevs[rev]; ignored || authorExcluded(author, excludeAuthors) {
+			continue
 		}
 
-		if err == io.EOF {
-			return nil
+		if _, err := dst.Write([]byte{0}); err != nil {
+			return err
 		}
-		if err != nil {
+		if _, err := io.WriteString(dst, rev); err != nil {
+			return err
+		}
+		if _, err := dst.Write([]byte{0}); err != nil {
+			return err
+		}
+		if _, err := dst.Write(date); err != nil {
+			return err
+		}
+		if _, err := dst.Write([]byte{0}); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(dst, author); err != nil {
+			return err
+		}
+		if _, err := dst.Write([]byte{0}); err != nil {
+			return err
+		}
+		if _, err := dst.Write(message); err != nil {
+			return err
+		}
+		if _, err := dst.Write([]byte{0}); err != nil {
+			return err
+		}
+		if _, err := dst.Write(filterNumstatBlock(numstatBlock, excludes)); err != nil {
 			return err
 		}
 	}
+	return nil
 }
 
-// parseHeaderLine extracts rev and author from a commit header line
-// ("--<rev>--<date>--<author>"), mirroring internal/parser's own header
-// parsing so filtering agrees with what the parser will later see. ok is
-// false for any other kind of line (numstat or blank).
-func parseHeaderLine(line string) (rev, author string, ok bool) {
-	if !strings.HasPrefix(line, "--") {
-		return "", "", false
+// filterNumstatBlock drops numstat lines matching excludes from a commit's
+// raw numstat block, preserving blank lines (which the parser treats as
+// separators, not data) unchanged.
+func filterNumstatBlock(block []byte, excludes []string) []byte {
+	if len(excludes) == 0 {
+		return block
 	}
-	parts := strings.SplitN(line, "--", 4)
-	if len(parts) != 4 {
-		return "", "", false
+	lines := strings.Split(string(block), "\n")
+	kept := lines[:0]
+	for _, line := range lines {
+		if numstatLineMatchesExclude(line, excludes) {
+			continue
+		}
+		kept = append(kept, line)
 	}
-	return parts[1], parts[3], true
+	return []byte(strings.Join(kept, "\n"))
 }
 
 func authorExcluded(author string, patterns []string) bool {
