@@ -77,3 +77,7 @@ func FormatXXX(results T, opts model.Options) [][]string  // render to CSV rows
 - `cloc.go`: wraps `gocloc` over `git ls-files` output (so it respects gitignore), with the same `--exclude` filtering logic as `generate-log`.
 
 Both `generate-log --exclude` and `cloc --exclude` share `matchesExcludePattern`: patterns ending in `/` match path prefixes, everything else is matched as a glob against both the full path and the basename.
+
+## Development
+
+When doing development, you must always do simplification passes and use modern Go idioms. Strive to be DRY, always write tests with code changes, and use generics instead of multiple formatters for different types.
