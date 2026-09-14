@@ -145,8 +145,8 @@ The `generate-log` subcommand runs the correct `git log` invocation so you don't
 gomaat generate-log [flags]
 ```
 
-| Flag                 | Default         | Description                                                                                          |
-|----------------------|-----------------|-------------------------------------------------------------------------------------------------------|
+| Flag                 | Default         | Description                                                                                         |
+|----------------------|-----------------|-----------------------------------------------------------------------------------------------------|
 | `--after`            | _(all history)_ | Only include commits after this date (`YYYY-MM-DD`)                                                 |
 | `--before`           | _(all history)_ | Only include commits before this date (`YYYY-MM-DD`)                                                |
 | `--path`             | `.`             | Path to the git repository                                                                          |
@@ -206,23 +206,23 @@ git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renam
 
 These flags are available on every analysis subcommand.
 
-| Flag                 | Short | Default      | Description                                                                                          |
-|----------------------|-------|--------------|--------------------------------------------------------------------------------------------------------|
-| `--log`              | `-l`  | _(required unless `--repo` is set)_ | Path to the git log file                                                        |
-| `--repo`             |       | _(none)_     | Run analysis directly against this git repository instead of `-l` (mutually exclusive with `--log`)   |
-| `--outfile`          | `-o`  | stdout       | Write output to this file                                                                            |
-| `--rows`             | `-r`  | 0 (no limit) | Maximum number of result rows                                                                        |
-| `--group`            | `-g`  | _(none)_     | [Architectural grouping](#architectural-grouping) spec file                                          |
-| `--team-map-file`    | `-p`  | _(none)_     | [Team mapping](#team-mapping) CSV file                                                                |
-| `--format`           | `-f`  | `csv`        | Output format: `csv` or `json`                                                                       |
-| `--after`            |       | _(none)_     | With `--repo`, or reused by `generate-log`: only include commits after this date (`YYYY-MM-DD`)      |
-| `--before`           |       | _(none)_     | With `--repo`, or reused by `generate-log`: only include commits before this date (`YYYY-MM-DD`)     |
-| `--exclude`          |       | _(none)_     | With `--repo`, or reused by `generate-log`: exclude paths matching this pattern (repeatable, globs)  |
-| `--exclude-author`   |       | _(none)_     | With `--repo`, or reused by `generate-log`: exclude commits by this author name (repeatable, globs)  |
-| `--ignore-revs-file` |       | _(none)_     | With `--repo`, or reused by `generate-log`: drop commits listed in this file                         |
-| `--use-mailmap`      |       | `false`      | With `--repo`, or reused by `generate-log`: resolve author identities via `.mailmap`                 |
-| `--half-life`        |       | `0`          | Decay half-life in days (e.g. `90`); `0` disables decay. See [Decay weighting](#decay-weighting)     |
-| `--age-time-now`     | `-d`  | today        | Reference date (`YYYY-MM-DD`) for [`age`](#age) and for [`--half-life`](#decay-weighting) decay calculations |
+| Flag                 | Short | Default                             | Description                                                                                                  |
+|----------------------|-------|-------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| `--log`              | `-l`  | _(required unless `--repo` is set)_ | Path to the git log file                                                                                     |
+| `--repo`             |       | _(none)_                            | Run analysis directly against this git repository instead of `-l` (mutually exclusive with `--log`)          |
+| `--outfile`          | `-o`  | stdout                              | Write output to this file                                                                                    |
+| `--rows`             | `-r`  | 0 (no limit)                        | Maximum number of result rows                                                                                |
+| `--group`            | `-g`  | _(none)_                            | [Architectural grouping](#architectural-grouping) spec file                                                  |
+| `--team-map-file`    | `-p`  | _(none)_                            | [Team mapping](#team-mapping) CSV file                                                                       |
+| `--format`           | `-f`  | `csv`                               | Output format: `csv` or `json`                                                                               |
+| `--after`            |       | _(none)_                            | With `--repo`, or reused by `generate-log`: only include commits after this date (`YYYY-MM-DD`)              |
+| `--before`           |       | _(none)_                            | With `--repo`, or reused by `generate-log`: only include commits before this date (`YYYY-MM-DD`)             |
+| `--exclude`          |       | _(none)_                            | With `--repo`, or reused by `generate-log`: exclude paths matching this pattern (repeatable, globs)          |
+| `--exclude-author`   |       | _(none)_                            | With `--repo`, or reused by `generate-log`: exclude commits by this author name (repeatable, globs)          |
+| `--ignore-revs-file` |       | _(none)_                            | With `--repo`, or reused by `generate-log`: drop commits listed in this file                                 |
+| `--use-mailmap`      |       | `false`                             | With `--repo`, or reused by `generate-log`: resolve author identities via `.mailmap`                         |
+| `--half-life`        |       | `0`                                 | Decay half-life in days (e.g. `90`); `0` disables decay. See [Decay weighting](#decay-weighting)             |
+| `--age-time-now`     | `-d`  | today                               | Reference date (`YYYY-MM-DD`) for [`age`](#age) and for [`--half-life`](#decay-weighting) decay calculations |
 
 ---
 
@@ -232,7 +232,7 @@ Every analysis normally treats a revision from years ago the same as a revision 
 
 `--half-life <days>` fixes this by weighting each commit's contribution by `0.5^(age_in_days / half_life_days)`, where age is measured relative to `--age-time-now` (default: today, same reference date the [`age`](#age) analysis uses). A commit exactly one half-life old counts for half a revision; two half-lives old, a quarter; and so on. Without `--half-life` (the default), every commit counts for exactly 1, and output is byte-for-byte identical to previous versions of gomaat.
 
-`--half-life` is respected by: [`revisions`](#revisions), [`coupling`](#coupling), [`soc`](#soc), [`entity-ownership`](#entity-ownership), [`fragmentation`](#fragmentation), [`main-dev`](#main-dev), [`refactoring-main-dev`](#refactoring-main-dev), and [`main-dev-by-revs`](#main-dev-by-revs) — it's a no-op on every other subcommand. Affected numeric columns switch from whole numbers to two-decimal-place weighted values whenever `--half-life` is set.
+`--half-life` is respected by: [`revisions`](#revisions), [`coupling`](#coupling), [`soc`](#soc-sum-of-coupling), [`entity-ownership`](#entity-ownership), [`fragmentation`](#fragmentation), [`main-dev`](#main-dev), [`refactoring-main-dev`](#refactoring-main-dev), and [`main-dev-by-revs`](#main-dev-by-revs) — it's a no-op on every other subcommand. Affected numeric columns switch from whole numbers to two-decimal-place weighted values whenever `--half-life` is set.
 
 **Example** — the same dataset, with and without decay:
 
@@ -402,17 +402,17 @@ gomaat statistics -l logfile.log
 
 **Output:**
 
-| Column   | Description                      |
-|----------|-----------------------------------|
-| `metric` | Which metric this row describes  |
-| `count`  | Number of data points            |
-| `min`    | Minimum value                    |
-| `q1`     | First quartile                   |
-| `median` | Median value                     |
-| `q3`     | Third quartile                   |
-| `max`    | Maximum value                    |
-| `mean`   | Arithmetic mean                  |
-| `stddev` | Sample standard deviation        |
+| Column   | Description                     |
+|----------|---------------------------------|
+| `metric` | Which metric this row describes |
+| `count`  | Number of data points           |
+| `min`    | Minimum value                   |
+| `q1`     | First quartile                  |
+| `median` | Median value                    |
+| `q3`     | Third quartile                  |
+| `max`    | Maximum value                   |
+| `mean`   | Arithmetic mean                 |
+| `stddev` | Sample standard deviation       |
 
 `metric` is always the following five rows, in this order: `files-changed-per-commit`, `lines-changed-per-commit`, `revisions-per-entity`, `authors-per-entity`, `soc-per-entity`.
 

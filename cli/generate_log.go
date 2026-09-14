@@ -70,7 +70,10 @@ Examples:
 			}
 
 			if outFile != "" {
-				fmt.Fprintf(os.Stderr, "Log written to %s\n", outFile)
+				_, err := fmt.Fprintf(os.Stderr, "Log written to %s\n", outFile)
+				if err != nil {
+					return err
+				}
 			}
 			return nil
 		},
