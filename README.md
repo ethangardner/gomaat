@@ -35,6 +35,8 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [identity](#identity)
 - [Code Metrics](#code-metrics)
   - [cloc](#cloc)
+- [Risk Detection](#risk-detection)
+  - [risk](#risk)
 - [Advanced Usage](#advanced-usage)
   - [Architectural Grouping](#architectural-grouping)
   - [Team Mapping](#team-mapping)
@@ -715,6 +717,56 @@ gomaat cloc --format json
 ```
 
 The `--exclude` patterns follow the same rules as `generate-log --exclude`: patterns ending in `/` match directory prefixes; all others are matched as globs against both the full path and the base filename.
+
+---
+
+## Risk Detection
+
+### risk
+
+Turn [coupling](#coupling) into a pre-commit or CI check: cross-reference a staged change (or a diff against another ref) against the historical coupling table and flag files that usually change together with what you touched but aren't part of this change — catching "you edited `Order.java` but not `Invoice.java`, which co-changes with it 82% of the time" before it ships.
+
+Like `cloc`, `risk` reads live repository state directly via git in addition to `-l/--log`: its changed-file set reflects the working tree (or the diff against a ref) at the moment it runs, not the log file. Regenerate the log periodically so the coupling table stays current with actual history.
+
+```
+gomaat risk -l logfile.log --staged [flags]
+gomaat risk -l logfile.log --diff <ref> [flags]
+```
+
+| Flag              | Default | Description                                                          |
+|-------------------|---------|-----------------------------------------------------------------------|
+| `--staged`        | `false` | Check files staged for commit (`git diff --staged --name-only`)      |
+| `--diff`          | _(none)_| Check files changed relative to this ref (`git diff <ref> --name-only`) |
+| `--path`          | `.`     | Path to the git repository                                           |
+| `--min-coupling`  | `50`    | Minimum coupling percentage to report as a risk                      |
+
+Exactly one of `--staged` or `--diff <ref>` must be given.
+
+**Output:**
+
+| Column               | Description                                    |
+|----------------------|-------------------------------------------------|
+| `changed-entity`     | A file in the change                            |
+| `missing-entity`     | A historically-coupled file not in the change   |
+| `coupling-percent`   | Historical coupling percentage between the two |
+
+Sorted by `coupling-percent` descending. When there are no findings, `risk` prints "no concerns" to stderr and exits `0`. When findings exist, it prints a summary to stderr and **exits non-zero**, making it usable directly as a pre-commit hook or CI gate.
+
+```
+changed-entity,missing-entity,coupling-percent
+src/Order.java,src/Invoice.java,82
+```
+
+**Pre-commit hook example** (`.git/hooks/pre-commit`):
+
+```bash
+#!/usr/bin/env sh
+gomaat generate-log -o /tmp/gomaat-history.log
+gomaat risk -l /tmp/gomaat-history.log --staged --min-coupling 60 || {
+  echo "risk: staged change may be missing a historically-coupled file"
+  exit 1
+}
+```
 
 ---
 

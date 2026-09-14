@@ -14,6 +14,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `--use-mailmap` flag on `generate-log` to resolve author identities via a `.mailmap` file at the repo root, so the same person committing under different names/emails collapses to one canonical author. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- `risk --staged`/`risk --diff <ref>` command that cross-references a staged change (or a diff against another ref) against the `coupling` analysis, flagging historically-coupled files missing from the change and exiting non-zero when findings exist — usable as a pre-commit hook or CI check. ([#59](https://github.com/ethangardner/gomaat/issues/59))
 
 ### Changed
 
