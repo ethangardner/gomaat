@@ -15,6 +15,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `identity` now includes a `message` column with each commit's full message (subject, body, and trailers such as `Co-Authored-By:`), enabling future message-based analyses. ([#60](https://github.com/ethangardner/gomaat/issues/60))
+- `defects` subcommand: classifies commits as bug fixes via `--bugfix-pattern` (default `` (?i)fix|bug|defect|hotfix `` ) or `--conventional-commit-type`, and reports defect density (`bugfix-revisions`/`total-revisions`/`defect-ratio`) per entity. Requires commit messages (see `identity` above). ([#61](https://github.com/ethangardner/gomaat/issues/61))
 
 ### Changed
 

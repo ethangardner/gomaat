@@ -235,4 +235,7 @@ func init() {
 
 	// cloc subcommand
 	rootCmd.AddCommand(newClocCmd())
+
+	// defects subcommand
+	rootCmd.AddCommand(newDefectsCmd())
 }
