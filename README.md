@@ -33,6 +33,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [communication](#communication)
   - [age](#age)
   - [identity](#identity)
+  - [hotspots](#hotspots)
 - [Code Metrics](#code-metrics)
   - [cloc](#cloc)
 - [Advanced Usage](#advanced-usage)
@@ -651,6 +652,51 @@ gomaat identity -l logfile.log
 
 ---
 
+### hotspots
+
+Join churn (revisions) with size (current lines of code) into a single ranked risk report — code that is both large **and** frequently changed is disproportionately risky. Unlike the other analyses, `hotspots` needs two inputs: the `-l/--log` history and a `--path` to the source tree, so it works like a hybrid of an analysis command and `cloc`.
+
+```
+gomaat hotspots -l logfile.log --path . [flags]
+```
+
+| Flag        | Default | Description                                                        |
+|-------------|---------|---------------------------------------------------------------------|
+| `--path`    | `.`     | Path to analyze for current lines of code                          |
+| `--exclude` |         | Exclude paths matching this pattern (repeatable, supports globs)   |
+
+**Hotspot score formula:**
+```
+score = (revisions / max_revisions) × (lines / max_lines) × 100
+```
+normalized over the joined result set, so scores are bounded to `0-100` regardless of repo size.
+
+Files present in the log but not on disk (deleted, or outside `--path`), or on disk but not in the log (no revision history yet), are excluded from the report rather than zero-filled — regenerate the log against the same `--path`/revision to avoid surprises.
+
+**Output:**
+
+| Column          | Description                                                        |
+|-----------------|---------------------------------------------------------------------|
+| `entity`        | File path                                                          |
+| `revisions`     | Total revisions                                                    |
+| `lines`         | Current lines of code                                              |
+| `hotspot-score` | Normalized churn × size score (0.00-100.00)                        |
+| `fractal-value` | Fragmentation score (0.00-1.00) — see [fragmentation](#fragmentation) |
+
+`fractal-value` distinguishes "well understood, just big and active" (low fractal) from "fragmented, big and active" (high fractal) — the latter is the more dangerous combination.
+
+Sorted by `hotspot-score` descending.
+
+```
+entity,revisions,lines,hotspot-score,fractal-value
+src/Order.java,45,820,100.00,0.62
+src/Invoice.java,30,410,34.24,0.15
+```
+
+Supports `-g` for architectural grouping (lines-of-code are summed per matched group, same as revisions). Team mapping (`-p`) does not apply — `hotspots` has no per-author dimension.
+
+---
+
 ## Code Metrics
 
 ### cloc
@@ -844,24 +890,27 @@ gomaat generate-log \
 # 2. Overview: how big is the dataset?
 gomaat summary -l logfile.log
 
-# 3. Which files change the most?
+# 3. What's the biggest risk? (churn x size)
+gomaat hotspots -l logfile.log --path /path/to/your/project -r 20
+
+# 4. Which files change the most?
 gomaat revisions -l logfile.log -r 20
 
-# 4. Which files have the most authors?
+# 5. Which files have the most authors?
 gomaat authors -l logfile.log -r 20
 
-# 5. Are there hidden dependencies?
+# 6. Are there hidden dependencies?
 gomaat coupling -l logfile.log --min-revs 10 --min-shared-revs 5
 
-# 6. Where is knowledge fragmented?
+# 7. Where is knowledge fragmented?
 gomaat fragmentation -l logfile.log -r 20
 
-# 7. Who should talk to whom?
+# 8. Who should talk to whom?
 gomaat communication -l logfile.log
 
-# 8. What code has gone untouched for years?
+# 9. What code has gone untouched for years?
 gomaat age -l logfile.log -r 20
 
-# 9. Find the largest files
+# 10. Find the largest files
 gomaat cloc --by-file | sort -t, -k5 -nr
 ```
