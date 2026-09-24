@@ -687,6 +687,30 @@ gomaat rework [pathspec...] [flags]
 
 Sorted by `reworked-lines` descending, then `entity`.
 
+```
+entity,added-lines,reworked-lines,rework-ratio
+src/billing/invoice.go,1240,310,25.00
+src/api/handlers.go,2210,265,11.99
+coverage.out,197,197,100.00
+src/util/strings.go,480,12,2.50
+src/legacy/export.go,6,4,66.67
+```
+
+**Reading the output.**
+
+- **`reworked-lines` shows where the most throwaway code went.** The sort order puts the most effort spent writing code that didn't last at the top. Start there.
+- **`rework-ratio` shows how often code in a file isn't right the first time.** Read it together with `added-lines`. `src/billing/invoice.go` above is the stronger signal: a quarter of more than a thousand lines came back out within two weeks. The 66.67% on `src/legacy/export.go` is 4 of 6 lines, which is noise.
+- **A ratio near 100% usually means the file isn't hand-written.** Generated files, build output, or artifacts committed by mistake (like `coverage.out` above) get replaced wholesale. Drop them with `--exclude` and rerun.
+- **There's no universal "good" ratio.** It depends on the language, the team, and the window. Compare files within the same repo, or the same file across time periods (`--after`/`--before`), instead of against a fixed threshold.
+- **The window changes what you're measuring.** A short window (a few days) mostly catches immediate fix-ups: review feedback, a bug found right after merge, a follow-up commit. A longer window (a month or more) also catches design churn, where an approach was tried and then replaced.
+- **Recent code is excluded.** Lines younger than the window at `--before`/now aren't counted yet, so a file that's mostly new shows few `added-lines` even if it's changing a lot.
+
+**What to do with it.** High rework is a question to investigate, not a verdict. Cross-check a file with the log-based analyses:
+
+- High rework on a file that's also at the top of `revisions` or `entity-churn` is a hotspot that keeps being gotten wrong. It's a candidate for clearer requirements, better tests, or a redesign.
+- High rework with many authors (`authors`, `fragmentation`) points to coordination problems. People are overwriting each other's work.
+- High rework on a file that's usually low suggests something changed in that period. Look at the commits: a rushed feature, a new contributor, or code generated without review.
+
 ```bash
 # Default 14-day window over the whole history
 gomaat rework -r 20
