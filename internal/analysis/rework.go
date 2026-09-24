@@ -95,124 +95,93 @@ type reworkTracker struct {
 	reworked    map[string]int
 }
 
-// hunkLines is one hunk's deleted and added lines, awaiting matching.
-type hunkLines struct {
-	path    string
-	deleted []deletedLine
-	added   []addedLine
+// changes is one commit's deleted and added lines, in diff order, awaiting
+// matching.
+type changes struct {
+	deleted, added []changedLine
+	hunks          int // number of hunks seen so far
 }
 
-type deletedLine struct {
-	origin    lineOrigin
-	text, key string
-	matched   bool
-}
+type changedLine struct {
+	text    string
+	key     string // whitespace-normalized text; "" for a blank line
+	hunk    int    // index of the line's hunk within the commit
+	matched bool   // paired with a line on the other side of the diff
 
-type addedLine struct {
-	idx       int // position in the file's post-commit line slice
-	text, key string
-	matched   bool
+	origin lineOrigin // deleted lines: the removed line's provenance
+	path   string     // added lines: the file it was added to...
+	idx    int        // ...and its position in the file's post-commit lines
 }
 
 func (t *reworkTracker) apply(c gitdiff.Commit) {
-	hunks := t.splice(c)
-	t.matchMoves(hunks)
-	t.matchEdits(hunks)
-	t.tally(hunks, c.Time.Unix())
+	ch := t.splice(c)
+	t.matchMoves(ch)
+	t.matchEdits(ch)
+	t.tally(ch, c.Time.Unix())
 }
 
 // splice applies c's hunks to every touched file's line provenance and
-// returns the hunks' lines for matching.
-func (t *reworkTracker) splice(c gitdiff.Commit) []hunkLines {
-	var hunks []hunkLines
+// returns the commit's changed lines for matching.
+func (t *reworkTracker) splice(c gitdiff.Commit) changes {
+	var ch changes
 	for _, f := range c.Files {
-		if f.Binary {
+		lines := ch.splice(t.files[f.Path], f)
+		if f.Binary || f.Removed {
 			delete(t.files, f.Path)
 			continue
 		}
-		lines, hs := spliceHunks(t.files[f.Path], f)
-		hunks = append(hunks, hs...)
-		if f.Removed {
-			delete(t.files, f.Path)
-		} else {
-			t.files[f.Path] = lines
-		}
+		t.files[f.Path] = lines
 	}
-	return hunks
-}
-
-// inherit marks a and d as the same line, carrying d's provenance to a.
-func (t *reworkTracker) inherit(path string, a *addedLine, d *deletedLine) {
-	a.matched, d.matched = true, true
-	t.files[path][a.idx] = d.origin
+	return ch
 }
 
 // matchMoves pairs lines removed and re-added with the same text (ignoring
 // whitespace) anywhere in the commit. Since --no-renames reports a rename as
 // a whole file deleted and re-added, this also carries provenance across
 // renames.
-func (t *reworkTracker) matchMoves(hunks []hunkLines) {
-	removedByKey := map[string][]*deletedLine{}
-	for i := range hunks {
-		for j := range hunks[i].deleted {
-			if d := &hunks[i].deleted[j]; d.key != "" {
-				removedByKey[d.key] = append(removedByKey[d.key], d)
-			}
-		}
-	}
-	for i := range hunks {
-		for j := range hunks[i].added {
-			a := &hunks[i].added[j]
-			if q := removedByKey[a.key]; a.key != "" && len(q) > 0 {
-				t.inherit(hunks[i].path, a, q[0])
-				removedByKey[a.key] = q[1:]
-			}
-		}
+func (t *reworkTracker) matchMoves(ch changes) {
+	for d, a := range pairs(ch, func(l *changedLine) string { return l.key }) {
+		t.inherit(a, d)
 	}
 }
 
 // matchEdits pairs, in order, each hunk's remaining replaced and replacing
 // lines that are still similar enough to be the same line.
-func (t *reworkTracker) matchEdits(hunks []hunkLines) {
-	for i := range hunks {
-		h := &hunks[i]
-		dels := unmatched(h.deleted, func(d *deletedLine) bool { return d.matched || d.key == "" })
-		adds := unmatched(h.added, func(a *addedLine) bool { return a.matched || a.key == "" })
-		for k := range min(len(dels), len(adds)) {
-			if tokenSimilarity(dels[k].text, adds[k].text) >= minEditSimilarity {
-				t.inherit(h.path, adds[k], dels[k])
-			}
+func (t *reworkTracker) matchEdits(ch changes) {
+	for d, a := range pairs(ch, func(l *changedLine) int { return l.hunk }) {
+		if tokenSimilarity(d.text, a.text) >= minEditSimilarity {
+			t.inherit(a, d)
 		}
 	}
+}
+
+// inherit marks a and d as the same line, carrying d's provenance to a.
+func (t *reworkTracker) inherit(a, d *changedLine) {
+	a.matched, d.matched = true, true
+	t.files[a.path][a.idx] = d.origin
 }
 
 // tally counts what's left after matching, which is genuinely new code and
 // genuinely removed code, for a commit landing at when (unix seconds).
-func (t *reworkTracker) tally(hunks []hunkLines, when int64) {
-	countable := when+t.window <= t.now
-	for _, h := range hunks {
-		if countable {
-			for _, a := range h.added {
-				if !a.matched && a.key != "" {
-					t.files[h.path][a.idx] = lineOrigin{h.path, when}
-					t.added[h.path]++
-				}
-			}
+func (t *reworkTracker) tally(ch changes, when int64) {
+	if when+t.window <= t.now {
+		for a := range unmatched(ch.added) {
+			t.files[a.path][a.idx] = lineOrigin{a.path, when}
+			t.added[a.path]++
 		}
-		for _, d := range h.deleted {
-			if !d.matched && d.origin.entity != "" && when-d.origin.when <= t.window {
-				t.reworked[d.origin.entity]++
-			}
+	}
+	for d := range unmatched(ch.deleted) {
+		if d.origin.entity != "" && when-d.origin.when <= t.window {
+			t.reworked[d.origin.entity]++
 		}
 	}
 }
 
-// spliceHunks applies f's zero-context hunks to a file's line provenance,
-// returning the post-commit provenance (added lines as zero-value
-// placeholders) and each hunk's lines for matching.
-func spliceHunks(old []lineOrigin, f gitdiff.FileDiff) ([]lineOrigin, []hunkLines) {
+// splice applies f's zero-context hunks to old, a file's line provenance,
+// recording each hunk's lines in ch. It returns the post-commit provenance,
+// with added lines as zero-value placeholders.
+func (ch *changes) splice(old []lineOrigin, f gitdiff.FileDiff) []lineOrigin {
 	next := make([]lineOrigin, 0, len(old))
-	hunks := make([]hunkLines, 0, len(f.Hunks))
 	cursor := 0
 	for _, h := range f.Hunks {
 		// With no deleted lines, OldStart is the line the insertion follows.
@@ -229,21 +198,54 @@ func spliceHunks(old []lineOrigin, f gitdiff.FileDiff) ([]lineOrigin, []hunkLine
 		}
 		next = append(next, old[cursor:start]...)
 
-		hl := hunkLines{path: f.Path}
 		for i, text := range h.Deleted {
-			hl.deleted = append(hl.deleted, deletedLine{origin: old[start+i], text: text, key: normalizeLine(text)})
+			ch.deleted = append(ch.deleted, changedLine{text: text, key: normalizeLine(text), hunk: ch.hunks, origin: old[start+i]})
 		}
 		for _, text := range h.Added {
-			hl.added = append(hl.added, addedLine{idx: len(next), text: text, key: normalizeLine(text)})
+			ch.added = append(ch.added, changedLine{text: text, key: normalizeLine(text), hunk: ch.hunks, path: f.Path, idx: len(next)})
 			next = append(next, lineOrigin{})
 		}
-		hunks = append(hunks, hl)
+		ch.hunks++
 		cursor = end
 	}
-	if cursor < len(old) {
-		next = append(next, old[cursor:]...)
+	return append(next, old[cursor:]...)
+}
+
+// pairs yields, in diff order, each unmatched added line alongside the
+// earliest not-yet-yielded unmatched deleted line with the same key.
+func pairs[K comparable](ch changes, key func(*changedLine) K) iter.Seq2[*changedLine, *changedLine] {
+	return func(yield func(d, a *changedLine) bool) {
+		queues := map[K][]*changedLine{}
+		for d := range unmatched(ch.deleted) {
+			queues[key(d)] = append(queues[key(d)], d)
+		}
+		for a := range unmatched(ch.added) {
+			q := queues[key(a)]
+			if len(q) == 0 {
+				continue
+			}
+			queues[key(a)] = q[1:]
+			if !yield(q[0], a) {
+				return
+			}
+		}
 	}
-	return next, hunks
+}
+
+// unmatched yields the lines of s not yet paired, skipping blank lines, which
+// are never counted.
+func unmatched(s []changedLine) iter.Seq[*changedLine] {
+	return func(yield func(*changedLine) bool) {
+		for i := range s {
+			l := &s[i]
+			if l.matched || l.key == "" {
+				continue
+			}
+			if !yield(l) {
+				return
+			}
+		}
+	}
 }
 
 func (t *reworkTracker) results() []ReworkResult {
@@ -253,23 +255,9 @@ func (t *reworkTracker) results() []ReworkResult {
 		results = append(results, ReworkResult{entity, added, reworked, float64(reworked) / float64(added) * 100})
 	}
 	slices.SortFunc(results, func(a, b ReworkResult) int {
-		if c := cmp.Compare(b.Reworked, a.Reworked); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Entity, b.Entity)
+		return cmp.Or(cmp.Compare(b.Reworked, a.Reworked), cmp.Compare(a.Entity, b.Entity))
 	})
 	return results
-}
-
-// unmatched returns pointers to the elements of s that skip rejects.
-func unmatched[T any](s []T, skip func(*T) bool) []*T {
-	var out []*T
-	for i := range s {
-		if !skip(&s[i]) {
-			out = append(out, &s[i])
-		}
-	}
-	return out
 }
 
 // normalizeLine collapses all whitespace runs, so re-indented or re-aligned
