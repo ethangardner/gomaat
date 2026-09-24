@@ -70,15 +70,17 @@ func FormatXXX(results T, opts model.Options) [][]string  // render to CSV rows
 - Most subcommands need no extra flags — register with `simpleCmd(use, short, analysis.Fn, analysis.FormatFn)`.
 - Coupling-style subcommands (those needing the `--min-revs`/`--min-shared-revs`/`--min-coupling`/`--max-coupling`/`--max-changeset-size` thresholds) use `newCouplingCmd`.
 - `age` and `generate-log`/`cloc` are registered individually because they need bespoke flags.
+- `rework` is registered individually too, and bypasses `runAnalysis`: it needs line-level diffs, so it streams `git log -p -U0` from the repo (`--path`) through `internal/gitdiff.Parse` into `analysis.Rework`, which takes an `iter.Seq2[gitdiff.Commit, error]` instead of `[]model.Commit`.
 
 ### CLI structure (`cli/` package)
 
 - `root.go`: cobra root command, persistent flags (`--log/-l`, `--outfile/-o`, `--rows/-r`, `--group/-g`, `--team-map-file/-p`, `--format/-f`), and subcommand registration.
 - `generate_log.go`: runs the canonical `git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames --no-merges [...]` and streams it through `--exclude` glob filtering. `--no-merges` is baked in deliberately too — it keeps a combined merge diff from being double-counted against the commits it merges.
 - `cloc.go`: wraps `gocloc` over `git ls-files` output (so it respects gitignore), with the same `--exclude` filtering logic as `generate-log`.
-- `git.go`: `streamGit` runs a git subcommand and hands its stdout to a consumer as it's produced; `generate-log` uses it. `buildPathspecArgs` builds the trailing `-- <pathspec>...` arguments from includes and directory excludes.
+- `git.go`: `streamGit` runs a git subcommand and hands its stdout to a consumer as it's produced; `generate-log` and `rework` both use it. `buildPathspecArgs` builds the trailing `-- <pathspec>...` arguments from includes and directory excludes.
+- `rework.go`: the `rework` subcommand (see above).
 
-Both `generate-log --exclude` and `cloc --exclude` share `matchesExcludePattern`: patterns ending in `/` match path prefixes, everything else is matched as a glob against both the full path and the basename.
+`generate-log --exclude`, `cloc --exclude` and `rework --exclude` all share `matchesExcludePattern`: patterns ending in `/` match path prefixes, everything else is matched as a glob against both the full path and the basename.
 
 ## Development
 
