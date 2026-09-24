@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -107,7 +107,6 @@ type logFilters struct {
 // runGitLog runs git log against path and streams output to dst.
 func runGitLog(path, after, before string, filters logFilters, dst io.Writer) error {
 	gitArgs := []string{
-		"-C", path,
 		"log", "--all", "--numstat",
 		"--date=short",
 		"--pretty=format:--%H--%ad--%aN",
@@ -117,42 +116,28 @@ func runGitLog(path, after, before string, filters logFilters, dst io.Writer) er
 	if filters.UseMailmap {
 		gitArgs = append(gitArgs, "--use-mailmap")
 	}
+	gitArgs = append(gitArgs, dateRangeArgs(after, before)...)
+	gitArgs = append(gitArgs, buildPathspecArgs(nil, filters.Excludes)...)
+
+	return streamGit(path, gitArgs, func(stdout io.Reader) error {
+		if len(filters.Excludes) > 0 || len(filters.ExcludeAuthors) > 0 || len(filters.IgnoreRevs) > 0 {
+			return filterLog(stdout, dst, filters.Excludes, filters.ExcludeAuthors, filters.IgnoreRevs)
+		}
+		_, err := io.Copy(dst, stdout)
+		return err
+	})
+}
+
+// dateRangeArgs turns optional --after/--before values into git log flags.
+func dateRangeArgs(after, before string) []string {
+	var args []string
 	if after != "" {
-		gitArgs = append(gitArgs, "--after="+after)
+		args = append(args, "--after="+after)
 	}
 	if before != "" {
-		gitArgs = append(gitArgs, "--before="+before)
+		args = append(args, "--before="+before)
 	}
-	gitArgs = append(gitArgs, buildExcludePathspecArgs(filters.Excludes)...)
-
-	var stderr strings.Builder
-	gitCmd := exec.Command("git", gitArgs...)
-	gitCmd.Stderr = &stderr
-
-	stdout, err := gitCmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("creating git stdout pipe: %w", err)
-	}
-
-	if err := gitCmd.Start(); err != nil {
-		return fmt.Errorf("starting git log: %w", err)
-	}
-
-	if len(filters.Excludes) > 0 || len(filters.ExcludeAuthors) > 0 || len(filters.IgnoreRevs) > 0 {
-		err = filterLog(stdout, dst, filters.Excludes, filters.ExcludeAuthors, filters.IgnoreRevs)
-	} else {
-		_, err = io.Copy(dst, stdout)
-	}
-	if err != nil {
-		_ = stdout.Close()
-		_ = gitCmd.Wait()
-		return fmt.Errorf("processing git log output: %w", err)
-	}
-
-	if err := gitCmd.Wait(); err != nil {
-		return fmt.Errorf("git log failed: %w\n%s\nCommand: git %s", err, strings.TrimSpace(stderr.String()), strings.Join(gitArgs, " "))
-	}
-	return nil
+	return args
 }
 
 // loadIgnoreRevs reads a newline-separated list of commit SHAs, in the same
@@ -180,17 +165,26 @@ func loadIgnoreRevs(path string) (map[string]struct{}, error) {
 	return revs, nil
 }
 
-func buildExcludePathspecArgs(excludes []string) []string {
-	var args []string
+// buildPathspecArgs builds the trailing "-- <pathspec>..." git arguments:
+// includes limit the command to those paths, and directory excludes (those
+// ending in "/") become literal exclude pathspecs. Glob excludes are left to
+// matchesExcludePattern, since git's glob semantics differ from ours. With
+// excludes but no includes, "." stands in so git has something to subtract
+// from. Returns nil when there's nothing to restrict.
+func buildPathspecArgs(includes, excludes []string) []string {
+	var dirExcludes []string
 	for _, pattern := range excludes {
 		if strings.HasSuffix(pattern, "/") {
-			if len(args) == 0 {
-				args = []string{"--", "."}
-			}
-			args = append(args, ":(exclude,literal)"+pattern)
+			dirExcludes = append(dirExcludes, ":(exclude,literal)"+pattern)
 		}
 	}
-	return args
+	if len(includes) == 0 && len(dirExcludes) == 0 {
+		return nil
+	}
+	if len(includes) == 0 {
+		includes = []string{"."}
+	}
+	return slices.Concat([]string{"--"}, includes, dirExcludes)
 }
 
 // filterLog streams src to dst, dropping whole commits whose author matches
