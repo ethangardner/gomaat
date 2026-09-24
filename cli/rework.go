@@ -44,39 +44,11 @@ Examples:
 			if err := rejectLogOnlyFlags(); err != nil {
 				return err
 			}
-			w, err := parseWindow(window)
+			opts, err := reworkOptions(window, after, before)
 			if err != nil {
 				return err
 			}
-			if _, err := parseDateFlag("--after", after, time.Time{}); err != nil {
-				return err
-			}
-			// Deletions after --before are invisible, so judge lines as of then.
-			now, err := parseDateFlag("--before", before, time.Now())
-			if err != nil {
-				return err
-			}
-			opts := model.Options{ReworkWindow: w, ReworkTimeNow: now}
-
-			// The explicit prefixes override diff.noprefix/diff.mnemonicPrefix,
-			// since gitdiff strips a/ and b/ to recover paths.
-			gitArgs := slices.Concat(
-				[]string{
-					"log", "--reverse", "--first-parent", "--diff-merges=first-parent",
-					"-p", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv",
-					"--src-prefix=a/", "--dst-prefix=b/",
-					"--format=" + gitdiff.Format,
-				},
-				dateRangeArgs(after, before),
-				buildPathspecArgs(pathspecs, excludes),
-			)
-
-			var results []analysis.ReworkResult
-			err = streamGit(path, gitArgs, func(r io.Reader) error {
-				var err error
-				results, err = analysis.Rework(excludeFiles(gitdiff.Parse(r), excludes), opts)
-				return err
-			})
+			results, err := runRework(path, after, before, pathspecs, excludes, opts)
 			if err != nil {
 				return err
 			}
@@ -91,6 +63,48 @@ Examples:
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 
 	return cmd
+}
+
+// reworkOptions validates rework's --rework-window, --after and --before
+// flags into the options analysis.Rework reads.
+func reworkOptions(window, after, before string) (model.Options, error) {
+	w, err := parseWindow(window)
+	if err != nil {
+		return model.Options{}, err
+	}
+	if _, err := parseDateFlag("--after", after, time.Time{}); err != nil {
+		return model.Options{}, err
+	}
+	// Deletions after --before are invisible, so judge lines as of then.
+	now, err := parseDateFlag("--before", before, time.Now())
+	if err != nil {
+		return model.Options{}, err
+	}
+	return model.Options{ReworkWindow: w, ReworkTimeNow: now}, nil
+}
+
+// runRework streams the first-parent patch history of the repository at path
+// through analysis.Rework.
+func runRework(path, after, before string, pathspecs, excludes []string, opts model.Options) ([]analysis.ReworkResult, error) {
+	// The explicit prefixes override diff.noprefix/diff.mnemonicPrefix,
+	// since gitdiff strips a/ and b/ to recover paths.
+	gitArgs := slices.Concat(
+		[]string{
+			"log", "--reverse", "--first-parent", "--diff-merges=first-parent",
+			"-p", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv",
+			"--src-prefix=a/", "--dst-prefix=b/",
+			"--format=" + gitdiff.Format,
+		},
+		dateRangeArgs(after, before),
+		buildPathspecArgs(pathspecs, excludes),
+	)
+
+	var results []analysis.ReworkResult
+	err := streamGit(path, gitArgs, func(r io.Reader) (err error) {
+		results, err = analysis.Rework(excludeFiles(gitdiff.Parse(r), excludes), opts)
+		return err
+	})
+	return results, err
 }
 
 // rejectLogOnlyFlags errors if a persistent flag that only applies to
@@ -135,12 +149,11 @@ func excludeFiles(commits iter.Seq2[gitdiff.Commit, error], excludes []string) i
 	if len(excludes) == 0 {
 		return commits
 	}
+	excluded := func(f gitdiff.FileDiff) bool { return pathMatchesAnyExclude(f.Path, excludes) }
 	return func(yield func(gitdiff.Commit, error) bool) {
 		for c, err := range commits {
 			if err == nil {
-				c.Files = slices.DeleteFunc(c.Files, func(f gitdiff.FileDiff) bool {
-					return pathMatchesAnyExclude(f.Path, excludes)
-				})
+				c.Files = slices.DeleteFunc(c.Files, excluded)
 			}
 			if !yield(c, err) {
 				return
