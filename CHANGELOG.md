@@ -14,6 +14,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `--use-mailmap` flag on `generate-log` to resolve author identities via a `.mailmap` file at the repo root, so the same person committing under different names/emails collapses to one canonical author. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- `rework` subcommand: per file, the share of added lines removed or substantially rewritten within `--rework-window` (default `14d`) of landing, as `entity, added-lines, reworked-lines, rework-ratio`. Moved lines and small edits (≥60% token-similar) are not counted as rework. Merge commits count as landing their branch's lines at the merge time. Unlike other analyses it reads the repository directly (`--path`, `--after`, `--before`, `--exclude`, positional pathspecs) instead of a `--log` file. See the README for the exact definition, known limitations, and measured runtime. ([#65](https://github.com/ethangardner/gomaat/issues/65))
 
 ### Changed
 

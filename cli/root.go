@@ -242,4 +242,7 @@ func init() {
 
 	// cloc subcommand
 	rootCmd.AddCommand(newClocCmd())
+
+	// rework subcommand (reads patches from the repo, not a log file)
+	rootCmd.AddCommand(newReworkCmd())
 }

@@ -33,6 +33,8 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [communication](#communication)
   - [age](#age)
   - [identity](#identity)
+- [Repository Analyses](#repository-analyses)
+  - [rework](#rework)
 - [Code Metrics](#code-metrics)
   - [cloc](#cloc)
 - [Advanced Usage](#advanced-usage)
@@ -648,6 +650,119 @@ gomaat identity -l logfile.log
 | `author`      | Author name                        |
 | `loc-added`   | Lines added (0 for binary files)   |
 | `loc-deleted` | Lines deleted (0 for binary files) |
+
+---
+
+## Repository Analyses
+
+These analyses need more than the numstat line counts in a `generate-log` file, so they read the git repository directly (`--path`) and ignore `--log`, `--group`, and `--team-map-file` (setting them is an error).
+
+### rework
+
+For each file, the share of added lines that were removed or substantially rewritten soon after they landed. Code that goes in and quickly comes back out is a strong signal that a change wasn't right the first time. It applies the same way whether a human or an agent wrote the code.
+
+```
+gomaat rework [pathspec...] [flags]
+```
+
+| Flag              | Short | Default      | Description                                                                                          |
+|-------------------|-------|--------------|------------------------------------------------------------------------------------------------------|
+| `--path`          |       | `.`          | Path to the git repository                                                                           |
+| `--rework-window` | `-w`  | `14d`        | How soon after landing a removal counts as rework: `Nd`, `Nw`, or a Go duration such as `36h`        |
+| `--after`         |       | _(none)_     | Only walk commits after this date (YYYY-MM-DD). Lines that already existed are untracked             |
+| `--before`        |       | _(none)_     | Only walk commits before this date (YYYY-MM-DD). Lines are also judged as of this date (default: now) |
+| `--exclude`       |       | _(none)_     | Exclude paths matching this pattern (repeatable; same rules as `generate-log --exclude`)             |
+| `pathspec...`     |       | _(all)_      | Limit the walk to these paths (git pathspecs), e.g. known hotspots                                   |
+
+`--outfile`, `--rows`, and `--format` work as for every other command.
+
+**Output:**
+
+| Column           | Description                                                             |
+|------------------|-------------------------------------------------------------------------|
+| `entity`         | File the lines were added to                                            |
+| `added-lines`    | Non-blank lines added whose window has fully elapsed                    |
+| `reworked-lines` | Of those, lines removed or substantially rewritten within the window    |
+| `rework-ratio`   | `reworked-lines / added-lines`, as a percentage                         |
+
+Sorted by `reworked-lines` descending, then `entity`.
+
+```
+entity,added-lines,reworked-lines,rework-ratio
+src/billing/invoice.go,1240,310,25.00
+src/api/handlers.go,2210,265,11.99
+coverage.out,197,197,100.00
+src/util/strings.go,480,12,2.50
+src/legacy/export.go,6,4,66.67
+```
+
+**Reading the output.**
+
+- **`reworked-lines` shows where the most throwaway code went.** The sort order puts the most effort spent writing code that didn't last at the top. Start there.
+- **`rework-ratio` shows how often code in a file isn't right the first time.** Read it together with `added-lines`. `src/billing/invoice.go` above is the stronger signal: a quarter of more than a thousand lines came back out within two weeks. The 66.67% on `src/legacy/export.go` is 4 of 6 lines, which is noise.
+- **A ratio near 100% usually means the file isn't hand-written.** Generated files, build output, or artifacts committed by mistake (like `coverage.out` above) get replaced wholesale. Drop them with `--exclude` and rerun.
+- **There's no universal "good" ratio.** It depends on the language, the team, and the window. Compare files within the same repo, or the same file across time periods (`--after`/`--before`), instead of against a fixed threshold.
+- **The window changes what you're measuring.** A short window (a few days) mostly catches immediate fix-ups: review feedback, a bug found right after merge, a follow-up commit. A longer window (a month or more) also catches design churn, where an approach was tried and then replaced.
+- **Recent code is excluded.** Lines younger than the window at `--before`/now aren't counted yet, so a file that's mostly new shows few `added-lines` even if it's changing a lot.
+
+**What to do with it.** High rework is a question to investigate, not a verdict. Cross-check a file with the log-based analyses:
+
+- High rework on a file that's also at the top of `revisions` or `entity-churn` is a hotspot that keeps being gotten wrong. It's a candidate for clearer requirements, better tests, or a redesign.
+- High rework with many authors (`authors`, `fragmentation`) points to coordination problems. People are overwriting each other's work.
+- High rework on a file that's usually low suggests something changed in that period. Look at the commits: a rushed feature, a new contributor, or code generated without review.
+
+```bash
+# Default 14-day window over the whole history
+gomaat rework -r 20
+
+# Two-week window over the last year, scoped to two hotspots
+gomaat rework --rework-window 2w --after 2025-01-01 src/billing/ src/api/handlers.go
+
+# Skip vendored and generated code
+gomaat rework --exclude vendor/ --exclude '*.pb.go'
+```
+
+**How "reworked" is defined.** gomaat walks the repo's first-parent history oldest-first using zero-context patches (`git log --reverse --first-parent --diff-merges=first-parent -p -U0 --no-renames`). It records which commit introduced every line. When a later commit removes a line, the removal is classified in order:
+
+1. **Moved, not rework:** the commit re-adds the same text somewhere else, in any file, ignoring whitespace. The line keeps its original landing time. This also carries lines across renames, which `--no-renames` reports as a delete plus an add.
+2. **Edited, not rework:** a line in the same hunk replaces it and is at least 60% token-similar (Dice coefficient over identifier and number tokens, ignoring punctuation). For example, `if count > limit {` becomes `if count >= limit {`. If either line has no identifiers or numbers, punctuation counts as tokens too, so `)` becoming `),` is an edit. The edited line keeps the original line's landing time.
+3. **Otherwise it's removed.** If that happens within `--rework-window` of the line landing, it counts as reworked.
+
+Other rules:
+
+- A line only counts once its window has fully elapsed by `--before`/now. Younger lines are left out of both counts rather than counted as survivors.
+- Blank lines never count.
+- For merge commits, gomaat counts the merge's diff against its first parent as landing those lines at the merge's committer date. So merge-commit, squash-merge, and rebase workflows are measured the same way. Edits made on a branch before it merges aren't rework.
+
+**Known limitations** (these are heuristics, not precise measurements):
+
+- **Counted as rework but arguably not (false positives):**
+  - Code moved into a file outside the pathspec, or into one dropped by `--exclude`, looks like a deletion.
+  - Splitting one line into several, or joining several into one, fails both the move and edit checks.
+  - A reformat that changes tokens (not just whitespace) can fall below the similarity threshold.
+- **Missed rework (false negatives):**
+  - A rewrite that keeps most of a line's tokens counts as an edit.
+  - Deleting a line while an identical line (e.g. `}` or `return nil`) is added elsewhere in the same commit looks like a move.
+- **Edits are paired by position within a hunk.** If replaced lines are reordered, the pairing can be wrong in either direction.
+- **Only first-parent history is analyzed.** Churn that happened only on side branches is invisible.
+- **Starting mid-history matters.** With `--after` (or a shallow clone), lines that already existed when the walk starts are untracked. Their removal is never counted.
+
+**Performance.** `rework` streams the full patch history rather than numstat, so it costs far more than the log-based analyses:
+
+- Time grows with the total number of changed lines, plus the current length of each file every time it's touched.
+- Memory holds one provenance record per line of every tracked file.
+
+Measured on an i7-1255U:
+
+| Repository | Scope                                          | First-parent commits walked | Time  | Peak memory |
+|------------|------------------------------------------------|----------------------------:|------:|------------:|
+| gomaat     | full history                                   |                          59 | 0.1 s |       31 MB |
+| uswds      | since 2023                                     |                         334 | 1.1 s |      101 MB |
+| uswds      | full history (16k commits, mostly on branches) |                         931 | 4.0 s |      247 MB |
+| kubernetes | `pkg/scheduler/` since 2024                    |                         605 | 1.9 s |      229 MB |
+| kubernetes | whole repo since 2025-06, `--exclude vendor/`  |                       4,047 |  13 s |      398 MB |
+
+On large repos, don't run it repo-wide over all history on every commit. Scope it with pathspecs (for example the top of `revisions` or `entity-churn`) and `--after`, and exclude generated files, which dominate otherwise (lockfiles, `*.pb.go`, vendored bundles).
 
 ---
 
