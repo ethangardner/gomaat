@@ -2,8 +2,10 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -278,6 +280,31 @@ func TestExecuteSuccess(t *testing.T) {
 
 	if !strings.Contains(readOutputFile(t, outPath), "foo.go") {
 		t.Errorf("expected foo.go in output")
+	}
+}
+
+// TestExecuteErrorPrintedOnce re-runs itself as a child process, since
+// Execute calls os.Exit on failure.
+func TestExecuteErrorPrintedOnce(t *testing.T) {
+	if os.Getenv("GOMAAT_EXECUTE_CHILD") == "1" {
+		resetFlags(t)
+		logFile = ""
+		os.Args = []string{"gomaat", "authors"}
+		Execute()
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestExecuteErrorPrintedOnce$")
+	cmd.Env = append(os.Environ(), "GOMAAT_EXECUTE_CHILD=1")
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+
+	var exitErr *exec.ExitError
+	if err := cmd.Run(); !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("expected exit code 1, got %v", err)
+	}
+	if n := strings.Count(stderr.String(), "--log (-l) is required"); n != 1 {
+		t.Errorf("expected the error once on stderr, got %d times:\n%s", n, stderr.String())
 	}
 }
 
