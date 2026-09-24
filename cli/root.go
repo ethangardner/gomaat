@@ -108,6 +108,19 @@ func validateOutputFormat() error {
 	return nil
 }
 
+// parseDateFlag parses a YYYY-MM-DD flag value, returning fallback when the
+// flag is unset.
+func parseDateFlag(flag, value string, fallback time.Time) (time.Time, error) {
+	if value == "" {
+		return fallback, nil
+	}
+	t, err := time.Parse(time.DateOnly, value)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("%s: expected YYYY-MM-DD, got %q", flag, value)
+	}
+	return t, nil
+}
+
 // writeRows writes rows to outFile (or stdout if unset) in outputFormat.
 func writeRows(rows [][]string) error {
 	writeFile, writeStdout := output.WriteFile, output.Write
@@ -203,17 +216,11 @@ func init() {
 		Use:   "age",
 		Short: "Months since last modification per entity",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			opts := model.Options{}
-			if ageTimeNow != "" {
-				t, err := time.Parse("2006-01-02", ageTimeNow)
-				if err != nil {
-					return fmt.Errorf("--age-time-now: expected YYYY-MM-DD, got %q", ageTimeNow)
-				}
-				opts.AgeTimeNow = t
-			} else {
-				opts.AgeTimeNow = time.Now()
+			now, err := parseDateFlag("--age-time-now", ageTimeNow, time.Now())
+			if err != nil {
+				return err
 			}
-			return runAnalysis(analysis.Age, analysis.FormatAge, opts)
+			return runAnalysis(analysis.Age, analysis.FormatAge, model.Options{AgeTimeNow: now})
 		},
 	}
 	ageCmd.Flags().StringVarP(&ageTimeNow, "age-time-now", "d", "", "reference date for age calculation (YYYY-MM-DD, default: today)")

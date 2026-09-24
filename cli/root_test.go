@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ethangardner/gomaat/internal/analysis"
 	"github.com/ethangardner/gomaat/internal/model"
@@ -300,5 +301,36 @@ func TestAgeBadTimeNow(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "--age-time-now") {
 		t.Errorf("expected error to mention --age-time-now, got: %v", err)
+	}
+}
+
+func TestParseDateFlag(t *testing.T) {
+	fallback := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	tests := []struct {
+		name    string
+		value   string
+		want    time.Time
+		wantErr bool
+	}{
+		{"valid date", "2024-06-01", time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), false},
+		{"empty uses fallback", "", fallback, false},
+		{"malformed", "06/01/2024", time.Time{}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseDateFlag("--some-date", tt.value, fallback)
+			if tt.wantErr {
+				if err == nil || !strings.Contains(err.Error(), `--some-date: expected YYYY-MM-DD, got "06/01/2024"`) {
+					t.Fatalf("got err %v, want --some-date format error", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !got.Equal(tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

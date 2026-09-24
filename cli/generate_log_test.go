@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -36,33 +35,44 @@ func TestMatchesExcludePattern(t *testing.T) {
 	}
 }
 
-func TestBuildExcludePathspecArgs(t *testing.T) {
+func TestBuildPathspecArgs(t *testing.T) {
 	tests := []struct {
 		name     string
+		includes []string
 		excludes []string
 		want     []string
 	}{
-		{"nil excludes", nil, nil},
-		{"empty excludes", []string{}, nil},
-		{"only glob patterns", []string{"*.pb.go"}, nil},
-		{"single dir pattern", []string{"vendor/"}, []string{"--", ".", ":(exclude,literal)vendor/"}},
+		{"nil excludes", nil, nil, nil},
+		{"empty excludes", nil, []string{}, nil},
+		{"only glob patterns", nil, []string{"*.pb.go"}, nil},
+		{"single dir pattern", nil, []string{"vendor/"}, []string{"--", ".", ":(exclude,literal)vendor/"}},
 		{
 			"multiple dir patterns",
+			nil,
 			[]string{"vendor/", "data/"},
 			[]string{"--", ".", ":(exclude,literal)vendor/", ":(exclude,literal)data/"},
 		},
 		{
 			"mixed dir and glob patterns",
+			nil,
 			[]string{"vendor/", "*.pb.go"},
 			[]string{"--", ".", ":(exclude,literal)vendor/"},
+		},
+		{"includes only", []string{"src/a.go"}, nil, []string{"--", "src/a.go"}},
+		{"includes with only glob excludes", []string{"src/"}, []string{"*.pb.go"}, []string{"--", "src/"}},
+		{
+			"includes replace the default . when excluding",
+			[]string{"src/", "cmd/"},
+			[]string{"src/gen/"},
+			[]string{"--", "src/", "cmd/", ":(exclude,literal)src/gen/"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := buildExcludePathspecArgs(tt.excludes)
+			got := buildPathspecArgs(tt.includes, tt.excludes)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("buildExcludePathspecArgs(%v) = %v, want %v", tt.excludes, got, tt.want)
+				t.Errorf("buildPathspecArgs(%v, %v) = %v, want %v", tt.includes, tt.excludes, got, tt.want)
 			}
 		})
 	}
@@ -70,33 +80,10 @@ func TestBuildExcludePathspecArgs(t *testing.T) {
 
 func TestRunGitLogExcludesDirectory(t *testing.T) {
 	dir := t.TempDir()
-	for _, args := range [][]string{
-		{"init"},
-		{"config", "user.email", "test@example.com"},
-		{"config", "user.name", "Test"},
-	} {
-		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
-			t.Fatalf("git %v: %v", args, err)
-		}
-	}
-
-	dataDir := filepath.Join(dir, "data")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dataDir, "big.csv"), []byte("a,b,c\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "src_main.go"), []byte("package main\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := exec.Command("git", "-C", dir, "add", "-A").Run(); err != nil {
-		t.Fatal(err)
-	}
-	if err := exec.Command("git", "-C", dir, "commit", "-m", "initial").Run(); err != nil {
-		t.Fatal(err)
-	}
+	initGitRepo(t, dir)
+	writeRepoFile(t, dir, "data/big.csv", "a,b,c\n")
+	writeRepoFile(t, dir, "src_main.go", "package main\n")
+	commitAll(t, dir, "initial", "")
 
 	var out bytes.Buffer
 	if err := runGitLog(dir, "", "", logFilters{Excludes: []string{"data/"}}, &out); err != nil {
@@ -114,44 +101,22 @@ func TestRunGitLogExcludesDirectory(t *testing.T) {
 
 func TestRunGitLogExcludesMergeCommits(t *testing.T) {
 	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
-			t.Fatalf("git %v: %v", args, err)
-		}
-	}
+	initGitRepo(t, dir)
 
-	run("init", "-b", "main")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test")
+	writeRepoFile(t, dir, "main.go", "package main\n")
+	commitAll(t, dir, "initial", "")
 
-	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "-A")
-	run("commit", "-m", "initial")
+	gitRun(t, dir, nil, "checkout", "-b", "feature")
+	writeRepoFile(t, dir, "feature.go", "package main\n")
+	commitAll(t, dir, "add feature", "")
 
-	run("checkout", "-b", "feature")
-	if err := os.WriteFile(filepath.Join(dir, "feature.go"), []byte("package main\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "-A")
-	run("commit", "-m", "add feature")
+	gitRun(t, dir, nil, "checkout", "main")
+	writeRepoFile(t, dir, "other.go", "package main\n")
+	commitAll(t, dir, "add other", "")
 
-	run("checkout", "main")
-	if err := os.WriteFile(filepath.Join(dir, "other.go"), []byte("package main\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	run("add", "-A")
-	run("commit", "-m", "add other")
+	gitRun(t, dir, nil, "merge", "feature", "--no-ff", "-m", "merge feature")
 
-	run("merge", "feature", "--no-ff", "-m", "merge feature")
-
-	mergeSHA, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
-	if err != nil {
-		t.Fatalf("rev-parse: %v", err)
-	}
-	mergeHeader := "--" + strings.TrimSpace(string(mergeSHA)) + "--"
+	mergeHeader := "--" + strings.TrimSpace(gitRun(t, dir, nil, "rev-parse", "HEAD")) + "--"
 
 	var out bytes.Buffer
 	if err := runGitLog(dir, "", "", logFilters{}, &out); err != nil {
@@ -171,35 +136,12 @@ func TestRunGitLogExcludesMergeCommits(t *testing.T) {
 
 func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
 	dir := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
-			t.Fatalf("git %v: %v", args, err)
-		}
-	}
+	initGitRepo(t, dir)
 
-	run("init", "-b", "main")
-	run("config", "user.email", "test@example.com")
-	run("config", "user.name", "Test")
-
-	commitAt := func(name, date string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("content\n"), 0644); err != nil {
-			t.Fatal(err)
-		}
-		run("add", "-A")
-		cmd := exec.Command("git", "-C", dir, "commit", "-m", "add "+name)
-		cmd.Env = append(os.Environ(),
-			"GIT_AUTHOR_DATE="+date,
-			"GIT_COMMITTER_DATE="+date,
-		)
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("commit %s: %v", name, err)
-		}
-	}
-
-	commitAt("old.go", "2020-01-01T00:00:00")
-	commitAt("new.go", "2025-01-01T00:00:00")
+	writeRepoFile(t, dir, "old.go", "content\n")
+	commitAll(t, dir, "add old.go", "2020-01-01T00:00:00")
+	writeRepoFile(t, dir, "new.go", "content\n")
+	commitAll(t, dir, "add new.go", "2025-01-01T00:00:00")
 
 	var out bytes.Buffer
 	if err := runGitLog(dir, "", "2022-01-01", logFilters{}, &out); err != nil {
@@ -472,16 +414,8 @@ func TestRunGitLogUseMailmap(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
-	mailmapContent := "Real Name <real@example.com> Test <test@example.com>\n"
-	if err := os.WriteFile(filepath.Join(dir, ".mailmap"), []byte(mailmapContent), 0644); err != nil {
-		t.Fatal(err)
-	}
-	if err := exec.Command("git", "-C", dir, "add", ".mailmap").Run(); err != nil {
-		t.Fatal(err)
-	}
-	if err := exec.Command("git", "-C", dir, "commit", "-m", "add mailmap").Run(); err != nil {
-		t.Fatal(err)
-	}
+	writeRepoFile(t, dir, ".mailmap", "Real Name <real@example.com> Test <test@example.com>\n")
+	commitAll(t, dir, "add mailmap", "")
 	commitFiles(t, dir, "main.go")
 
 	var out bytes.Buffer
@@ -606,26 +540,10 @@ func TestRunGitLogAfterFiltersCommits(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
-	commitAt := func(name, date string) {
-		t.Helper()
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("content\n"), 0644); err != nil {
-			t.Fatal(err)
-		}
-		if err := exec.Command("git", "-C", dir, "add", "-A").Run(); err != nil {
-			t.Fatalf("git add: %v", err)
-		}
-		cmd := exec.Command("git", "-C", dir, "commit", "-m", "add "+name)
-		cmd.Env = append(os.Environ(),
-			"GIT_AUTHOR_DATE="+date,
-			"GIT_COMMITTER_DATE="+date,
-		)
-		if err := cmd.Run(); err != nil {
-			t.Fatalf("commit %s: %v", name, err)
-		}
-	}
-
-	commitAt("old.go", "2020-01-01T00:00:00")
-	commitAt("new.go", "2025-01-01T00:00:00")
+	writeRepoFile(t, dir, "old.go", "content\n")
+	commitAll(t, dir, "add old.go", "2020-01-01T00:00:00")
+	writeRepoFile(t, dir, "new.go", "content\n")
+	commitAll(t, dir, "add new.go", "2025-01-01T00:00:00")
 
 	var out bytes.Buffer
 	if err := runGitLog(dir, "2022-01-01", "", logFilters{}, &out); err != nil {

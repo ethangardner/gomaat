@@ -90,7 +90,7 @@ func gitTrackedFiles(path string, excludes []string) ([]string, string, error) {
 		return nil, "", fmt.Errorf("git rev-parse --show-toplevel returned empty repository root")
 	}
 
-	lsArgs := append([]string{"-C", repoRoot, "ls-files"}, buildExcludePathspecArgs(excludes)...)
+	lsArgs := append([]string{"-C", repoRoot, "ls-files"}, buildPathspecArgs(nil, excludes)...)
 	out, err := exec.Command("git", lsArgs...).CombinedOutput()
 	if err != nil {
 		return nil, "", fmt.Errorf("git ls-files failed: %w: %s", err, strings.TrimSpace(string(out)))

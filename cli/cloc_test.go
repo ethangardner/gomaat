@@ -3,7 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -277,36 +276,12 @@ func TestClocFileRowsColumns(t *testing.T) {
 	checkHeader(t, rows[1], []string{"foo.go", "Go", "3", "7", "42"})
 }
 
-func initGitRepo(t *testing.T, dir string) {
-	t.Helper()
-	for _, args := range [][]string{
-		{"init"},
-		{"config", "user.email", "test@example.com"},
-		{"config", "user.name", "Test"},
-	} {
-		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
-			t.Fatalf("git %v: %v", args, err)
-		}
-	}
-}
-
 func commitFiles(t *testing.T, dir string, files ...string) {
 	t.Helper()
 	for _, f := range files {
-		p := filepath.Join(dir, f)
-		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(p, []byte("package main\n"), 0644); err != nil {
-			t.Fatal(err)
-		}
+		writeRepoFile(t, dir, f, "package main\n")
 	}
-	if err := exec.Command("git", "-C", dir, "add", "-A").Run(); err != nil {
-		t.Fatalf("git add: %v", err)
-	}
-	if err := exec.Command("git", "-C", dir, "commit", "-m", "initial").Run(); err != nil {
-		t.Fatalf("git commit: %v", err)
-	}
+	commitAll(t, dir, "initial", "")
 }
 
 func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
@@ -320,9 +295,7 @@ func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := exec.Command("git", "-C", dir, "add", "main.go").Run(); err != nil {
-		t.Fatal(err)
-	}
+	gitRun(t, dir, nil, "add", "main.go")
 
 	files, root, err := gitTrackedFiles(dir, nil)
 	if err != nil {
@@ -353,9 +326,7 @@ func TestGitTrackedFilesExcludesDirViaPathspec(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := exec.Command("git", "-C", dir, "add", "vendor/foo.go", "main.go").Run(); err != nil {
-		t.Fatal(err)
-	}
+	gitRun(t, dir, nil, "add", "vendor/foo.go", "main.go")
 
 	files, _, err := gitTrackedFiles(dir, []string{"vendor/"})
 	if err != nil {
@@ -385,9 +356,7 @@ func TestGitTrackedFilesFromSubdirectoryUsesRepoRoot(t *testing.T) {
 	if err := os.WriteFile(tracked, []byte("package pkg\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := exec.Command("git", "-C", dir, "add", "pkg/main.go").Run(); err != nil {
-		t.Fatal(err)
-	}
+	gitRun(t, dir, nil, "add", "pkg/main.go")
 
 	files, root, err := gitTrackedFiles(nestedDir, nil)
 	if err != nil {
@@ -487,9 +456,7 @@ func TestClocJSONFormat(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if err := exec.Command("git", "-C", dir, "add", "main.go").Run(); err != nil {
-		t.Fatal(err)
-	}
+	gitRun(t, dir, nil, "add", "main.go")
 	outputFormat = "json"
 	outFile = filepath.Join(t.TempDir(), "out.json")
 
