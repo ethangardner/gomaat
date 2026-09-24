@@ -43,10 +43,10 @@ Then run an analysis:
   gomaat coupling -l logfile.log --min-coupling 30`,
 }
 
-// Execute is the entry point called from main.
+// Execute is the entry point called from main. Cobra already prints the
+// error and usage to stderr, so this only sets the exit code.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
+	if rootCmd.Execute() != nil {
 		os.Exit(1)
 	}
 }
