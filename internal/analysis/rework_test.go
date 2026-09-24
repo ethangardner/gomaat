@@ -98,6 +98,14 @@ func TestRework(t *testing.T) {
 			want: []ReworkResult{{"a.go", 1, 0, 0}},
 		},
 		{
+			name: "punctuation tweak to a punctuation-only line is an edit",
+			commits: []gitdiff.Commit{
+				commitOn(0, addFile("a.js", "f(", "x", ")")),
+				commitOn(2, fileDiff("a.js", gitdiff.Hunk{OldStart: 3, NewStart: 3, Deleted: []string{")"}, Added: []string{"),"}})),
+			},
+			want: []ReworkResult{{"a.js", 3, 0, 0}},
+		},
+		{
 			name: "re-indentation is not rework",
 			commits: []gitdiff.Commit{
 				commitOn(0, addFile("a.go", "x := 1")),
@@ -260,6 +268,10 @@ func TestTokenSimilarity(t *testing.T) {
 		{"legacy()", "fresh()", 0},
 		{"return nil", "return err", 0.5},
 		{"naïve_name := compute(a, b)", "naïve_name := compute(a, c)", 0.75},
+		// punctuation-only lines compare their punctuation instead
+		{")", "),", 2.0 / 3},
+		{"}", "} else {", 0.5},
+		{"})", "})", 1},
 	}
 	for _, tt := range tests {
 		if got := tokenSimilarity(tt.a, tt.b); math.Abs(got-tt.want) > 1e-9 {
