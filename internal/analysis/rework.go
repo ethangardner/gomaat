@@ -115,6 +115,15 @@ type addedLine struct {
 }
 
 func (t *reworkTracker) apply(c gitdiff.Commit) {
+	hunks := t.splice(c)
+	t.matchMoves(hunks)
+	t.matchEdits(hunks)
+	t.tally(hunks, c.Time.Unix())
+}
+
+// splice applies c's hunks to every touched file's line provenance and
+// returns the hunks' lines for matching.
+func (t *reworkTracker) splice(c gitdiff.Commit) []hunkLines {
 	var hunks []hunkLines
 	for _, f := range c.Files {
 		if f.Binary {
@@ -129,15 +138,20 @@ func (t *reworkTracker) apply(c gitdiff.Commit) {
 			t.files[f.Path] = lines
 		}
 	}
+	return hunks
+}
 
-	inherit := func(a *addedLine, d *deletedLine, path string) {
-		a.matched, d.matched = true, true
-		t.files[path][a.idx] = d.origin
-	}
+// inherit marks a and d as the same line, carrying d's provenance to a.
+func (t *reworkTracker) inherit(path string, a *addedLine, d *deletedLine) {
+	a.matched, d.matched = true, true
+	t.files[path][a.idx] = d.origin
+}
 
-	// 1. Moves: the same text (ignoring whitespace) removed and re-added
-	// anywhere in the commit. Since --no-renames reports a rename as a whole
-	// file deleted and re-added, this also carries provenance across renames.
+// matchMoves pairs lines removed and re-added with the same text (ignoring
+// whitespace) anywhere in the commit. Since --no-renames reports a rename as
+// a whole file deleted and re-added, this also carries provenance across
+// renames.
+func (t *reworkTracker) matchMoves(hunks []hunkLines) {
 	removedByKey := map[string][]*deletedLine{}
 	for i := range hunks {
 		for j := range hunks[i].deleted {
@@ -150,27 +164,31 @@ func (t *reworkTracker) apply(c gitdiff.Commit) {
 		for j := range hunks[i].added {
 			a := &hunks[i].added[j]
 			if q := removedByKey[a.key]; a.key != "" && len(q) > 0 {
-				inherit(a, q[0], hunks[i].path)
+				t.inherit(hunks[i].path, a, q[0])
 				removedByKey[a.key] = q[1:]
 			}
 		}
 	}
+}
 
-	// 2. Edits: remaining replaced/replacing lines of a hunk, paired in
-	// order, that are still similar enough to be the same line.
+// matchEdits pairs, in order, each hunk's remaining replaced and replacing
+// lines that are still similar enough to be the same line.
+func (t *reworkTracker) matchEdits(hunks []hunkLines) {
 	for i := range hunks {
 		h := &hunks[i]
 		dels := unmatched(h.deleted, func(d *deletedLine) bool { return d.matched || d.key == "" })
 		adds := unmatched(h.added, func(a *addedLine) bool { return a.matched || a.key == "" })
 		for k := range min(len(dels), len(adds)) {
 			if tokenSimilarity(dels[k].text, adds[k].text) >= minEditSimilarity {
-				inherit(adds[k], dels[k], h.path)
+				t.inherit(h.path, adds[k], dels[k])
 			}
 		}
 	}
+}
 
-	// 3. What's left is genuinely new code and genuinely removed code.
-	when := c.Time.Unix()
+// tally counts what's left after matching, which is genuinely new code and
+// genuinely removed code, for a commit landing at when (unix seconds).
+func (t *reworkTracker) tally(hunks []hunkLines, when int64) {
 	countable := when+t.window <= t.now
 	for _, h := range hunks {
 		if countable {
