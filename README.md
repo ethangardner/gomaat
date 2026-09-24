@@ -701,7 +701,7 @@ gomaat rework --exclude vendor/ --exclude '*.pb.go'
 **How "reworked" is defined.** gomaat walks the repo's first-parent history oldest-first using zero-context patches (`git log --reverse --first-parent --diff-merges=first-parent -p -U0 --no-renames`). It records which commit introduced every line. When a later commit removes a line, the removal is classified in order:
 
 1. **Moved, not rework:** the commit re-adds the same text somewhere else, in any file, ignoring whitespace. The line keeps its original landing time. This also carries lines across renames, which `--no-renames` reports as a delete plus an add.
-2. **Edited, not rework:** a line in the same hunk replaces it and is at least 60% token-similar (Dice coefficient over identifier and number tokens, ignoring punctuation). For example, `if count > limit {` becomes `if count >= limit {`. The edited line keeps the original line's landing time.
+2. **Edited, not rework:** a line in the same hunk replaces it and is at least 60% token-similar (Dice coefficient over identifier and number tokens, ignoring punctuation). For example, `if count > limit {` becomes `if count >= limit {`. If either line has no identifiers or numbers, punctuation counts as tokens too, so `)` becoming `),` is an edit. The edited line keeps the original line's landing time.
 3. **Otherwise it's removed.** If that happens within `--rework-window` of the line landing, it counts as reworked.
 
 Other rules:
