@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os/exec"
@@ -13,6 +14,9 @@ import (
 // process is reaped and consume's error is returned; if git itself fails, the
 // error carries its stderr and the full command line.
 func streamGit(dir string, args []string, consume func(io.Reader) error) error {
+	if len(args) == 0 {
+		return errors.New("streamGit: no git arguments provided")
+	}
 	sub := args[0]
 	if dir != "" {
 		args = append([]string{"-C", dir}, args...)

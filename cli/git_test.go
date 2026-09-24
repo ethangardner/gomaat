@@ -60,6 +60,16 @@ func commitAll(t *testing.T, dir, msg, date string) {
 	gitRun(t, dir, env, "commit", "-m", msg)
 }
 
+func TestStreamGitEmptyArgs(t *testing.T) {
+	err := streamGit("", nil, func(io.Reader) error { return nil })
+	if err == nil {
+		t.Fatal("expected error with empty args, got nil")
+	}
+	if !strings.Contains(err.Error(), "no git arguments provided") {
+		t.Errorf("got %v, want no git arguments provided", err)
+	}
+}
+
 func TestStreamGitPassesStdout(t *testing.T) {
 	var got string
 	err := streamGit("", []string{"--version"}, func(r io.Reader) error {
