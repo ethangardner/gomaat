@@ -5,6 +5,7 @@ import (
 	"iter"
 	"math"
 	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -212,18 +213,15 @@ func TestRework(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := runRework(t, tt.commits...)
-			if len(got) != len(tt.want) {
-				t.Fatalf("got %+v, want %+v", got, tt.want)
-			}
-			for i := range got {
-				g, w := got[i], tt.want[i]
-				if g.Entity != w.Entity || g.Added != w.Added || g.Reworked != w.Reworked || math.Abs(g.Ratio-w.Ratio) > 1e-9 {
-					t.Errorf("result %d: got %+v, want %+v", i, g, w)
-				}
+			if got := runRework(t, tt.commits...); !slices.EqualFunc(got, tt.want, sameReworkResult) {
+				t.Errorf("got %+v, want %+v", got, tt.want)
 			}
 		})
 	}
+}
+
+func sameReworkResult(g, w ReworkResult) bool {
+	return g.Entity == w.Entity && g.Added == w.Added && g.Reworked == w.Reworked && math.Abs(g.Ratio-w.Ratio) <= 1e-9
 }
 
 func TestReworkPropagatesError(t *testing.T) {
