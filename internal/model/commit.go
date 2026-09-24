@@ -18,5 +18,7 @@ type Options struct {
 	MaxCoupling      float64
 	MaxChangesetSize int
 	AgeTimeNow       time.Time
+	ReworkWindow     time.Duration
+	ReworkTimeNow    time.Time
 	VerboseResults   bool
 }
