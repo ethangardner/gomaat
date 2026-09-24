@@ -238,6 +238,27 @@ func TestReworkCmdCountsMergedLinesAtMergeTime(t *testing.T) {
 	}
 }
 
+// With diff.noprefix set, git would print "--- b/x.go" for a file at b/x.go,
+// and the parser would strip the "b/" as if it were git's prefix.
+func TestReworkCmdIgnoresUserDiffPrefixConfig(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	gitRun(t, dir, nil, "config", "diff.noprefix", "true")
+
+	writeRepoFile(t, dir, "b/x.go", "func a() {}\nfunc b() {}\n")
+	commitAll(t, dir, "add", "2024-01-01T00:00:00Z")
+	writeRepoFile(t, dir, "b/x.go", "func a() {}\n")
+	commitAll(t, dir, "drop b", "2024-01-02T00:00:00Z")
+
+	got, err := runReworkCmd(t, dir, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := "entity,added-lines,reworked-lines,rework-ratio\nb/x.go,2,1,50.00\n"; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestReworkCmdJSON(t *testing.T) {
 	dir := reworkFixtureRepo(t)
 	resetFlags(t)

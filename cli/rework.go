@@ -58,10 +58,13 @@ Examples:
 			}
 			opts := model.Options{ReworkWindow: w, ReworkTimeNow: now}
 
+			// The explicit prefixes override diff.noprefix/diff.mnemonicPrefix,
+			// since gitdiff strips a/ and b/ to recover paths.
 			gitArgs := slices.Concat(
 				[]string{
 					"log", "--reverse", "--first-parent", "--diff-merges=first-parent",
 					"-p", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv",
+					"--src-prefix=a/", "--dst-prefix=b/",
 					"--format=" + gitdiff.Format,
 				},
 				dateRangeArgs(after, before),
