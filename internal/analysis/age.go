@@ -41,21 +41,16 @@ func Age(commits []model.Commit, opts model.Options) []AgeResult {
 		results = append(results, AgeResult{entity, months})
 	}
 	slices.SortFunc(results, func(a, b AgeResult) int {
-		if c := cmp.Compare(a.AgeMonths, b.AgeMonths); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Entity, b.Entity)
+		return cmp.Or(cmp.Compare(a.AgeMonths, b.AgeMonths), cmp.Compare(a.Entity, b.Entity))
 	})
 
 	return results
 }
 
 func FormatAge(results []AgeResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "age-months"}}
-	for _, r := range results {
-		out = append(out, []string{r.Entity, fmt.Sprint(r.AgeMonths)})
-	}
-	return out
+	return formatRows([]string{"entity", "age-months"}, results, func(r AgeResult) []string {
+		return []string{r.Entity, fmt.Sprint(r.AgeMonths)}
+	})
 }
 
 func monthsBetween(from, to time.Time) int {

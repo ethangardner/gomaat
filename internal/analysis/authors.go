@@ -40,19 +40,14 @@ func Authors(commits []model.Commit, _ model.Options) []AuthorsResult {
 		results = append(results, AuthorsResult{entity, len(e.authors), len(e.revs)})
 	}
 	slices.SortFunc(results, func(a, b AuthorsResult) int {
-		if c := cmp.Compare(b.Authors, a.Authors); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Entity, b.Entity)
+		return cmp.Or(cmp.Compare(b.Authors, a.Authors), cmp.Compare(a.Entity, b.Entity))
 	})
 
 	return results
 }
 
 func FormatAuthors(results []AuthorsResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "n-authors", "n-revs"}}
-	for _, r := range results {
-		out = append(out, []string{r.Entity, fmt.Sprint(r.Authors), fmt.Sprint(r.Revs)})
-	}
-	return out
+	return formatRows([]string{"entity", "n-authors", "n-revs"}, results, func(r AuthorsResult) []string {
+		return []string{r.Entity, fmt.Sprint(r.Authors), fmt.Sprint(r.Revs)}
+	})
 }

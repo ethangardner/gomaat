@@ -159,16 +159,24 @@ func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) 
 	return pickTopContributor(sumPerEntityAuthor(commits, valueFn))
 }
 
+// formatRows renders a header row and data rows produced by rowFn for each item.
+func formatRows[T any](header []string, items []T, rowFn func(T) []string) [][]string {
+	out := make([][]string, len(items)+1)
+	out[0] = header
+	for i, item := range items {
+		out[i+1] = rowFn(item)
+	}
+	return out
+}
+
 // formatContributor renders ContributorResult rows to CSV, with caller-supplied
 // column headers for the count and total columns.
 func formatContributor(results []ContributorResult, countHeader, totalHeader string) [][]string {
-	out := [][]string{{"entity", "main-dev", countHeader, totalHeader, "ownership"}}
-	for _, r := range results {
-		out = append(out, []string{
+	return formatRows([]string{"entity", "main-dev", countHeader, totalHeader, "ownership"}, results, func(r ContributorResult) []string {
+		return []string{
 			r.Entity, r.Contributor,
 			fmt.Sprint(r.Count), fmt.Sprint(r.Total),
 			fmt.Sprintf("%.2f", r.Ownership),
-		})
-	}
-	return out
+		}
+	})
 }

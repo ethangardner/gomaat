@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ethangardner/gomaat/internal/fileutil"
 	"github.com/spf13/cobra"
 )
 
@@ -144,25 +145,13 @@ func dateRangeArgs(after, before string) []string {
 // format git blame --ignore-revs-file uses: blank lines and lines starting
 // with '#' are skipped.
 func loadIgnoreRevs(path string) (map[string]struct{}, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening ignore-revs file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	revs := make(map[string]struct{})
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+	return fileutil.Load(path, "ignore-revs", func(r io.Reader) (map[string]struct{}, error) {
+		revs, err := fileutil.LoadLines(r)
+		if err != nil {
+			return nil, fmt.Errorf("reading ignore-revs file: %w", err)
 		}
-		revs[line] = struct{}{}
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("reading ignore-revs file: %w", err)
-	}
-	return revs, nil
+		return revs, nil
+	})
 }
 
 // buildPathspecArgs builds the trailing "-- <pathspec>..." git arguments:

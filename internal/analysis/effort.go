@@ -30,21 +30,16 @@ func EntityEffort(commits []model.Commit, _ model.Options) []EntityEffortResult 
 		})
 	}
 	slices.SortFunc(results, func(a, b EntityEffortResult) int {
-		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.AuthorRevs, a.AuthorRevs)
+		return cmp.Or(cmp.Compare(a.Entity, b.Entity), cmp.Compare(b.AuthorRevs, a.AuthorRevs))
 	})
 
 	return results
 }
 
 func FormatEntityEffort(results []EntityEffortResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "author", "author-revs", "total-revs"}}
-	for _, r := range results {
-		out = append(out, []string{r.Entity, r.Author, fmt.Sprint(r.AuthorRevs), fmt.Sprint(r.TotalRevs)})
-	}
-	return out
+	return formatRows([]string{"entity", "author", "author-revs", "total-revs"}, results, func(r EntityEffortResult) []string {
+		return []string{r.Entity, r.Author, fmt.Sprint(r.AuthorRevs), fmt.Sprint(r.TotalRevs)}
+	})
 }
 
 // MainDevByRevs returns the author with the most revisions per entity.
@@ -81,19 +76,14 @@ func Fragmentation(commits []model.Commit, _ model.Options) []FragmentationResul
 		results = append(results, FragmentationResult{entity, fractal, totalRevs[entity]})
 	}
 	slices.SortFunc(results, func(a, b FragmentationResult) int {
-		if c := cmp.Compare(b.Fractal, a.Fractal); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Entity, b.Entity)
+		return cmp.Or(cmp.Compare(b.Fractal, a.Fractal), cmp.Compare(a.Entity, b.Entity))
 	})
 
 	return results
 }
 
 func FormatFragmentation(results []FragmentationResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "fractal-value", "total-revs"}}
-	for _, r := range results {
-		out = append(out, []string{r.Entity, fmt.Sprintf("%.2f", r.Fractal), fmt.Sprint(r.TotalRevs)})
-	}
-	return out
+	return formatRows([]string{"entity", "fractal-value", "total-revs"}, results, func(r FragmentationResult) []string {
+		return []string{r.Entity, fmt.Sprintf("%.2f", r.Fractal), fmt.Sprint(r.TotalRevs)}
+	})
 }
