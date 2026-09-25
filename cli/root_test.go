@@ -361,3 +361,20 @@ func TestParseDateFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestBusFactorCmdRunE(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	cmd, _, err := rootCmd.Find([]string{"bus-factor"})
+	if err != nil {
+		t.Fatalf("finding bus-factor command: %v", err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := readOutputFile(t, outFile), "foo.go,1,Jane Doe,100.00"; !strings.Contains(got, want) {
+		t.Errorf("expected %q in output, got:\n%s", want, got)
+	}
+}

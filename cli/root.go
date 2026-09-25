@@ -207,6 +207,7 @@ func init() {
 	rootCmd.AddCommand(simpleCmd("entity-effort", "Revision count per author per entity", analysis.EntityEffort, analysis.FormatEntityEffort))
 	rootCmd.AddCommand(simpleCmd("main-dev-by-revs", "Main developer per entity by revision count", analysis.MainDevByRevs, analysis.FormatMainDevByRevs))
 	rootCmd.AddCommand(simpleCmd("fragmentation", "Author fragmentation (fractal value) per entity", analysis.Fragmentation, analysis.FormatFragmentation))
+	rootCmd.AddCommand(simpleCmd("bus-factor", "Fewest authors who together own more than half of each entity", analysis.BusFactor, analysis.FormatBusFactor))
 	rootCmd.AddCommand(simpleCmd("communication", "Team communication needs based on shared code", analysis.Communication, analysis.FormatCommunication))
 	rootCmd.AddCommand(simpleCmd("statistics", "Descriptive statistics for core metrics (files/lines per commit, revisions/authors/soc per entity)", analysis.Statistics, analysis.FormatStatistics))
 

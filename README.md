@@ -30,6 +30,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [entity-effort](#entity-effort)
   - [main-dev-by-revs](#main-dev-by-revs)
   - [fragmentation](#fragmentation)
+  - [bus-factor](#bus-factor)
   - [communication](#communication)
   - [age](#age)
   - [identity](#identity)
@@ -578,6 +579,37 @@ fractal = 1 - Σ(author_revisions / total_revisions)²
 | `total-revs`    | Total revisions to this entity  |
 
 Sorted by `fractal-value` descending.
+
+---
+
+### bus-factor
+
+The fewest authors who together own **more than 50%** of each entity, where ownership is lines added (the same measure as [`main-dev`](#main-dev)). A bus factor of `1` means a single person wrote most of the file — if they leave, most of its knowledge goes with them.
+
+Authors are ranked by lines added (ties broken alphabetically) and taken from the top until their combined share passes 50%. Exactly 50% is not a majority, so two authors with an even split give a bus factor of `2`. Entities with no added lines (deletions only) are omitted.
+
+```
+gomaat bus-factor -l logfile.log
+```
+
+**Example output:**
+
+```
+entity,bus-factor,top-owners,ownership
+src/billing.go,1,Alice Smith,82.35
+src/api.go,2,Bob Jones;Carol White,71.43
+```
+
+**Output:**
+
+| Column       | Description                                               |
+|--------------|-----------------------------------------------------------|
+| `entity`     | File path (or group name with `-g`)                       |
+| `bus-factor` | Fewest authors whose combined lines added exceed 50%      |
+| `top-owners` | Those authors, largest share first, separated by `;`      |
+| `ownership`  | Their combined share of the entity's lines added (%)      |
+
+Sorted by `bus-factor` ascending (riskiest first), then `entity`.
 
 ---
 
