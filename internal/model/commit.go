@@ -21,4 +21,5 @@ type Options struct {
 	ReworkWindow     time.Duration
 	ReworkTimeNow    time.Time
 	VerboseResults   bool
+	FormerAuthors    map[string]struct{}
 }

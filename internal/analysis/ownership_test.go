@@ -125,3 +125,56 @@ func TestFormatBusFactor(t *testing.T) {
 		t.Errorf("got %v, want %v", rows, want)
 	}
 }
+
+func TestKnowledgeLoss(t *testing.T) {
+	former := map[string]struct{}{"Alice": {}, "Ghost": {}}
+	commits := []model.Commit{
+		// solely owned by a former author
+		{Author: "Alice", Entity: "legacy.go", LocAdded: 40},
+		{Author: "Alice", Entity: "legacy.go", LocAdded: 60},
+		// mixed ownership
+		{Author: "Alice", Entity: "mixed.go", LocAdded: 25},
+		{Author: "Bob", Entity: "mixed.go", LocAdded: 75},
+		// no former authors
+		{Author: "Bob", Entity: "fresh.go", LocAdded: 10},
+		// no added lines to attribute
+		{Author: "Alice", Entity: "deleted-only.go", LocDeleted: 5},
+	}
+
+	got := KnowledgeLoss(commits, model.Options{FormerAuthors: former})
+	want := []KnowledgeLossResult{
+		{Entity: "legacy.go", FormerAdded: 100, TotalAdded: 100, Loss: 100},
+		{Entity: "mixed.go", FormerAdded: 25, TotalAdded: 100, Loss: 25},
+		{Entity: "fresh.go", FormerAdded: 0, TotalAdded: 10, Loss: 0},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestKnowledgeLossNoFormerAuthorsInLog(t *testing.T) {
+	commits := []model.Commit{{Author: "Bob", Entity: "foo.go", LocAdded: 10}}
+	for _, former := range []map[string]struct{}{nil, {"Ghost": {}}} {
+		results := KnowledgeLoss(commits, model.Options{FormerAuthors: former})
+		if len(results) != 1 || results[0].Loss != 0 {
+			t.Errorf("former %v: expected one 0%% result, got %+v", former, results)
+		}
+	}
+}
+
+func TestKnowledgeLossEmpty(t *testing.T) {
+	assertEmptyResults(t, KnowledgeLoss(nil, model.Options{}))
+}
+
+func TestFormatKnowledgeLoss(t *testing.T) {
+	rows := FormatKnowledgeLoss([]KnowledgeLossResult{
+		{Entity: "mixed.go", FormerAdded: 1, TotalAdded: 3, Loss: 100.0 / 3},
+	}, model.Options{})
+	want := [][]string{
+		{"entity", "former-added", "total-added", "knowledge-loss"},
+		{"mixed.go", "1", "3", "33.33"},
+	}
+	if !reflect.DeepEqual(rows, want) {
+		t.Errorf("got %v, want %v", rows, want)
+	}
+}
