@@ -53,6 +53,7 @@ log file --[parser.ParseFile]--> []model.Commit
 - `internal/grouper`: maps file paths to architectural group names via prefix or `^`-prefixed regex rules; commits matching no group are dropped.
 - `internal/teammapper`: maps author names to team names via CSV; commits for unmapped authors are dropped.
 - `internal/gitdiff`: streams `git log -p -U0` output (header format `gitdiff.Format`) into per-commit, per-file hunks with the text of every added/deleted line, for analyses that need to know *which* lines changed rather than how many.
+- `internal/fileutil`: `Load[T]` opens a file, hands it to a parser, and closes it; every file loader (`parser`, `grouper`, `teammapper`, `--ignore-revs-file`) goes through it so open/close errors read the same.
 - `internal/output`: thin CSV/JSON writer shared by every subcommand; first row of `[][]string` is the header (also used as JSON object keys), `-r/--rows` caps data rows. `--format/-f` selects `csv` (default) or `json`; `cloc` supports it too via the same `writeRows` dispatch in `cli/root.go`, but `generate-log` rejects anything but `csv` since it streams raw git-log text, not tabular rows.
 
 ### Analysis functions
