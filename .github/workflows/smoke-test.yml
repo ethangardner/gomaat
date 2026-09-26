@@ -95,20 +95,21 @@ jobs:
           changed=false
           : > diff.txt
           for f in summary revisions authors coupling cloc; do
-            for fmt in ${formats[$f]}; do
+            read -ra fmts <<< "${formats[$f]}"
+            for fmt in "${fmts[@]}"; do
               if [ "$fmt" = "json" ]; then
-                jq -c '.[]' "out/main/$f.json" | sort > /tmp/main-$f-$fmt.txt
-                jq -c '.[]' "out/pr/$f.json" | sort > /tmp/pr-$f-$fmt.txt
+                jq -c '.[]' "out/main/$f.json" | sort > "/tmp/main-$f-$fmt.txt"
+                jq -c '.[]' "out/pr/$f.json" | sort > "/tmp/pr-$f-$fmt.txt"
               else
-                sort "out/main/$f.$fmt" > /tmp/main-$f-$fmt.txt
-                sort "out/pr/$f.$fmt" > /tmp/pr-$f-$fmt.txt
+                sort "out/main/$f.$fmt" > "/tmp/main-$f-$fmt.txt"
+                sort "out/pr/$f.$fmt" > "/tmp/pr-$f-$fmt.txt"
               fi
-              if ! diff -u -L "main/$f.$fmt" -L "pr/$f.$fmt" /tmp/main-$f-$fmt.txt /tmp/pr-$f-$fmt.txt > /tmp/diff-$f-$fmt.txt; then
+              if ! diff -u -L "main/$f.$fmt" -L "pr/$f.$fmt" "/tmp/main-$f-$fmt.txt" "/tmp/pr-$f-$fmt.txt" > "/tmp/diff-$f-$fmt.txt"; then
                 changed=true
                 {
                   echo "### $f ($fmt)"
                   echo '```diff'
-                  cat /tmp/diff-$f-$fmt.txt
+                  cat "/tmp/diff-$f-$fmt.txt"
                   echo '```'
                   echo
                 } >> diff.txt
