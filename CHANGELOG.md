@@ -24,6 +24,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ### Fixed
 
+- The log parser trims stray carriage returns from the end of a commit header, so a log converted to CRLF line endings more than once no longer leaves a `\r` on the author name.
 - Errors are printed once instead of twice. Cobra already reports the error with an `Error:` prefix above the usage text, and `Execute` was printing it a second time after the usage.
 
 ## [v1.0.0] - 2026-09-05

@@ -13,6 +13,7 @@ make build         # compile to ./bin/gomaat
 make check         # fmt + vet + lint + test (mirrors CI)
 make test          # go test -cover ./...
 make test-verbose  # go test -v -cover ./...
+make bench         # go test -run '^$' -bench . -benchmem ./...
 make fmt           # gofmt all packages
 make vet           # go vet ./...
 make lint          # golangci-lint run
@@ -25,11 +26,11 @@ Run a single test:
 go test ./internal/analysis/ -run TestCoupling -v
 ```
 
-CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), `golangci-lint run`, and `go test -coverprofile=coverage.out ./...` followed by `go tool cover -func=coverage.out` to report per-function coverage. This is visibility only — there's no enforced minimum threshold yet. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply.
+CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), a `go mod tidy` drift check plus `go mod verify`, and `golangci-lint run` on Linux, then `go test -race -coverprofile=coverage.out ./...` on Linux, macOS and Windows, followed on Linux by `go tool cover -func=coverage.out` to report per-function coverage. Coverage is visibility only — there's no enforced minimum threshold yet. `govulncheck.yml` runs `govulncheck` on PRs, pushes to main, and weekly; `smoke-test.yml` runs every analysis (`.github/smoke-test/run.sh`, fixtures alongside it) with a build of the PR's base branch and of the PR against the base's history and posts the sorted diff as a PR comment and job summary — add new subcommands to `run.sh`. `release-check.yml` runs `goreleaser check` and a snapshot build on PRs touching Go code or the release config, and checks the binary reports the stamped version. `fuzz.yml` runs the `internal/parser` and `internal/gitdiff` fuzz targets for 30s on PRs touching them and 10m weekly; a failing input is uploaded as an artifact — commit it under the package's `testdata/fuzz/` as a regression test. `bench.yml` runs every benchmark six times, alternating the PR's base and head, on PRs touching Go code and puts a `benchstat` comparison in the job summary; it only fails if a benchmark fails on head, never on a perf delta. Dependabot (`.github/dependabot.yml`) bumps the SHA-pinned actions and Go modules weekly. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply. Tests must pass on Windows too, so build paths with `filepath` and don't assume `/` separators or LF line endings from the OS.
 
 ## Changelog
 
-`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry under `[Unreleased]` in the same PR as any user-facing change — a new/changed/removed CLI flag, subcommand, or output column, or a user-visible bug fix. Skip it for internal-only refactors unless they change the public Go API (e.g. `internal/analysis` function signatures). On tagging a release, `[Unreleased]` is renamed to the version and date.
+`CHANGELOG.md` follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry under `[Unreleased]` in the same PR as any user-facing change — a new/changed/removed CLI flag, subcommand, or output column, or a user-visible bug fix. Skip it for internal-only refactors unless they change the public Go API (e.g. `internal/analysis` function signatures). On tagging a release, `[Unreleased]` is renamed to the version and date. CI (`changelog.yml`) fails a PR that changes non-test Go source under `cli/`, `cmd/` or `internal/` without touching `CHANGELOG.md`; add the `skip-changelog` label for internal-only changes.
 
 ## Architecture
 

@@ -1,0 +1,30 @@
+name: govulncheck
+
+on:
+  push:
+    branches: [main]
+  # Any base branch, so stacked PRs (based on another PR's branch) get CI too.
+  pull_request:
+  schedule:
+    # Weekly, so newly published advisories surface even without new commits.
+    - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  # A PR's runs share a group, so a new push cancels the superseded run. Other
+  # events are keyed by commit: GitHub keeps only one pending run per group,
+  # so a shared group would drop all but the latest of several queued pushes.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # pin v1.1.0
+        with:
+          # Empty so go-version-file wins over the action's 'stable' default.
+          go-version-input: ''
+          go-version-file: go.mod

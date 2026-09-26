@@ -1,0 +1,6 @@
+# Architectural groups for the smoke test's -g runs.
+internal/analysis => Analysis
+internal/parser   => Parsing
+internal/gitdiff  => Parsing
+cli               => CLI
+^\.github/        => CI

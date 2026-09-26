@@ -4,7 +4,7 @@ BUILD_DIR  := ./bin
 
 GO         := $(shell which go 2>/dev/null || echo /usr/local/go/bin/go)
 
-.PHONY: all build install fmt vet test lint clean tidy check
+.PHONY: all build install fmt vet test bench lint clean tidy check
 
 all: fmt vet test build
 
@@ -31,6 +31,10 @@ test:
 ## test-verbose: run all tests with verbose output and coverage
 test-verbose:
 	$(GO) test -v -cover ./...
+
+## bench: run all benchmarks with allocation stats
+bench:
+	$(GO) test -run '^$$' -bench . -benchmem ./...
 
 ## watchtest: re-run tests on any .go file change (requires entr)
 watchtest:

@@ -100,6 +100,13 @@ func TestParseReaderMalformedInput(t *testing.T) {
 			},
 		},
 		{
+			name:  "stray carriage returns are trimmed from the author",
+			input: "--abc123--2024-01-15--Alice\r\r\n3\t0\tsrc/bar.go\r\n",
+			wantCommits: []model.Commit{
+				{Rev: "abc123", Date: "2024-01-15", Author: "Alice", Entity: "src/bar.go", LocAdded: 3},
+			},
+		},
+		{
 			name:  "malformed numstat line is skipped",
 			input: "--abc123--2024-01-15--Alice\nnot-a-numstat-line\n3\t0\tsrc/bar.go\n",
 			wantCommits: []model.Commit{

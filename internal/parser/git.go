@@ -51,7 +51,9 @@ func parse(r io.Reader) ([]model.Commit, error) {
 			}
 			currentRev = parts[1]
 			currentDate = parts[2]
-			currentAuthor = parts[3]
+			// The scanner strips one \r of a CRLF ending; a log converted to
+			// CRLF twice leaves another on the author, the header's last field.
+			currentAuthor = strings.TrimRight(parts[3], "\r")
 			continue
 		}
 
