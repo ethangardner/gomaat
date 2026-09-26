@@ -20,6 +20,7 @@ func FuzzParseReader(f *testing.F) {
 		"--abc--2024-01-01--Alice\n-\t-\timage.png\n\n--def--2024-01-02--Bob\n+3\tx\t  spaced.go  \n",
 		"1\t2\torphan-before-any-header.go\n----\n--a--b\n",
 		"--r--d--a\r\n5\t5\tcrlf.go\r\n",
+		"--r--d--a\r\r\n1\t2\tx\n",
 	} {
 		f.Add(seed)
 	}
