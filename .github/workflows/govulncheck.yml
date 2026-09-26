@@ -1,0 +1,20 @@
+name: govulncheck
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly, so newly published advisories surface even without new commits.
+    - cron: '0 6 * * 1'
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # pin v1.1.0
+        with:
+          # Empty so go-version-file wins over the action's 'stable' default.
+          go-version-input: ''
+          go-version-file: go.mod

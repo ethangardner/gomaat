@@ -285,7 +285,7 @@ func commitFiles(t *testing.T, dir string, files ...string) {
 }
 
 func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
-	dir := t.TempDir()
+	dir := realTempDir(t)
 	initGitRepo(t, dir)
 
 	tracked := filepath.Join(dir, "main.go")
@@ -311,7 +311,7 @@ func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {
 }
 
 func TestGitTrackedFilesExcludesDirViaPathspec(t *testing.T) {
-	dir := t.TempDir()
+	dir := realTempDir(t)
 	initGitRepo(t, dir)
 
 	vendorDir := filepath.Join(dir, "vendor")
@@ -344,7 +344,7 @@ func TestGitTrackedFilesExcludesDirViaPathspec(t *testing.T) {
 }
 
 func TestGitTrackedFilesFromSubdirectoryUsesRepoRoot(t *testing.T) {
-	dir := t.TempDir()
+	dir := realTempDir(t)
 	initGitRepo(t, dir)
 
 	nestedDir := filepath.Join(dir, "pkg")

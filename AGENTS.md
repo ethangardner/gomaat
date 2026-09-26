@@ -25,7 +25,7 @@ Run a single test:
 go test ./internal/analysis/ -run TestCoupling -v
 ```
 
-CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), `golangci-lint run`, and `go test -coverprofile=coverage.out ./...` followed by `go tool cover -func=coverage.out` to report per-function coverage. This is visibility only — there's no enforced minimum threshold yet. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply.
+CI (`.github/workflows/verify.yml`) runs `go vet`, `gofmt -l .` (must be empty), a `go mod tidy` drift check plus `go mod verify`, and `golangci-lint run` on Linux, then `go test -race -coverprofile=coverage.out ./...` on Linux, macOS and Windows, followed on Linux by `go tool cover -func=coverage.out` to report per-function coverage. Coverage is visibility only — there's no enforced minimum threshold yet. `govulncheck.yml` runs `govulncheck` on PRs, pushes to main, and weekly; Dependabot (`.github/dependabot.yml`) bumps the SHA-pinned actions and Go modules weekly. Run `golangci-lint run` locally before finishing if it's available — there's no repo-specific golangci config, so default rules apply. Tests must pass on Windows too, so build paths with `filepath` and don't assume `/` separators or LF line endings from the OS.
 
 ## Changelog
 

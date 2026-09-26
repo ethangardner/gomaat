@@ -27,6 +27,18 @@ func gitRun(t *testing.T, dir string, env []string, args ...string) string {
 	return string(out)
 }
 
+// realTempDir returns t.TempDir() with symlinks and Windows 8.3 short names
+// resolved, so it compares equal to paths git reports (macOS's /var is a
+// symlink to /private/var; Windows runners' temp dir is under RUNNER~1).
+func realTempDir(t *testing.T) string {
+	t.Helper()
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
 // initGitRepo creates an empty repo on branch main with a test identity.
 func initGitRepo(t *testing.T, dir string) {
 	t.Helper()
