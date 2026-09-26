@@ -1,0 +1,46 @@
+name: Changelog
+
+# Enforces the CHANGELOG.md convention in AGENTS.md: a PR that changes
+# non-test Go source needs an entry under [Unreleased]. Internal-only
+# changes opt out with the skip-changelog label.
+on:
+  # Any base branch, so stacked PRs (based on another PR's branch) get CI too.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changelog:
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # pin v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: require a CHANGELOG.md entry for source changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          source=$(grep -E '^(cli|cmd|internal)/.*\.go$' <<< "$changed" | grep -v '_test\.go$' || true)
+          if [ -z "$source" ]; then
+            echo "No non-test Go source changed; no changelog entry needed."
+            exit 0
+          fi
+          if grep -qx 'CHANGELOG.md' <<< "$changed"; then
+            echo "CHANGELOG.md updated."
+            exit 0
+          fi
+          echo "::error file=CHANGELOG.md::Source changed without a CHANGELOG.md entry. Add one under [Unreleased], or label the PR skip-changelog if the change isn't user-facing."
+          echo "Changed source files:"
+          echo "$source"
+          exit 1

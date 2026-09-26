@@ -49,72 +49,47 @@ jobs:
       - name: Generate shared log from main branch history
         run: main/bin/gomaat generate-log --path main --outfile gomaat.log
 
+      # Both builds run the PR's copy of the script, so a PR that adds a
+      # command also adds it to the comparison (main's build reports the
+      # error, which shows up in the diff).
       - name: Run analyses with main build
-        run: |
-          mkdir -p out/main out/pr
-          main/bin/gomaat summary -l gomaat.log -o out/main/summary.csv
-          main/bin/gomaat summary -l gomaat.log --format json -o out/main/summary.json
-          main/bin/gomaat revisions -l gomaat.log -o out/main/revisions.csv
-          main/bin/gomaat revisions -l gomaat.log --format json -o out/main/revisions.json
-          main/bin/gomaat authors -l gomaat.log -o out/main/authors.csv
-          main/bin/gomaat authors -l gomaat.log --format json -o out/main/authors.json
-          main/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 -o out/main/coupling.csv
-          main/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 --format json -o out/main/coupling.json
-          main/bin/gomaat cloc --path main -o out/main/cloc.csv
+        run: pr/.github/smoke-test/run.sh main/bin/gomaat gomaat.log main out/main
 
       - name: Run analyses with PR build
-        run: |
-          pr/bin/gomaat summary -l gomaat.log -o out/pr/summary.csv
-          pr/bin/gomaat summary -l gomaat.log --format json -o out/pr/summary.json
-          pr/bin/gomaat revisions -l gomaat.log -o out/pr/revisions.csv
-          pr/bin/gomaat revisions -l gomaat.log --format json -o out/pr/revisions.json
-          pr/bin/gomaat authors -l gomaat.log -o out/pr/authors.csv
-          pr/bin/gomaat authors -l gomaat.log --format json -o out/pr/authors.json
-          pr/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 -o out/pr/coupling.csv
-          pr/bin/gomaat coupling -l gomaat.log -n 2 -m 2 -i 10 --format json -o out/pr/coupling.json
-          pr/bin/gomaat cloc --path main -o out/pr/cloc.csv
+        run: pr/.github/smoke-test/run.sh pr/bin/gomaat gomaat.log main out/pr
 
       - name: Diff outputs
         id: diff
         run: |
           # Row order within each analysis isn't guaranteed to be stable across
           # processes (map iteration order), so sort before comparing. No -r
-          # limit is used above so the compared sets are complete and deterministic.
-          # CSV files sort by line directly; JSON files are pretty-printed
-          # (multi-line per record) so they're flattened to one compact object
-          # per line with jq before sorting. cloc doesn't go through the
-          # --format flag (it's a bespoke command, not wired into runAnalysis),
-          # so it's CSV-only here.
-          declare -A formats=(
-            [summary]="csv json"
-            [revisions]="csv json"
-            [authors]="csv json"
-            [coupling]="csv json"
-            [cloc]="csv"
-          )
+          # limit is used so the compared sets are complete and deterministic.
+          # JSON is pretty-printed (multi-line per record), so it's flattened
+          # to one compact object per line with jq first; anything jq can't
+          # parse (e.g. an error from a command one build lacks) sorts as text.
+          normalize() {
+            if [ ! -e "$1" ]; then
+              return
+            elif [[ "$1" == *.json ]] && jq -e . "$1" > /dev/null 2>&1; then
+              jq -c '.[]' "$1" | sort
+            else
+              sort "$1"
+            fi
+          }
           changed=false
           : > diff.txt
-          for f in summary revisions authors coupling cloc; do
-            read -ra fmts <<< "${formats[$f]}"
-            for fmt in "${fmts[@]}"; do
-              if [ "$fmt" = "json" ]; then
-                jq -c '.[]' "out/main/$f.json" | sort > "/tmp/main-$f-$fmt.txt"
-                jq -c '.[]' "out/pr/$f.json" | sort > "/tmp/pr-$f-$fmt.txt"
-              else
-                sort "out/main/$f.$fmt" > "/tmp/main-$f-$fmt.txt"
-                sort "out/pr/$f.$fmt" > "/tmp/pr-$f-$fmt.txt"
-              fi
-              if ! diff -u -L "main/$f.$fmt" -L "pr/$f.$fmt" "/tmp/main-$f-$fmt.txt" "/tmp/pr-$f-$fmt.txt" > "/tmp/diff-$f-$fmt.txt"; then
-                changed=true
-                {
-                  echo "### $f ($fmt)"
-                  echo '```diff'
-                  cat "/tmp/diff-$f-$fmt.txt"
-                  echo '```'
-                  echo
-                } >> diff.txt
-              fi
-            done
+          for f in $( (ls out/main; ls out/pr) | sort -u); do
+            if ! diff -u -L "main/$f" -L "pr/$f" \
+              <(normalize "out/main/$f") <(normalize "out/pr/$f") > "$RUNNER_TEMP/diff"; then
+              changed=true
+              {
+                echo "### $f"
+                echo '```diff'
+                cat "$RUNNER_TEMP/diff"
+                echo '```'
+                echo
+              } >> diff.txt
+            fi
           done
           echo "changed=$changed" >> "$GITHUB_OUTPUT"
           if [ "$changed" = "true" ]; then
@@ -129,7 +104,7 @@ jobs:
           {
             echo "## gomaat smoke test diff"
             echo
-            echo "Comparison of \`gomaat\` analyses run against \`main\`'s git history,"
+            echo "Comparison of every \`gomaat\` analysis run against \`main\`'s git history,"
             echo "using a build of \`main\` vs. a build of this PR."
             echo
             if [ "$CHANGED" = "true" ]; then
@@ -140,8 +115,12 @@ jobs:
               echo "**Result: no difference in analysis output.**"
             fi
           } > comment.md
+          cat comment.md >> "$GITHUB_STEP_SUMMARY"
 
+      # Fork PRs get a read-only token, so the comment can't be posted there;
+      # the job summary above still has the diff.
       - name: Post sticky comment
+        continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # pin v3.0.4
         with:
           header: gomaat-smoke-test
