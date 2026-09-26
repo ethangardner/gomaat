@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Let a release age a week before adopting it, so a compromised or
+    # yanked version is more likely to be caught first.
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns: ['*']
@@ -12,6 +16,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Let a release age a week before adopting it, so a compromised or
+    # yanked version is more likely to be caught first.
+    cooldown:
+      default-days: 7
     groups:
       go-modules:
         patterns: ['*']
