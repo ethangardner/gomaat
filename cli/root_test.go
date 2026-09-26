@@ -361,3 +361,73 @@ func TestParseDateFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestBusFactorCmdRunE(t *testing.T) {
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outFile = filepath.Join(t.TempDir(), "out.csv")
+
+	cmd, _, err := rootCmd.Find([]string{"bus-factor"})
+	if err != nil {
+		t.Fatalf("finding bus-factor command: %v", err)
+	}
+	if err := cmd.RunE(cmd, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, want := readOutputFile(t, outFile), "foo.go,1,Jane Doe,100.00"; !strings.Contains(got, want) {
+		t.Errorf("expected %q in output, got:\n%s", want, got)
+	}
+}
+
+func TestKnowledgeLossCmdRunE(t *testing.T) {
+	formerFile := func(contents string) func(*testing.T) string {
+		return func(t *testing.T) string { return testhelpers.WriteTempFile(t, "former.txt", contents) }
+	}
+	tests := []struct {
+		name    string
+		former  func(*testing.T) string // returns the --former-authors value
+		wantErr string
+		wantRow string
+	}{
+		{name: "missing --former-authors", former: func(*testing.T) string { return "" }, wantErr: "--former-authors is required"},
+		{
+			name:    "unreadable --former-authors",
+			former:  func(t *testing.T) string { return filepath.Join(t.TempDir(), "missing.txt") },
+			wantErr: "opening authors file",
+		},
+		{name: "former author", former: formerFile("author\nJane Doe\n"), wantRow: "foo.go,1,1,100.00"},
+		{name: "former author absent from log", former: formerFile("Ghost\n"), wantRow: "foo.go,0,1,0.00"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resetFlags(t)
+			logFile = validLogFixture(t)
+			outFile = filepath.Join(t.TempDir(), "out.csv")
+
+			cmd, _, err := rootCmd.Find([]string{"knowledge-loss"})
+			if err != nil {
+				t.Fatalf("finding knowledge-loss command: %v", err)
+			}
+			if err := cmd.Flags().Set("former-authors", tt.former(t)); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() {
+				_ = cmd.Flags().Set("former-authors", "")
+			})
+
+			err = cmd.RunE(cmd, nil)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got := readOutputFile(t, outFile); !strings.Contains(got, tt.wantRow) {
+				t.Errorf("expected %q in output, got:\n%s", tt.wantRow, got)
+			}
+		})
+	}
+}

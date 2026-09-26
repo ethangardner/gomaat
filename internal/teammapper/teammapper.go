@@ -13,45 +13,83 @@ import (
 // LoadFile reads a CSV file mapping author → team.
 // Expected format (header optional): author,team
 func LoadFile(path string) (map[string]string, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening team map file: %w", err)
-	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "error closing team map file %s: %v\n", path, err)
-		}
-	}(f)
-	return load(f)
+	return loadFile(path, "team map", load)
 }
 
 func load(r io.Reader) (map[string]string, error) {
-	cr := csv.NewReader(r)
-	cr.TrimLeadingSpace = true
-	cr.Comment = '#'
-
 	lookup := map[string]string{}
-	for {
-		record, err := cr.Read()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, fmt.Errorf("reading team map: %w", err)
-		}
+	err := readRecords(r, "team map", false, func(record []string) {
 		if len(record) < 2 {
-			continue
+			return
 		}
 		author := strings.TrimSpace(record[0])
 		team := strings.TrimSpace(record[1])
 		// skip header row
 		if strings.EqualFold(author, "author") && strings.EqualFold(team, "team") {
-			continue
+			return
 		}
 		lookup[author] = team
+	})
+	return lookup, err
+}
+
+// LoadAuthorsFile reads a list of author names, one per line. The file may
+// also be a CSV whose first column is the author (header optional); other
+// columns are ignored. Names containing a comma must be double-quoted; a
+// quote inside an unquoted name is read literally.
+func LoadAuthorsFile(path string) (map[string]struct{}, error) {
+	return loadFile(path, "authors", loadAuthors)
+}
+
+func loadAuthors(r io.Reader) (map[string]struct{}, error) {
+	authors := map[string]struct{}{}
+	err := readRecords(r, "authors", true, func(record []string) {
+		author := strings.TrimSpace(record[0])
+		// skip header row and blank names
+		if author == "" || strings.EqualFold(author, "author") {
+			return
+		}
+		authors[author] = struct{}{}
+	})
+	return authors, err
+}
+
+// loadFile opens path and hands it to parse; what names the file in errors.
+func loadFile[T any](path, what string, parse func(io.Reader) (T, error)) (T, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		var zero T
+		return zero, fmt.Errorf("opening %s file: %w", what, err)
 	}
-	return lookup, nil
+	defer func() {
+		if err := f.Close(); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "error closing %s file %s: %v\n", what, path, err)
+		}
+	}()
+	return parse(f)
+}
+
+// readRecords calls fn for each CSV record in r, skipping '#' comment lines.
+// By default every record must have as many fields as the first; lenient
+// allows differing field counts and bare quotes in unquoted fields.
+func readRecords(r io.Reader, what string, lenient bool, fn func([]string)) error {
+	cr := csv.NewReader(r)
+	cr.TrimLeadingSpace = true
+	cr.Comment = '#'
+	if lenient {
+		cr.FieldsPerRecord = -1
+		cr.LazyQuotes = true
+	}
+	for {
+		record, err := cr.Read()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("reading %s: %w", what, err)
+		}
+		fn(record)
+	}
 }
 
 // Apply replaces each commit's Author with its team name.

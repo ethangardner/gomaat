@@ -30,6 +30,8 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [entity-effort](#entity-effort)
   - [main-dev-by-revs](#main-dev-by-revs)
   - [fragmentation](#fragmentation)
+  - [bus-factor](#bus-factor)
+  - [knowledge-loss](#knowledge-loss)
   - [communication](#communication)
   - [age](#age)
   - [identity](#identity)
@@ -40,6 +42,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
 - [Advanced Usage](#advanced-usage)
   - [Architectural Grouping](#architectural-grouping)
   - [Team Mapping](#team-mapping)
+  - [Former Authors](#former-authors)
   - [Tracking Metrics Over Time](#tracking-metrics-over-time)
   - [Limiting Output Rows](#limiting-output-rows)
   - [Writing to a File](#writing-to-a-file)
@@ -581,6 +584,69 @@ Sorted by `fractal-value` descending.
 
 ---
 
+### bus-factor
+
+The fewest authors who together own **more than 50%** of each entity, where ownership is lines added (the same measure as [`main-dev`](#main-dev)). A bus factor of `1` means a single person wrote most of the file — if they leave, most of its knowledge goes with them.
+
+Authors are ranked by lines added (ties broken alphabetically) and taken from the top until their combined share passes 50%. Exactly 50% is not a majority, so two authors with an even split give a bus factor of `2`. Entities with no added lines (deletions only) are omitted.
+
+```
+gomaat bus-factor -l logfile.log
+```
+
+**Example output:**
+
+```
+entity,bus-factor,top-owners,ownership
+src/billing.go,1,Alice Smith,82.35
+src/api.go,2,Bob Jones;Carol White,71.43
+```
+
+**Output:**
+
+| Column       | Description                                               |
+|--------------|-----------------------------------------------------------|
+| `entity`     | File path (or group name with `-g`)                       |
+| `bus-factor` | Fewest authors whose combined lines added exceed 50%      |
+| `top-owners` | Those authors, largest share first, separated by `;`      |
+| `ownership`  | Their combined share of the entity's lines added (%)      |
+
+Sorted by `bus-factor` ascending (riskiest first), then `entity`.
+
+---
+
+### knowledge-loss
+
+The share of each entity written by authors who have left. Pass a [former authors](#former-authors) file with `--former-authors` (required). Ownership is lines added, the same measure as [`main-dev`](#main-dev) and [`bus-factor`](#bus-factor).
+
+```
+gomaat knowledge-loss -l logfile.log --former-authors alumni.txt
+```
+
+**Example output:**
+
+```
+entity,former-added,total-added,knowledge-loss
+src/legacy.go,240,240,100.00
+src/billing.go,56,170,32.94
+src/api.go,0,35,0.00
+```
+
+**Output:**
+
+| Column           | Description                                          |
+|------------------|------------------------------------------------------|
+| `entity`         | File path (or group name with `-g`)                  |
+| `former-added`   | Lines added by former authors                        |
+| `total-added`    | Total lines added to this entity                     |
+| `knowledge-loss` | `former-added` as a share of `total-added` (%)       |
+
+Sorted by `knowledge-loss` descending, then `entity`. Entities with no former-author contributions are still listed at `0.00`; entities with no added lines are omitted. Names in the former-authors file that never appear in the log are ignored.
+
+Results are only as accurate as author identity resolution: names are matched exactly, so someone who committed as both `Alice Smith` and `alice` needs both names listed — or generate the log with [`--use-mailmap`](#generating-a-git-log) so they collapse to one canonical name first. With `-p`, matching happens *after* team mapping, so the former-authors file must list team names.
+
+---
+
 ### communication
 
 Map communication needs across the team. Author pairs who frequently modify the same entities need to coordinate — this analysis makes that implicit need explicit. Based on Conway's Law.
@@ -882,6 +948,32 @@ gomaat fragmentation -l logfile.log -p teams.csv
 ```
 
 Authors not present in the map are excluded from analysis.
+
+---
+
+### Former Authors
+
+[`knowledge-loss`](#knowledge-loss) takes a list of authors who have left via `--former-authors`. The file uses the same conventions as the [team mapping](#team-mapping) CSV: one author per line, an optional `author` header row, and `#` comment lines.
+
+```csv
+author
+Alice Smith
+Dave Brown
+```
+
+A CSV with extra columns is also accepted — only the first column is read, so you can keep notes alongside each name:
+
+```csv
+author,left
+Alice Smith,2024-03-01
+Dave Brown,2025-01-15
+```
+
+```bash
+gomaat knowledge-loss -l logfile.log --former-authors alumni.csv
+```
+
+Names must match the log's author names exactly (see the identity note under [`knowledge-loss`](#knowledge-loss)). Because the file is read as CSV, a name containing a comma must be double-quoted (`"Doe, Jane"`); quotes inside an unquoted name (`Bob "The Builder" Smith`) are kept as-is.
 
 ---
 

@@ -123,28 +123,40 @@ func pickTopContributor(byKey map[entityAuthorKey]int, totalByEntity map[string]
 	results := make([]ContributorResult, 0, len(bestByEntity))
 	for entity, b := range bestByEntity {
 		total := totalByEntity[entity]
-		var ownership float64
-		if total > 0 {
-			ownership = float64(b.count) / float64(total) * 100.0
-		}
-		results = append(results, ContributorResult{entity, b.author, b.count, total, ownership})
+		results = append(results, ContributorResult{entity, b.author, b.count, total, percent(b.count, total)})
 	}
 	slices.SortFunc(results, func(a, b ContributorResult) int { return cmp.Compare(a.Entity, b.Entity) })
 	return results
 }
 
-// findTopContributor returns, per entity, the author with the highest value
-// from valueFn, along with their count, the entity total, and ownership %.
-func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []ContributorResult {
+// sumPerEntityAuthor sums valueFn per (entity, author) pair and per entity.
+func sumPerEntityAuthor(commits []model.Commit, valueFn func(model.Commit) int) (map[entityAuthorKey]int, map[string]int) {
 	byKey := map[entityAuthorKey]int{}
 	totalByEntity := map[string]int{}
 	for _, c := range commits {
-		k := entityAuthorKey{c.Entity, c.Author}
 		v := valueFn(c)
-		byKey[k] += v
+		byKey[entityAuthorKey{c.Entity, c.Author}] += v
 		totalByEntity[c.Entity] += v
 	}
-	return pickTopContributor(byKey, totalByEntity)
+	return byKey, totalByEntity
+}
+
+// percent returns part/total as a percentage, or 0 when total is 0.
+func percent(part, total int) float64 {
+	if total == 0 {
+		return 0
+	}
+	return float64(part) / float64(total) * 100
+}
+
+// linesAdded is the ownership measure shared by MainDev, BusFactor, and
+// KnowledgeLoss: an author owns the lines they added.
+func linesAdded(c model.Commit) int { return c.LocAdded }
+
+// findTopContributor returns, per entity, the author with the highest value
+// from valueFn, along with their count, the entity total, and ownership %.
+func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) []ContributorResult {
+	return pickTopContributor(sumPerEntityAuthor(commits, valueFn))
 }
 
 // formatContributor renders ContributorResult rows to CSV, with caller-supplied

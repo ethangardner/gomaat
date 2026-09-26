@@ -103,7 +103,7 @@ func FormatEntityOwnership(results []EntityOwnershipResult, _ model.Options) [][
 
 // MainDev returns the author with the most lines added per entity.
 func MainDev(commits []model.Commit, _ model.Options) []ContributorResult {
-	return findTopContributor(commits, func(c model.Commit) int { return c.LocAdded })
+	return findTopContributor(commits, linesAdded)
 }
 
 func FormatMainDev(results []ContributorResult, _ model.Options) [][]string {

@@ -69,7 +69,7 @@ func FormatXXX(results T, opts model.Options) [][]string  // render to CSV rows
 `runAnalysis`, `simpleCmd`, and `newCouplingCmd` in `cli/root.go` are generic over `T`: they call `XXX` to get the typed result, then `FormatXXX` to get CSV rows. New analyses should follow this pattern and be registered in `cli/root.go`'s `init()`:
 - Most subcommands need no extra flags — register with `simpleCmd(use, short, analysis.Fn, analysis.FormatFn)`.
 - Coupling-style subcommands (those needing the `--min-revs`/`--min-shared-revs`/`--min-coupling`/`--max-coupling`/`--max-changeset-size` thresholds) use `newCouplingCmd`.
-- `age` and `generate-log`/`cloc` are registered individually because they need bespoke flags.
+- `age`, `knowledge-loss` (`--former-authors`, loaded via `teammapper.LoadAuthorsFile`) and `generate-log`/`cloc` are registered individually because they need bespoke flags.
 - `rework` is registered individually too, and bypasses `runAnalysis`: it needs line-level diffs, so it streams `git log -p -U0` from the repo (`--path`) through `internal/gitdiff.Parse` into `analysis.Rework`, which takes an `iter.Seq2[gitdiff.Commit, error]` instead of `[]model.Commit`.
 
 ### CLI structure (`cli/` package)

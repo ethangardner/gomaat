@@ -207,6 +207,7 @@ func init() {
 	rootCmd.AddCommand(simpleCmd("entity-effort", "Revision count per author per entity", analysis.EntityEffort, analysis.FormatEntityEffort))
 	rootCmd.AddCommand(simpleCmd("main-dev-by-revs", "Main developer per entity by revision count", analysis.MainDevByRevs, analysis.FormatMainDevByRevs))
 	rootCmd.AddCommand(simpleCmd("fragmentation", "Author fragmentation (fractal value) per entity", analysis.Fragmentation, analysis.FormatFragmentation))
+	rootCmd.AddCommand(simpleCmd("bus-factor", "Fewest authors who together own more than half of each entity", analysis.BusFactor, analysis.FormatBusFactor))
 	rootCmd.AddCommand(simpleCmd("communication", "Team communication needs based on shared code", analysis.Communication, analysis.FormatCommunication))
 	rootCmd.AddCommand(simpleCmd("statistics", "Descriptive statistics for core metrics (files/lines per commit, revisions/authors/soc per entity)", analysis.Statistics, analysis.FormatStatistics))
 
@@ -225,6 +226,25 @@ func init() {
 	}
 	ageCmd.Flags().StringVarP(&ageTimeNow, "age-time-now", "d", "", "reference date for age calculation (YYYY-MM-DD, default: today)")
 	rootCmd.AddCommand(ageCmd)
+
+	// Knowledge-loss subcommand (needs --former-authors flag)
+	var formerFile string
+	knowledgeLossCmd := &cobra.Command{
+		Use:   "knowledge-loss",
+		Short: "Share of each entity's added lines written by former authors",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if formerFile == "" {
+				return fmt.Errorf("--former-authors is required")
+			}
+			former, err := teammapper.LoadAuthorsFile(formerFile)
+			if err != nil {
+				return err
+			}
+			return runAnalysis(analysis.KnowledgeLoss, analysis.FormatKnowledgeLoss, model.Options{FormerAuthors: former})
+		},
+	}
+	knowledgeLossCmd.Flags().StringVar(&formerFile, "former-authors", "", "file listing authors who have left, one per line (CSV with optional author header also accepted)")
+	rootCmd.AddCommand(knowledgeLossCmd)
 
 	// Coupling subcommand (with verbose flag)
 	couplingCmd := newCouplingCmd("coupling", "Detect temporal coupling between modules", analysis.Coupling, analysis.FormatCoupling,

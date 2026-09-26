@@ -259,7 +259,7 @@ func (t *reworkTracker) results() []ReworkResult {
 	results := make([]ReworkResult, 0, len(t.added))
 	for entity, added := range t.added {
 		reworked := t.reworked[entity]
-		results = append(results, ReworkResult{entity, added, reworked, float64(reworked) / float64(added) * 100})
+		results = append(results, ReworkResult{entity, added, reworked, percent(reworked, added)})
 	}
 	slices.SortFunc(results, func(a, b ReworkResult) int {
 		return cmp.Or(cmp.Compare(b.Reworked, a.Reworked), cmp.Compare(a.Entity, b.Entity))
