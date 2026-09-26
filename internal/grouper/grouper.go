@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"regexp"
 	"strings"
 
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/ethangardner/gomaat/internal/model"
 )
 
@@ -25,17 +25,7 @@ type group struct {
 // Plain paths are matched as prefix: ^some/path/
 // Lines starting with # or blank lines are ignored.
 func LoadFile(path string) ([]group, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening group file: %w", err)
-	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "error closing file %s: %v\n", path, err)
-		}
-	}(f)
-	return load(f)
+	return loadfile.Parse(path, "group", load)
 }
 
 func load(r io.Reader) ([]group, error) {

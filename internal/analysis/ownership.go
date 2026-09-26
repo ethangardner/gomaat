@@ -56,14 +56,12 @@ func BusFactor(commits []model.Commit, _ model.Options) []BusFactorResult {
 }
 
 func FormatBusFactor(results []BusFactorResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "bus-factor", "top-owners", "ownership"}}
-	for _, r := range results {
-		out = append(out, []string{
+	return formatRows([]string{"entity", "bus-factor", "top-owners", "ownership"}, results, func(r BusFactorResult) []string {
+		return []string{
 			r.Entity, fmt.Sprint(r.BusFactor),
 			strings.Join(r.TopOwners, ";"), fmt.Sprintf("%.2f", r.Ownership),
-		})
-	}
-	return out
+		}
+	})
 }
 
 type KnowledgeLossResult struct {
@@ -100,12 +98,10 @@ func KnowledgeLoss(commits []model.Commit, opts model.Options) []KnowledgeLossRe
 }
 
 func FormatKnowledgeLoss(results []KnowledgeLossResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "former-added", "total-added", "knowledge-loss"}}
-	for _, r := range results {
-		out = append(out, []string{
+	return formatRows([]string{"entity", "former-added", "total-added", "knowledge-loss"}, results, func(r KnowledgeLossResult) []string {
+		return []string{
 			r.Entity, fmt.Sprint(r.FormerAdded),
 			fmt.Sprint(r.TotalAdded), fmt.Sprintf("%.2f", r.Loss),
-		})
-	}
-	return out
+		}
+	})
 }

@@ -2,12 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"testing/iotest"
 )
 
 func TestMatchesExcludePattern(t *testing.T) {
@@ -400,6 +402,13 @@ func TestLoadIgnoreRevs(t *testing.T) {
 	want := map[string]struct{}{"aaa111": {}, "bbb222": {}}
 	if !reflect.DeepEqual(revs, want) {
 		t.Errorf("loadIgnoreRevs() = %v, want %v", revs, want)
+	}
+}
+
+func TestReadIgnoreRevsReadError(t *testing.T) {
+	_, err := readIgnoreRevs(iotest.ErrReader(errors.New("boom")))
+	if err == nil || !strings.Contains(err.Error(), "reading ignore-revs file") {
+		t.Fatalf("expected reading ignore-revs file error, got %v", err)
 	}
 }
 

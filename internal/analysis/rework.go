@@ -80,11 +80,9 @@ func Rework(commits iter.Seq2[gitdiff.Commit, error], opts model.Options) ([]Rew
 }
 
 func FormatRework(results []ReworkResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "added-lines", "reworked-lines", "rework-ratio"}}
-	for _, r := range results {
-		out = append(out, []string{r.Entity, fmt.Sprint(r.Added), fmt.Sprint(r.Reworked), fmt.Sprintf("%.2f", r.Ratio)})
-	}
-	return out
+	return formatRows([]string{"entity", "added-lines", "reworked-lines", "rework-ratio"}, results, func(r ReworkResult) []string {
+		return []string{r.Entity, fmt.Sprint(r.Added), fmt.Sprint(r.Reworked), fmt.Sprintf("%.2f", r.Ratio)}
+	})
 }
 
 // lineOrigin records which entity and when (unix seconds) a counted line was

@@ -64,9 +64,8 @@ func Statistics(commits []model.Commit, _ model.Options) []StatisticsResult {
 }
 
 func FormatStatistics(results []StatisticsResult, _ model.Options) [][]string {
-	out := [][]string{{"metric", "count", "min", "q1", "median", "q3", "max", "mean", "stddev"}}
-	for _, r := range results {
-		out = append(out, []string{
+	return formatRows([]string{"metric", "count", "min", "q1", "median", "q3", "max", "mean", "stddev"}, results, func(r StatisticsResult) []string {
+		return []string{
 			r.Metric,
 			fmt.Sprint(r.Count),
 			fmt.Sprintf("%.2f", r.Min),
@@ -76,9 +75,8 @@ func FormatStatistics(results []StatisticsResult, _ model.Options) [][]string {
 			fmt.Sprintf("%.2f", r.Max),
 			fmt.Sprintf("%.2f", r.Mean),
 			fmt.Sprintf("%.2f", r.Stddev),
-		})
-	}
-	return out
+		}
+	})
 }
 
 // perCommitTotals groups commits by Rev and returns, for each distinct Rev

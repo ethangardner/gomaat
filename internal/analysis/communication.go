@@ -34,10 +34,7 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 	results := computeResults(freqs)
 
 	slices.SortFunc(results, func(a, b CommunicationResult) int {
-		if c := cmp.Compare(b.Strength, a.Strength); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.Author, a.Author)
+		return cmp.Or(cmp.Compare(b.Strength, a.Strength), cmp.Compare(b.Author, a.Author))
 	})
 
 	return results
@@ -92,14 +89,12 @@ func computeResults(freqs map[pairKey]int) []CommunicationResult {
 }
 
 func FormatCommunication(results []CommunicationResult, _ model.Options) [][]string {
-	out := [][]string{{"author", "peer", "shared", "average", "strength"}}
-	for _, r := range results {
-		out = append(out, []string{
+	return formatRows([]string{"author", "peer", "shared", "average", "strength"}, results, func(r CommunicationResult) []string {
+		return []string{
 			r.Author, r.Peer,
 			fmt.Sprint(r.Shared),
 			fmt.Sprint(r.Average),
 			fmt.Sprint(r.Strength),
-		})
-	}
-	return out
+		}
+	})
 }

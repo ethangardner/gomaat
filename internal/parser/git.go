@@ -4,10 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 	"strings"
 
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/ethangardner/gomaat/internal/model"
 )
 
@@ -26,17 +26,7 @@ import (
 //	...
 //	(blank line separates entries)
 func ParseFile(path string) ([]model.Commit, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening log file: %w", err)
-	}
-	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "error closing log file %s: %v\n", path, err)
-		}
-	}(f)
-	return parse(f)
+	return loadfile.Parse(path, "log", parse)
 }
 
 func ParseReader(r io.Reader) ([]model.Commit, error) {
