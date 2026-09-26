@@ -36,10 +36,7 @@ func FormatAuthorChurn(results []ChurnResult, _ model.Options) [][]string {
 func EntityChurn(commits []model.Commit, _ model.Options) []ChurnResult {
 	aggs := aggregateChurn(commits, func(c model.Commit) string { return c.Entity })
 	slices.SortFunc(aggs, func(a, b churnAgg) int {
-		if c := cmp.Compare(b.added, a.added); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.key, b.key)
+		return cmp.Or(cmp.Compare(b.added, a.added), cmp.Compare(a.key, b.key))
 	})
 
 	return aggsToChurnResults(aggs)
@@ -50,11 +47,9 @@ func FormatEntityChurn(results []ChurnResult, _ model.Options) [][]string {
 }
 
 func formatChurn(results []ChurnResult, keyHeader string) [][]string {
-	out := [][]string{{keyHeader, "added", "deleted", "commits"}}
-	for _, r := range results {
-		out = append(out, []string{r.Key, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted), fmt.Sprint(r.Commits)})
-	}
-	return out
+	return formatRows([]string{keyHeader, "added", "deleted", "commits"}, results, func(r ChurnResult) []string {
+		return []string{r.Key, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted), fmt.Sprint(r.Commits)}
+	})
 }
 
 type EntityOwnershipResult struct {
@@ -84,21 +79,16 @@ func EntityOwnership(commits []model.Commit, _ model.Options) []EntityOwnershipR
 		results = append(results, EntityOwnershipResult{k.entity, k.author, e.added, e.deleted})
 	}
 	slices.SortFunc(results, func(a, b EntityOwnershipResult) int {
-		if c := cmp.Compare(a.Entity, b.Entity); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Author, b.Author)
+		return cmp.Or(cmp.Compare(a.Entity, b.Entity), cmp.Compare(a.Author, b.Author))
 	})
 
 	return results
 }
 
 func FormatEntityOwnership(results []EntityOwnershipResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "author", "added", "deleted"}}
-	for _, r := range results {
-		out = append(out, []string{r.Entity, r.Author, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted)})
-	}
-	return out
+	return formatRows([]string{"entity", "author", "added", "deleted"}, results, func(r EntityOwnershipResult) []string {
+		return []string{r.Entity, r.Author, fmt.Sprint(r.Added), fmt.Sprint(r.Deleted)}
+	})
 }
 
 // MainDev returns the author with the most lines added per entity.

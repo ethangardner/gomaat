@@ -60,10 +60,7 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 	}
 
 	slices.SortFunc(results, func(a, b CouplingResult) int {
-		if c := cmp.Compare(b.Degree, a.Degree); c != 0 {
-			return c
-		}
-		return cmp.Compare(b.AvgRevs, a.AvgRevs)
+		return cmp.Or(cmp.Compare(b.Degree, a.Degree), cmp.Compare(b.AvgRevs, a.AvgRevs))
 	})
 
 	return results
@@ -75,16 +72,13 @@ func FormatCoupling(results []CouplingResult, opts model.Options) [][]string {
 		headers = append(headers, "first-entity-revisions", "second-entity-revisions", "shared-revisions")
 	}
 
-	out := make([][]string, 0, len(results)+1)
-	out = append(out, headers)
-	for _, r := range results {
+	return formatRows(headers, results, func(r CouplingResult) []string {
 		row := []string{r.Entity, r.Coupled, fmt.Sprint(r.Degree), fmt.Sprint(r.AvgRevs)}
 		if opts.VerboseResults {
 			row = append(row, fmt.Sprint(r.RevA), fmt.Sprint(r.RevB), fmt.Sprint(r.Shared))
 		}
-		out = append(out, row)
-	}
-	return out
+		return row
+	})
 }
 
 type SumOfCouplingResult struct {
@@ -106,21 +100,16 @@ func SumOfCoupling(commits []model.Commit, opts model.Options) []SumOfCouplingRe
 		results = append(results, SumOfCouplingResult{entity, count})
 	}
 	slices.SortFunc(results, func(a, b SumOfCouplingResult) int {
-		if c := cmp.Compare(b.Soc, a.Soc); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.Entity, b.Entity)
+		return cmp.Or(cmp.Compare(b.Soc, a.Soc), cmp.Compare(a.Entity, b.Entity))
 	})
 
 	return results
 }
 
 func FormatSumOfCoupling(results []SumOfCouplingResult, _ model.Options) [][]string {
-	out := [][]string{{"entity", "soc"}}
-	for _, r := range results {
-		out = append(out, []string{r.Entity, fmt.Sprint(r.Soc)})
-	}
-	return out
+	return formatRows([]string{"entity", "soc"}, results, func(r SumOfCouplingResult) []string {
+		return []string{r.Entity, fmt.Sprint(r.Soc)}
+	})
 }
 
 func filteredChangesets(commits []model.Commit, opts model.Options) [][]string {

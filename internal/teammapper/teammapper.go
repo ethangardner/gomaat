@@ -4,16 +4,16 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/ethangardner/gomaat/internal/model"
 )
 
 // LoadFile reads a CSV file mapping author → team.
 // Expected format (header optional): author,team
 func LoadFile(path string) (map[string]string, error) {
-	return loadFile(path, "team map", load)
+	return loadfile.Parse(path, "team map", load)
 }
 
 func load(r io.Reader) (map[string]string, error) {
@@ -38,7 +38,7 @@ func load(r io.Reader) (map[string]string, error) {
 // columns are ignored. Names containing a comma must be double-quoted; a
 // quote inside an unquoted name is read literally.
 func LoadAuthorsFile(path string) (map[string]struct{}, error) {
-	return loadFile(path, "authors", loadAuthors)
+	return loadfile.Parse(path, "authors", loadAuthors)
 }
 
 func loadAuthors(r io.Reader) (map[string]struct{}, error) {
@@ -52,21 +52,6 @@ func loadAuthors(r io.Reader) (map[string]struct{}, error) {
 		authors[author] = struct{}{}
 	})
 	return authors, err
-}
-
-// loadFile opens path and hands it to parse; what names the file in errors.
-func loadFile[T any](path, what string, parse func(io.Reader) (T, error)) (T, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		var zero T
-		return zero, fmt.Errorf("opening %s file: %w", what, err)
-	}
-	defer func() {
-		if err := f.Close(); err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "error closing %s file %s: %v\n", what, path, err)
-		}
-	}()
-	return parse(f)
 }
 
 // readRecords calls fn for each CSV record in r, skipping '#' comment lines.

@@ -162,13 +162,11 @@ func findTopContributor(commits []model.Commit, valueFn func(model.Commit) int) 
 // formatContributor renders ContributorResult rows to CSV, with caller-supplied
 // column headers for the count and total columns.
 func formatContributor(results []ContributorResult, countHeader, totalHeader string) [][]string {
-	out := [][]string{{"entity", "main-dev", countHeader, totalHeader, "ownership"}}
-	for _, r := range results {
-		out = append(out, []string{
+	return formatRows([]string{"entity", "main-dev", countHeader, totalHeader, "ownership"}, results, func(r ContributorResult) []string {
+		return []string{
 			r.Entity, r.Contributor,
 			fmt.Sprint(r.Count), fmt.Sprint(r.Total),
 			fmt.Sprintf("%.2f", r.Ownership),
-		})
-	}
-	return out
+		}
+	})
 }

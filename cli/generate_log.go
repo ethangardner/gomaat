@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/spf13/cobra"
 )
 
@@ -144,14 +145,12 @@ func dateRangeArgs(after, before string) []string {
 // format git blame --ignore-revs-file uses: blank lines and lines starting
 // with '#' are skipped.
 func loadIgnoreRevs(path string) (map[string]struct{}, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("opening ignore-revs file: %w", err)
-	}
-	defer func() { _ = f.Close() }()
+	return loadfile.Parse(path, "ignore-revs", readIgnoreRevs)
+}
 
-	revs := make(map[string]struct{})
-	scanner := bufio.NewScanner(f)
+func readIgnoreRevs(r io.Reader) (map[string]struct{}, error) {
+	revs := map[string]struct{}{}
+	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
