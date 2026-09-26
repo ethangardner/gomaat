@@ -89,6 +89,8 @@ func gitTrackedFiles(path string, excludes []string) ([]string, string, error) {
 	if repoRoot == "" {
 		return nil, "", fmt.Errorf("git rev-parse --show-toplevel returned empty repository root")
 	}
+	// git prints forward slashes on Windows too.
+	repoRoot = filepath.FromSlash(repoRoot)
 
 	lsArgs := append([]string{"-C", repoRoot, "ls-files"}, buildPathspecArgs(nil, excludes)...)
 	out, err := exec.Command("git", lsArgs...).CombinedOutput()
