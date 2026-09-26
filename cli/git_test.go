@@ -27,9 +27,10 @@ func gitRun(t *testing.T, dir string, env []string, args ...string) string {
 	return string(out)
 }
 
-// realTempDir returns t.TempDir() with symlinks and Windows 8.3 short names
-// resolved, so it compares equal to paths git reports (macOS's /var is a
-// symlink to /private/var; Windows runners' temp dir is under RUNNER~1).
+// realTempDir returns t.TempDir() with symlinks and Windows short (8.3) names
+// like RUNNER~1 expanded, so it compares equal to paths git reports (macOS's
+// /var is a symlink to /private/var; Windows runners' temp dir uses a short
+// name).
 func realTempDir(t *testing.T) string {
 	t.Helper()
 	dir, err := filepath.EvalSymlinks(t.TempDir())
