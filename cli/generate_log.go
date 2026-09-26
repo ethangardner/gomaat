@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/ethangardner/gomaat/internal/fileutil"
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/spf13/cobra"
 )
 
@@ -145,7 +145,7 @@ func dateRangeArgs(after, before string) []string {
 // format git blame --ignore-revs-file uses: blank lines and lines starting
 // with '#' are skipped.
 func loadIgnoreRevs(path string) (map[string]struct{}, error) {
-	return fileutil.Load(path, "ignore-revs", readIgnoreRevs)
+	return loadfile.Parse(path, "ignore-revs", readIgnoreRevs)
 }
 
 func readIgnoreRevs(r io.Reader) (map[string]struct{}, error) {

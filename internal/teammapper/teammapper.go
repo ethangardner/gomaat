@@ -6,14 +6,14 @@ import (
 	"io"
 	"strings"
 
-	"github.com/ethangardner/gomaat/internal/fileutil"
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/ethangardner/gomaat/internal/model"
 )
 
 // LoadFile reads a CSV file mapping author → team.
 // Expected format (header optional): author,team
 func LoadFile(path string) (map[string]string, error) {
-	return fileutil.Load(path, "team map", load)
+	return loadfile.Parse(path, "team map", load)
 }
 
 func load(r io.Reader) (map[string]string, error) {
@@ -38,7 +38,7 @@ func load(r io.Reader) (map[string]string, error) {
 // columns are ignored. Names containing a comma must be double-quoted; a
 // quote inside an unquoted name is read literally.
 func LoadAuthorsFile(path string) (map[string]struct{}, error) {
-	return fileutil.Load(path, "authors", loadAuthors)
+	return loadfile.Parse(path, "authors", loadAuthors)
 }
 
 func loadAuthors(r io.Reader) (map[string]struct{}, error) {

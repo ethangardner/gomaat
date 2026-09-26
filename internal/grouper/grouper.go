@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ethangardner/gomaat/internal/fileutil"
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/ethangardner/gomaat/internal/model"
 )
 
@@ -25,7 +25,7 @@ type group struct {
 // Plain paths are matched as prefix: ^some/path/
 // Lines starting with # or blank lines are ignored.
 func LoadFile(path string) ([]group, error) {
-	return fileutil.Load(path, "group", load)
+	return loadfile.Parse(path, "group", load)
 }
 
 func load(r io.Reader) ([]group, error) {

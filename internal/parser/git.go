@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ethangardner/gomaat/internal/fileutil"
+	"github.com/ethangardner/gomaat/internal/loadfile"
 	"github.com/ethangardner/gomaat/internal/model"
 )
 
@@ -26,7 +26,7 @@ import (
 //	...
 //	(blank line separates entries)
 func ParseFile(path string) ([]model.Commit, error) {
-	return fileutil.Load(path, "log", parse)
+	return loadfile.Parse(path, "log", parse)
 }
 
 func ParseReader(r io.Reader) ([]model.Commit, error) {
