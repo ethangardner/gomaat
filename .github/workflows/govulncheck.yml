@@ -3,11 +3,19 @@ name: govulncheck
 on:
   push:
     branches: [main]
+  # Any base branch, so stacked PRs (based on another PR's branch) get CI too.
   pull_request:
-    branches: [main]
   schedule:
     # Weekly, so newly published advisories surface even without new commits.
     - cron: '0 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel superseded PR runs, but let every push to main finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   govulncheck:
