@@ -1,16 +1,23 @@
 name: Smoke Test Diff
 
 on:
+  # Any base branch, so stacked PRs (based on another PR's branch) get CI too.
   pull_request:
-    branches: [main]
 
 permissions:
   contents: read
-  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel superseded PR runs, but let every push to main finish.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   smoke-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout main
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # pin v6.0.3
@@ -18,6 +25,7 @@ jobs:
           ref: main
           fetch-depth: 0
           path: main
+          persist-credentials: false
 
       - name: Checkout PR head
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # pin v6.0.3
@@ -25,6 +33,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           path: pr
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # pin v6.4.0
@@ -113,6 +122,8 @@ jobs:
           fi
 
       - name: Build comment body
+        env:
+          CHANGED: ${{ steps.diff.outputs.changed }}
         run: |
           {
             echo "## gomaat smoke test diff"
@@ -120,7 +131,7 @@ jobs:
             echo "Comparison of \`gomaat\` analyses run against \`main\`'s git history,"
             echo "using a build of \`main\` vs. a build of this PR."
             echo
-            if [ "${{ steps.diff.outputs.changed }}" = "true" ]; then
+            if [ "$CHANGED" = "true" ]; then
               echo "**Result: analysis output differs.** This is informational only."
               echo
               cat diff.txt
