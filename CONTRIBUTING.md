@@ -35,7 +35,9 @@ Run `make check` (fmt + vet + lint + test — mirrors CI in
 `.github/workflows/verify.yml`). If your change is user-facing (a new/changed/
 removed CLI flag, subcommand, or output column, or a user-visible bug fix),
 add an entry under `[Unreleased]` in `CHANGELOG.md` per the convention
-documented in AGENTS.md.
+documented in AGENTS.md. CI enforces this for
+non-test Go source changes; a maintainer can add the `skip-changelog` label to
+an internal-only PR.
 
 ## License
 
