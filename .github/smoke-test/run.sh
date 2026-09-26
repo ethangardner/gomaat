@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Runs every analysis with one gomaat build and writes each result to its own
-# file, so smoke-test.yml can diff a main build against a PR build.
+# file, so smoke-test.yml can diff a base build against a PR build.
 #
 # usage: run.sh <gomaat binary> <shared log> <repo> <out dir>
 #
-# A command that fails (e.g. one the main build doesn't have yet) records its
+# A command that fails (e.g. one the base build doesn't have yet) records its
 # stderr and exit code instead of aborting, so the diff shows the difference.
 set -uo pipefail
 
@@ -15,9 +15,9 @@ mkdir -p "$out"
 run() {
   local name=$1
   shift
-  if ! "$bin" "$@" > "$out/$name" 2> "$out/$name.err"; then
+  # Not `if ! cmd`: inside that branch $? is the negation's status, always 0.
+  "$bin" "$@" > "$out/$name" 2> "$out/$name.err" ||
     echo "exit status $?" >> "$out/$name.err"
-  fi
   # Keep the error file only when there's something in it.
   [ -s "$out/$name.err" ] || rm -f "$out/$name.err"
 }
