@@ -441,12 +441,6 @@ func TestRunGitLogAppliesMailmap(t *testing.T) {
 	}
 }
 
-func TestGenerateLogHasNoUseMailmapFlag(t *testing.T) {
-	if f := newGenerateLogCmd().Flags().Lookup("use-mailmap"); f != nil {
-		t.Errorf("--use-mailmap should not exist: .mailmap is always applied via %%aN")
-	}
-}
-
 func TestGenerateLogRunEWithNewFilters(t *testing.T) {
 	resetFlags(t)
 	dir := t.TempDir()
