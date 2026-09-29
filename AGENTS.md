@@ -77,7 +77,7 @@ func FormatXXX(results T, opts model.Options) [][]string  // render to CSV rows
 ### CLI structure (`cli/` package)
 
 - `root.go`: cobra root command, persistent flags (`--log/-l`, `--outfile/-o`, `--rows/-r`, `--group/-g`, `--team-map-file/-p`, `--format/-f`), and subcommand registration.
-- `generate_log.go`: runs the canonical `git log --all --numstat --date=short --pretty=format:'--%h--%ad--%aN' --no-renames --no-merges [...]` and streams it through `--exclude` glob filtering. `--no-merges` is baked in deliberately too — it keeps a combined merge diff from being double-counted against the commits it merges.
+- `generate_log.go`: runs the canonical `git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renames --no-merges [...]` and streams it through `--exclude` glob filtering. `--no-merges` is baked in deliberately too — it keeps a combined merge diff from being double-counted against the commits it merges.
 - `cloc.go`: wraps `gocloc` over `git ls-files` output (so it respects gitignore), with the same `--exclude` filtering logic as `generate-log`.
 - `git.go`: `streamGit` runs a git subcommand and hands its stdout to a consumer as it's produced; `generate-log` and `rework` both use it. `buildPathspecArgs` builds the trailing `-- <pathspec>...` arguments from includes and directory excludes.
 - `rework.go`: the `rework` subcommand (see above).
