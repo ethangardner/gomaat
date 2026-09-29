@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ethangardner/gomaat/internal/model"
@@ -86,6 +87,30 @@ func TestEntityEffort(t *testing.T) {
 	}
 
 	assertFormattedRows(t, FormatEntityEffort(results, model.Options{}), "entity", 4)
+}
+
+func TestEntityEffortTiebreakerByAuthor(t *testing.T) {
+	// Every author ties on author-revs within foo.go, and map iteration order
+	// is random, so only an author tie-breaker gives stable output. Repeat so
+	// an unstable sort can't pass by luck.
+	commits := []model.Commit{
+		{Rev: "r1", Author: "Dave", Entity: "foo.go"},
+		{Rev: "r2", Author: "Carol", Entity: "foo.go"},
+		{Rev: "r3", Author: "Alice", Entity: "foo.go"},
+		{Rev: "r4", Author: "Bob", Entity: "foo.go"},
+	}
+	want := []string{"Alice", "Bob", "Carol", "Dave"}
+
+	for range 20 {
+		results := EntityEffort(commits, model.Options{})
+		got := make([]string, len(results))
+		for i, r := range results {
+			got[i] = r.Author
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("expected tied authors sorted alphabetically %v, got %v", want, got)
+		}
+	}
 }
 
 func TestMainDevByRevs(t *testing.T) {

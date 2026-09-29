@@ -290,7 +290,7 @@ degree = (shared_revisions / average_revisions(A, B)) × 100
 
 With `--verbose-results`, three extra columns are appended: `first-entity-revisions`, `second-entity-revisions`, `shared-revisions`.
 
-Sorted by `degree` descending.
+Sorted by `degree` descending, then `average-revs` descending, then `entity` and `coupled` ascending.
 
 ```
 entity,coupled,degree,average-revs
@@ -525,7 +525,7 @@ gomaat entity-effort -l logfile.log
 | `author-revs` | Revisions by this author       |
 | `total-revs`  | Total revisions to this entity |
 
-Sorted by `entity` ascending, then `author-revs` descending within each entity.
+Sorted by `entity` ascending, then `author-revs` descending within each entity, then `author` ascending.
 
 ---
 
@@ -668,7 +668,7 @@ where `shared_entities` is the count of entities both authors have touched.
 | `average`  | `ceil((total_entities_A + total_entities_B) / 2)` |
 | `strength` | Communication need as a percentage                |
 
-Sorted by `strength` descending. Each pair appears twice (once per direction).
+Sorted by `strength` descending, then `author` and `peer` descending. Each pair appears twice (once per direction).
 
 ---
 

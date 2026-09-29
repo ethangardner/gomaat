@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/ethangardner/gomaat/internal/model"
@@ -149,6 +150,34 @@ func TestCommunicationSortByStrength(t *testing.T) {
 	}
 	if results[len(results)-1].Strength != 33 {
 		t.Errorf("expected last result strength=33, got %d", results[len(results)-1].Strength)
+	}
+}
+
+func TestCommunicationTiebreakerByPeer(t *testing.T) {
+	// Alice shares one file with each of Bob, Carol and Dave, and each of them
+	// touches only that file, so all six directed pairs tie at strength=50
+	// (shared=1, average=ceil((3+1)/2)=2).
+	// Author sorts descending, and within an author, peer must too so the
+	// output is stable. Repeat so an unstable sort can't pass by luck.
+	commits := []model.Commit{
+		{Entity: "b.go", Author: "Alice"}, {Entity: "b.go", Author: "Bob"},
+		{Entity: "c.go", Author: "Alice"}, {Entity: "c.go", Author: "Carol"},
+		{Entity: "d.go", Author: "Alice"}, {Entity: "d.go", Author: "Dave"},
+	}
+	want := [][2]string{
+		{"Dave", "Alice"}, {"Carol", "Alice"}, {"Bob", "Alice"},
+		{"Alice", "Dave"}, {"Alice", "Carol"}, {"Alice", "Bob"},
+	}
+
+	for range 20 {
+		results := Communication(commits, model.Options{})
+		got := make([][2]string, len(results))
+		for i, r := range results {
+			got[i] = [2]string{r.Author, r.Peer}
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("expected tied pairs sorted by author then peer, both descending %v, got %v", want, got)
+		}
 	}
 }
 
