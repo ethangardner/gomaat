@@ -60,7 +60,12 @@ func Coupling(commits []model.Commit, opts model.Options) []CouplingResult {
 	}
 
 	slices.SortFunc(results, func(a, b CouplingResult) int {
-		return cmp.Or(cmp.Compare(b.Degree, a.Degree), cmp.Compare(b.AvgRevs, a.AvgRevs))
+		return cmp.Or(
+			cmp.Compare(b.Degree, a.Degree),
+			cmp.Compare(b.AvgRevs, a.AvgRevs),
+			cmp.Compare(a.Entity, b.Entity),
+			cmp.Compare(a.Coupled, b.Coupled),
+		)
 	})
 
 	return results

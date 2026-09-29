@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/hhatto/gocloc"
+
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 type fileSpec struct {
@@ -203,6 +205,25 @@ func TestClocLanguageRowsSortedByCode(t *testing.T) {
 	if dataRows[2][0] != "YAML" {
 		t.Errorf("third language: got %q, want YAML (lowest code)", dataRows[2][0])
 	}
+}
+
+func TestClocLanguageRowsTiebreakerByName(t *testing.T) {
+	// Every language ties on code, and gocloc's Languages is a map with random
+	// iteration order, so only a name tie-breaker gives stable output.
+	result := buildResult(
+		fileSpec{"a.yaml", "YAML", 10, 0, 0},
+		fileSpec{"a.go", "Go", 10, 0, 0},
+		fileSpec{"a.md", "Markdown", 10, 0, 0},
+		fileSpec{"a.json", "JSON", 10, 0, 0},
+	)
+	want := []string{"Go", "JSON", "Markdown", "YAML"}
+
+	testhelpers.AssertStableOrder(t, "by language name", want,
+		func() [][]string {
+			rows := clocLanguageRows(result)
+			return rows[1 : len(rows)-1] // drop the header and TOTAL rows
+		},
+		func(r []string) string { return r[0] })
 }
 
 func TestClocLanguageRowsSkipsEmptyLanguages(t *testing.T) {

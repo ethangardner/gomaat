@@ -19,10 +19,12 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ### Changed
 
+- `communication` breaks ties between pairs of equal strength by `author` then `peer` ascending, like every other analysis's name tie-break. Before, `author` sorted descending, so with `-r` the cutoff kept the reverse-alphabetical end of a tie.
 - `generate-log`'s rev field now uses the full commit hash (`%H`) instead of the abbreviated `%h`, so `--ignore-revs-file` can match unambiguously. `Rev` is an opaque string everywhere it's consumed, so this only changes the value in output, not its meaning. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 
 ### Fixed
 
+- `coupling`, `entity-effort`, `communication` and `cloc` list rows that tie on their sort keys in a stable order (by name) instead of a random one. Before, the same command on the same log could order tied rows differently on each run, and with `-r` return a different set of rows when ties fell at the cutoff.
 - The log parser trims stray carriage returns from the end of a commit header, so a log converted to CRLF line endings more than once no longer leaves a `\r` on the author name.
 - Errors are printed once instead of twice. Cobra already reports the error with an `Error:` prefix above the usage text, and `Execute` was printing it a second time after the usage.
 

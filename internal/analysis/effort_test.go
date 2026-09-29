@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 func TestFragmentation(t *testing.T) {
@@ -86,6 +87,22 @@ func TestEntityEffort(t *testing.T) {
 	}
 
 	assertFormattedRows(t, FormatEntityEffort(results, model.Options{}), "entity", 4)
+}
+
+func TestEntityEffortTiebreakerByAuthor(t *testing.T) {
+	// Every author ties on author-revs within foo.go, and map iteration order
+	// is random, so only an author tie-breaker gives stable output.
+	commits := []model.Commit{
+		{Rev: "r1", Author: "Dave", Entity: "foo.go"},
+		{Rev: "r2", Author: "Carol", Entity: "foo.go"},
+		{Rev: "r3", Author: "Alice", Entity: "foo.go"},
+		{Rev: "r4", Author: "Bob", Entity: "foo.go"},
+	}
+	want := []string{"Alice", "Bob", "Carol", "Dave"}
+
+	testhelpers.AssertStableOrder(t, "by author", want,
+		func() []EntityEffortResult { return EntityEffort(commits, model.Options{}) },
+		func(r EntityEffortResult) string { return r.Author })
 }
 
 func TestMainDevByRevs(t *testing.T) {

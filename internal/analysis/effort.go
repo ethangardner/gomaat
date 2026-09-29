@@ -30,7 +30,11 @@ func EntityEffort(commits []model.Commit, _ model.Options) []EntityEffortResult 
 		})
 	}
 	slices.SortFunc(results, func(a, b EntityEffortResult) int {
-		return cmp.Or(cmp.Compare(a.Entity, b.Entity), cmp.Compare(b.AuthorRevs, a.AuthorRevs))
+		return cmp.Or(
+			cmp.Compare(a.Entity, b.Entity),
+			cmp.Compare(b.AuthorRevs, a.AuthorRevs),
+			cmp.Compare(a.Author, b.Author),
+		)
 	})
 
 	return results

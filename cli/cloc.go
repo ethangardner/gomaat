@@ -178,7 +178,7 @@ func clocLanguageRows(result *gocloc.Result) [][]string {
 		}
 	}
 	slices.SortFunc(langs, func(a, b *gocloc.Language) int {
-		return cmp.Compare(b.Code, a.Code)
+		return cmp.Or(cmp.Compare(b.Code, a.Code), cmp.Compare(a.Name, b.Name))
 	})
 
 	for _, lang := range langs {

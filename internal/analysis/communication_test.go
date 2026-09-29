@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 func TestCommunication(t *testing.T) {
@@ -25,12 +26,12 @@ func TestCommunication(t *testing.T) {
 		t.Fatalf("expected 2 results, got %d", len(results))
 	}
 
-	// Both pairs should have strength=50; sorted desc by author name: Bob first
-	if results[0].Author != "Bob" || results[0].Peer != "Alice" || results[0].Shared != 1 || results[0].Average != 2 || results[0].Strength != 50 {
-		t.Errorf("result 0: got %v, want {Bob Alice 1 2 50}", results[0])
+	// Both pairs should have strength=50; sorted asc by author name: Alice first
+	if results[0].Author != "Alice" || results[0].Peer != "Bob" || results[0].Shared != 1 || results[0].Average != 2 || results[0].Strength != 50 {
+		t.Errorf("result 0: got %v, want {Alice Bob 1 2 50}", results[0])
 	}
-	if results[1].Author != "Alice" || results[1].Peer != "Bob" {
-		t.Errorf("result 1: got %v, want {Alice Bob ...}", results[1])
+	if results[1].Author != "Bob" || results[1].Peer != "Alice" {
+		t.Errorf("result 1: got %v, want {Bob Alice ...}", results[1])
 	}
 
 	assertFormattedRows(t, FormatCommunication(results, model.Options{}), "author", 3)
@@ -150,6 +151,27 @@ func TestCommunicationSortByStrength(t *testing.T) {
 	if results[len(results)-1].Strength != 33 {
 		t.Errorf("expected last result strength=33, got %d", results[len(results)-1].Strength)
 	}
+}
+
+func TestCommunicationTiebreakerByPeer(t *testing.T) {
+	// Alice shares one file with each of Bob, Carol and Dave, and each of them
+	// touches only that file, so all six directed pairs tie at strength=50
+	// (shared=1, average=ceil((3+1)/2)=2).
+	// Within a strength, rows sort by author then peer, ascending like every
+	// other name tie-break, so the output is stable.
+	commits := []model.Commit{
+		{Entity: "b.go", Author: "Alice"}, {Entity: "b.go", Author: "Bob"},
+		{Entity: "c.go", Author: "Alice"}, {Entity: "c.go", Author: "Carol"},
+		{Entity: "d.go", Author: "Alice"}, {Entity: "d.go", Author: "Dave"},
+	}
+	want := [][2]string{
+		{"Alice", "Bob"}, {"Alice", "Carol"}, {"Alice", "Dave"},
+		{"Bob", "Alice"}, {"Carol", "Alice"}, {"Dave", "Alice"},
+	}
+
+	testhelpers.AssertStableOrder(t, "by author then peer", want,
+		func() []CommunicationResult { return Communication(commits, model.Options{}) },
+		func(r CommunicationResult) [2]string { return [2]string{r.Author, r.Peer} })
 }
 
 func TestComputeResultsEdgeCases(t *testing.T) {
