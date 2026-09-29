@@ -668,7 +668,7 @@ where `shared_entities` is the count of entities both authors have touched.
 | `average`  | `ceil((total_entities_A + total_entities_B) / 2)` |
 | `strength` | Communication need as a percentage                |
 
-Sorted by `strength` descending, then `author` and `peer` descending. Each pair appears twice (once per direction).
+Sorted by `strength` descending, then `author` and `peer` ascending. Each pair appears twice (once per direction).
 
 ---
 

@@ -19,6 +19,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ### Changed
 
+- `communication` breaks ties between pairs of equal strength by `author` then `peer` ascending, like every other analysis's name tie-break. Before, `author` sorted descending, so with `-r` the cutoff kept the reverse-alphabetical end of a tie.
 - `generate-log`'s rev field now uses the full commit hash (`%H`) instead of the abbreviated `%h`, so `--ignore-revs-file` can match unambiguously. `Rev` is an opaque string everywhere it's consumed, so this only changes the value in output, not its meaning. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 
 ### Fixed

@@ -36,8 +36,8 @@ func Communication(commits []model.Commit, _ model.Options) []CommunicationResul
 	slices.SortFunc(results, func(a, b CommunicationResult) int {
 		return cmp.Or(
 			cmp.Compare(b.Strength, a.Strength),
-			cmp.Compare(b.Author, a.Author),
-			cmp.Compare(b.Peer, a.Peer),
+			cmp.Compare(a.Author, b.Author),
+			cmp.Compare(a.Peer, b.Peer),
 		)
 	})
 
