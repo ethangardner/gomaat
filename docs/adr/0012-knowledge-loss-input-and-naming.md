@@ -1,6 +1,6 @@
 # 12. `knowledge-loss` takes a `--former-authors` list; team maps stay strict
 
-- **Status:** Accepted
+- **Status:** Accepted. The `--use-mailmap` advice below is out of date: the flag was removed, and `.mailmap` is always applied ([0017](0017-mailmap-always-applied.md))
 - **Date:** 2026-09-25
 
 ## Context
