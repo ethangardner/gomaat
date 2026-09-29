@@ -62,19 +62,20 @@ jobs:
       - name: Diff outputs
         id: diff
         run: |
-          # Row order within each analysis isn't guaranteed to be stable across
-          # processes (map iteration order), so sort before comparing. No -r
-          # limit is used so the compared sets are complete and deterministic.
-          # JSON is pretty-printed (multi-line per record), so it's flattened
-          # to one compact object per line with jq first; anything jq can't
-          # parse (e.g. an error from a command one build lacks) sorts as text.
+          # Outputs are compared in the order they're printed, not sorted:
+          # every command's row order is deterministic, and order is
+          # user-visible (it decides which rows -r keeps), so a sort change
+          # should show up here. JSON is pretty-printed (multi-line per
+          # record), so it's flattened to one compact object per line with jq
+          # first; anything jq can't parse (e.g. an error from a command one
+          # build lacks) is compared as text.
           normalize() {
             if [ ! -e "$1" ]; then
               return
             elif [[ "$1" == *.json ]] && jq -e . "$1" > /dev/null 2>&1; then
-              jq -c '.[]' "$1" | sort
+              jq -c '.[]' "$1"
             else
-              sort "$1"
+              cat "$1"
             fi
           }
           changed=false
