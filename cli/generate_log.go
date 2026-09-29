@@ -21,7 +21,6 @@ func newGenerateLogCmd() *cobra.Command {
 	var excludes []string
 	var excludeAuthors []string
 	var ignoreRevsFile string
-	var useMailmap bool
 
 	cmd := &cobra.Command{
 		Use:   "generate-log",
@@ -34,7 +33,6 @@ Examples:
   gomaat generate-log --after 2023-01-01 --before 2023-12-31 -o logfile.log
   gomaat generate-log --path /path/to/repo --after 2022-06-01 -o logfile.log
   gomaat generate-log --exclude vendor/ --exclude '*.pb.go' -o logfile.log
-  gomaat generate-log --use-mailmap -o logfile.log
   gomaat generate-log --exclude-author "dependabot[bot]" --exclude-author "renovate*" -o logfile.log
   gomaat generate-log --ignore-revs-file .git-blame-ignore-revs -o logfile.log`,
 		RunE: func(cmd *cobra.Command, args []string) (err error) {
@@ -72,7 +70,6 @@ Examples:
 				Excludes:       excludes,
 				ExcludeAuthors: excludeAuthors,
 				IgnoreRevs:     ignoreRevs,
-				UseMailmap:     useMailmap,
 			}
 			if err := runGitLog(path, after, before, filters, dst); err != nil {
 				return err
@@ -91,7 +88,6 @@ Examples:
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 	cmd.Flags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, supports globs, case-sensitive)")
 	cmd.Flags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one SHA per line, '#' comments; same format as git blame --ignore-revs-file)")
-	cmd.Flags().BoolVar(&useMailmap, "use-mailmap", false, "resolve author identities via .mailmap (requires a mailmap file at the repo root; no-op otherwise)")
 
 	return cmd
 }
@@ -102,7 +98,6 @@ type logFilters struct {
 	Excludes       []string
 	ExcludeAuthors []string
 	IgnoreRevs     map[string]struct{}
-	UseMailmap     bool
 }
 
 // runGitLog runs git log against path and streams output to dst.
@@ -110,12 +105,11 @@ func runGitLog(path, after, before string, filters logFilters, dst io.Writer) er
 	gitArgs := []string{
 		"log", "--all", "--numstat",
 		"--date=short",
+		// %aN (not %an) resolves the repo's .mailmap, so identities are
+		// always collapsed when one exists; --use-mailmap would be a no-op.
 		"--pretty=format:--%H--%ad--%aN",
 		"--no-renames",
 		"--no-merges",
-	}
-	if filters.UseMailmap {
-		gitArgs = append(gitArgs, "--use-mailmap")
 	}
 	gitArgs = append(gitArgs, dateRangeArgs(after, before)...)
 	gitArgs = append(gitArgs, buildPathspecArgs(nil, filters.Excludes)...)

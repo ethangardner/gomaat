@@ -1,6 +1,6 @@
 # 9. Author identity and noise filtering happen at log generation, keyed by full hash
 
-- **Status:** Accepted
+- **Status:** Accepted; the `--use-mailmap` flag is superseded by [0017](0017-mailmap-always-applied.md)
 - **Date:** 2026-09-10
 
 ## Context
