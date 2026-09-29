@@ -58,33 +58,33 @@ Prebuilt binaries for Linux, macOS, and Windows are published on the [Releases p
 **Linux (amd64):**
 
 ```bash
-curl -LO https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.0.0_linux_amd64.tar.gz
-tar -xzf gomaat_1.0.0_linux_amd64.tar.gz
+curl -LO https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.1.0_linux_amd64.tar.gz
+tar -xzf gomaat_1.1.0_linux_amd64.tar.gz
 sudo mv gomaat /usr/local/bin/
 ```
 
-Use `gomaat_1.0.0_linux_arm64.tar.gz` on arm64 hosts. Replace `1.0.0` with the [latest version number](https://github.com/ethangardner/gomaat/releases/latest).
+Use `gomaat_1.1.0_linux_arm64.tar.gz` on arm64 hosts. Replace `1.1.0` with the [latest version number](https://github.com/ethangardner/gomaat/releases/latest).
 
 **macOS (Apple Silicon / Intel):**
 
 ```bash
-curl -LO https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.0.0_darwin_arm64.tar.gz
-tar -xzf gomaat_1.0.0_darwin_arm64.tar.gz
+curl -LO https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.1.0_darwin_arm64.tar.gz
+tar -xzf gomaat_1.1.0_darwin_arm64.tar.gz
 sudo mv gomaat /usr/local/bin/
 ```
 
-Use `gomaat_1.0.0_darwin_amd64.tar.gz` on Intel Macs. Replace `1.0.0` with the [latest version number](https://github.com/ethangardner/gomaat/releases/latest). The binary is unsigned, so the first run may require approving it via **System Settings → Privacy & Security** (or run `xattr -d com.apple.quarantine /usr/local/bin/gomaat`).
+Use `gomaat_1.1.0_darwin_amd64.tar.gz` on Intel Macs. Replace `1.1.0` with the [latest version number](https://github.com/ethangardner/gomaat/releases/latest). The binary is unsigned, so the first run may require approving it via **System Settings → Privacy & Security** (or run `xattr -d com.apple.quarantine /usr/local/bin/gomaat`).
 
 **Windows (amd64):**
 
-1. Download `gomaat_1.0.0_windows_amd64.zip` from the [latest release](https://github.com/ethangardner/gomaat/releases/latest) (replace `1.0.0` with the current version).
+1. Download `gomaat_1.1.0_windows_amd64.zip` from the [latest release](https://github.com/ethangardner/gomaat/releases/latest) (replace `1.1.0` with the current version).
 2. Extract the archive and move `gomaat.exe` into a folder on your `PATH` (e.g. `C:\Program Files\gomaat\`).
 3. Add that folder to `PATH` if it isn't already: **System Properties → Environment Variables → Path → New**.
 
 Or via PowerShell:
 
 ```powershell
-Invoke-WebRequest -Uri https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.0.0_windows_amd64.zip -OutFile gomaat.zip
+Invoke-WebRequest -Uri https://github.com/ethangardner/gomaat/releases/latest/download/gomaat_1.1.0_windows_amd64.zip -OutFile gomaat.zip
 Expand-Archive gomaat.zip -DestinationPath .
 Move-Item gomaat.exe "C:\Program Files\gomaat\gomaat.exe"
 ```
@@ -93,7 +93,7 @@ Verify any download against `checksums.txt` from the same release.
 
 ### From Source
 
-**Requirements:** Go 1.21 or later, `git` on your `PATH`.
+**Requirements:** Go 1.27.1 or later, `git` on your `PATH`.
 
 ```bash
 git clone <repo-url>
@@ -145,7 +145,6 @@ gomaat generate-log [flags]
 | `--exclude`          | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs)                                    |
 | `--exclude-author`   | _(none)_        | Exclude commits by this author name (repeatable, supports `*` globs, case-sensitive, matches `%aN`) |
 | `--ignore-revs-file` | _(none)_        | Drop commits listed in this file (one SHA per line, same format as `git blame --ignore-revs-file`)  |
-| `--use-mailmap`      | `false`         | Resolve author identities via a `.mailmap` file at the repo root (native `git log --use-mailmap`)   |
 
 **Examples:**
 
@@ -165,10 +164,6 @@ gomaat generate-log --path /path/to/project --after 2022-06-01 --outfile logfile
 # Exclude generated files and vendored dependencies
 gomaat generate-log --exclude vendor/ --exclude '*.pb.go' --outfile logfile.log
 
-# Collapse the same human's commits from different machines/emails into one
-# canonical author (requires a .mailmap file at the repo root)
-gomaat generate-log --use-mailmap --outfile logfile.log
-
 # Drop bot accounts so they don't skew churn/coupling/ownership metrics
 gomaat generate-log --exclude-author "dependabot[bot]" --exclude-author "renovate*" --outfile logfile.log
 
@@ -178,12 +173,14 @@ gomaat generate-log --ignore-revs-file .git-blame-ignore-revs --outfile logfile.
 
 The log is generated using:
 ```
-git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renames --no-merges [--use-mailmap] [--after=DATE] [--before=DATE] [-- . :(exclude)PATTERN ...]
+git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renames --no-merges [--after=DATE] [--before=DATE] [-- . :(exclude)PATTERN ...]
 ```
 
 > **Note:** `--no-renames` means renamed files are tracked as a delete + add rather than a rename. This avoids inflated coupling between old and new paths.
 
 > **Note:** `--no-merges` excludes merge commits, so a combined merge diff never gets double-counted against the commits it merges.
+
+> **Note:** author names come from `%aN`, which applies the repository's [`.mailmap`](https://git-scm.com/docs/gitmailmap) automatically. To collapse one person committing under several names or emails into one canonical author, add a `.mailmap` at the repo root; no flag is needed.
 
 > **Note:** the log's rev field is the full commit hash (`%H`), not the abbreviated `%h` used in earlier versions, so it can be matched unambiguously against a `.git-blame-ignore-revs`-style file. `Rev` is treated as an opaque string everywhere it's consumed, so this only changes the value shown in output, not its meaning.
 
@@ -643,7 +640,7 @@ src/api.go,0,35,0.00
 
 Sorted by `knowledge-loss` descending, then `entity`. Entities with no former-author contributions are still listed at `0.00`; entities with no added lines are omitted. Names in the former-authors file that never appear in the log are ignored.
 
-Results are only as accurate as author identity resolution: names are matched exactly, so someone who committed as both `Alice Smith` and `alice` needs both names listed — or generate the log with [`--use-mailmap`](#generating-a-git-log) so they collapse to one canonical name first. With `-p`, matching happens *after* team mapping, so the former-authors file must list team names.
+Results are only as accurate as author identity resolution: names are matched exactly, so someone who committed as both `Alice Smith` and `alice` needs both names listed — or add a `.mailmap` to the repository so [`generate-log`](#generating-a-git-log) collapses them to one canonical name first. With `-p`, matching happens *after* team mapping, so the former-authors file must list team names.
 
 ---
 

@@ -12,7 +12,7 @@ Significant decisions about gomaat's design, scope, and process, including ideas
 | [0006](0006-structured-data-only-no-visualization.md) | Output structured data only; visualization and integrations live downstream | Accepted |
 | [0007](0007-json-output-shape.md) | JSON is an array of objects keyed by the header; ragged rows are an error | Accepted |
 | [0008](0008-no-time-decay-weighting.md) | No time-decay (`--half-life`) weighting | Accepted |
-| [0009](0009-identity-hygiene-at-log-generation.md) | Author identity and noise filtering happen at log generation, keyed by full hash | Accepted |
+| [0009](0009-identity-hygiene-at-log-generation.md) | Author identity and noise filtering happen at log generation, keyed by full hash | Accepted, partly superseded by [0017](0017-mailmap-always-applied.md) |
 | [0010](0010-rework-reads-repository-directly.md) | `rework` streams the repository's patch history instead of reading a log file | Accepted |
 | [0011](0011-rework-edit-similarity-heuristic.md) | Rework's edit-vs-rewrite test: token Dice at 0.6 with a punctuation fallback | Accepted |
 | [0012](0012-knowledge-loss-input-and-naming.md) | `knowledge-loss` takes a `--former-authors` list; team maps stay strict | Accepted |
@@ -20,3 +20,4 @@ Significant decisions about gomaat's design, scope, and process, including ideas
 | [0014](0014-small-stacked-prs.md) | Keep PRs under about 400 lines of runtime code, splitting with `gh stack` | Accepted |
 | [0015](0015-ci-signals-inform-rather-than-gate.md) | Noisy CI signals inform rather than gate | Accepted |
 | [0016](0016-ci-supply-chain-hardening.md) | Pin, delay, and least-privilege the CI supply chain | Accepted |
+| [0017](0017-mailmap-always-applied.md) | `.mailmap` is always applied; no `--use-mailmap` flag | Accepted |

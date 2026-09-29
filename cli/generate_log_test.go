@@ -419,7 +419,8 @@ func TestLoadIgnoreRevsMissingFile(t *testing.T) {
 	}
 }
 
-func TestRunGitLogUseMailmap(t *testing.T) {
+// %aN resolves .mailmap on its own, so no flag is needed to collapse identities.
+func TestRunGitLogAppliesMailmap(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
@@ -428,7 +429,7 @@ func TestRunGitLogUseMailmap(t *testing.T) {
 	commitFiles(t, dir, "main.go")
 
 	var out bytes.Buffer
-	if err := runGitLog(dir, "", "", logFilters{UseMailmap: true}, &out); err != nil {
+	if err := runGitLog(dir, "", "", logFilters{}, &out); err != nil {
 		t.Fatalf("runGitLog: %v", err)
 	}
 
@@ -437,6 +438,12 @@ func TestRunGitLogUseMailmap(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "--Test\n") {
 		t.Errorf("expected raw author 'Test' to be resolved away, got:\n%s", out.String())
+	}
+}
+
+func TestGenerateLogHasNoUseMailmapFlag(t *testing.T) {
+	if f := newGenerateLogCmd().Flags().Lookup("use-mailmap"); f != nil {
+		t.Errorf("--use-mailmap should not exist: .mailmap is always applied via %%aN")
 	}
 }
 
@@ -451,9 +458,6 @@ func TestGenerateLogRunEWithNewFilters(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := cmd.Flags().Set("exclude-author", "nobody-matches-this"); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("use-mailmap", "true"); err != nil {
 		t.Fatal(err)
 	}
 
