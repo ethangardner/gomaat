@@ -1,10 +1,10 @@
 package analysis
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 // looseOpts disables all thresholds so every pair is included.
@@ -124,8 +124,7 @@ func TestCouplingTiebreakerByAvgRevs(t *testing.T) {
 
 func TestCouplingTiebreakerByNames(t *testing.T) {
 	// Every pair ties on degree (100) and avgRevs (2), and map iteration order
-	// is random, so only a name tie-breaker gives stable output. Repeat so an
-	// unstable sort can't pass by luck.
+	// is random, so only a name tie-breaker gives stable output.
 	commits := []model.Commit{
 		{Rev: "r1", Entity: "c.go"}, {Rev: "r1", Entity: "a.go"}, {Rev: "r1", Entity: "b.go"},
 		{Rev: "r2", Entity: "b.go"}, {Rev: "r2", Entity: "c.go"}, {Rev: "r2", Entity: "a.go"},
@@ -134,16 +133,9 @@ func TestCouplingTiebreakerByNames(t *testing.T) {
 	}
 	want := [][2]string{{"a.go", "b.go"}, {"a.go", "c.go"}, {"b.go", "c.go"}, {"d.go", "e.go"}}
 
-	for range 20 {
-		results := Coupling(commits, looseOpts)
-		got := make([][2]string, len(results))
-		for i, r := range results {
-			got[i] = [2]string{r.Entity, r.Coupled}
-		}
-		if !slices.Equal(got, want) {
-			t.Fatalf("expected tied pairs sorted by entity then coupled %v, got %v", want, got)
-		}
-	}
+	testhelpers.AssertStableOrder(t, "by entity then coupled", want,
+		func() []CouplingResult { return Coupling(commits, looseOpts) },
+		func(r CouplingResult) [2]string { return [2]string{r.Entity, r.Coupled} })
 }
 
 func TestSumOfCouplingTiebreaker(t *testing.T) {

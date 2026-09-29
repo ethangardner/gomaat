@@ -1,10 +1,10 @@
 package analysis
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 func TestFragmentation(t *testing.T) {
@@ -91,8 +91,7 @@ func TestEntityEffort(t *testing.T) {
 
 func TestEntityEffortTiebreakerByAuthor(t *testing.T) {
 	// Every author ties on author-revs within foo.go, and map iteration order
-	// is random, so only an author tie-breaker gives stable output. Repeat so
-	// an unstable sort can't pass by luck.
+	// is random, so only an author tie-breaker gives stable output.
 	commits := []model.Commit{
 		{Rev: "r1", Author: "Dave", Entity: "foo.go"},
 		{Rev: "r2", Author: "Carol", Entity: "foo.go"},
@@ -101,16 +100,9 @@ func TestEntityEffortTiebreakerByAuthor(t *testing.T) {
 	}
 	want := []string{"Alice", "Bob", "Carol", "Dave"}
 
-	for range 20 {
-		results := EntityEffort(commits, model.Options{})
-		got := make([]string, len(results))
-		for i, r := range results {
-			got[i] = r.Author
-		}
-		if !slices.Equal(got, want) {
-			t.Fatalf("expected tied authors sorted alphabetically %v, got %v", want, got)
-		}
-	}
+	testhelpers.AssertStableOrder(t, "by author", want,
+		func() []EntityEffortResult { return EntityEffort(commits, model.Options{}) },
+		func(r EntityEffortResult) string { return r.Author })
 }
 
 func TestMainDevByRevs(t *testing.T) {

@@ -1,10 +1,10 @@
 package analysis
 
 import (
-	"slices"
 	"testing"
 
 	"github.com/ethangardner/gomaat/internal/model"
+	"github.com/ethangardner/gomaat/internal/testhelpers"
 )
 
 func TestCommunication(t *testing.T) {
@@ -158,7 +158,7 @@ func TestCommunicationTiebreakerByPeer(t *testing.T) {
 	// touches only that file, so all six directed pairs tie at strength=50
 	// (shared=1, average=ceil((3+1)/2)=2).
 	// Author sorts descending, and within an author, peer must too so the
-	// output is stable. Repeat so an unstable sort can't pass by luck.
+	// output is stable.
 	commits := []model.Commit{
 		{Entity: "b.go", Author: "Alice"}, {Entity: "b.go", Author: "Bob"},
 		{Entity: "c.go", Author: "Alice"}, {Entity: "c.go", Author: "Carol"},
@@ -169,16 +169,9 @@ func TestCommunicationTiebreakerByPeer(t *testing.T) {
 		{"Alice", "Dave"}, {"Alice", "Carol"}, {"Alice", "Bob"},
 	}
 
-	for range 20 {
-		results := Communication(commits, model.Options{})
-		got := make([][2]string, len(results))
-		for i, r := range results {
-			got[i] = [2]string{r.Author, r.Peer}
-		}
-		if !slices.Equal(got, want) {
-			t.Fatalf("expected tied pairs sorted by author then peer, both descending %v, got %v", want, got)
-		}
-	}
+	testhelpers.AssertStableOrder(t, "by author then peer, both descending", want,
+		func() []CommunicationResult { return Communication(commits, model.Options{}) },
+		func(r CommunicationResult) [2]string { return [2]string{r.Author, r.Peer} })
 }
 
 func TestComputeResultsEdgeCases(t *testing.T) {
