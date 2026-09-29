@@ -858,7 +858,7 @@ gomaat cloc [flags]
 | `Comment`  | Comment lines        |
 | `Code`     | Lines of code        |
 
-Sorted by `Code` descending. A `TOTAL` row is always appended.
+Sorted by `Code` descending, then `Language` ascending. A `TOTAL` row is always appended.
 
 ```
 Language,Files,Blank,Comment,Code

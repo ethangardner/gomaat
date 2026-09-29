@@ -23,7 +23,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ### Fixed
 
-- `coupling`, `entity-effort` and `communication` list rows that tie on their sort keys in a stable order (by name) instead of a random one. Before, the same command on the same log could order tied rows differently on each run, and with `-r` return a different set of rows when ties fell at the cutoff.
+- `coupling`, `entity-effort`, `communication` and `cloc` list rows that tie on their sort keys in a stable order (by name) instead of a random one. Before, the same command on the same log could order tied rows differently on each run, and with `-r` return a different set of rows when ties fell at the cutoff.
 - The log parser trims stray carriage returns from the end of a commit header, so a log converted to CRLF line endings more than once no longer leaves a `\r` on the author name.
 - Errors are printed once instead of twice. Cobra already reports the error with an `Error:` prefix above the usage text, and `Execute` was printing it a second time after the usage.
 

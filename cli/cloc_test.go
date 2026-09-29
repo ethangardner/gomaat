@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -202,6 +203,30 @@ func TestClocLanguageRowsSortedByCode(t *testing.T) {
 	}
 	if dataRows[2][0] != "YAML" {
 		t.Errorf("third language: got %q, want YAML (lowest code)", dataRows[2][0])
+	}
+}
+
+func TestClocLanguageRowsTiebreakerByName(t *testing.T) {
+	// Every language ties on code, and gocloc's Languages is a map with random
+	// iteration order, so only a name tie-breaker gives stable output. Repeat
+	// so an unstable sort can't pass by luck.
+	result := buildResult(
+		fileSpec{"a.yaml", "YAML", 10, 0, 0},
+		fileSpec{"a.go", "Go", 10, 0, 0},
+		fileSpec{"a.md", "Markdown", 10, 0, 0},
+		fileSpec{"a.json", "JSON", 10, 0, 0},
+	)
+	want := []string{"Go", "JSON", "Markdown", "YAML"}
+
+	for range 20 {
+		rows := clocLanguageRows(result)
+		var got []string
+		for _, r := range rows[1 : len(rows)-1] {
+			got = append(got, r[0])
+		}
+		if !slices.Equal(got, want) {
+			t.Fatalf("expected tied languages sorted by name %v, got %v", want, got)
+		}
 	}
 }
 
