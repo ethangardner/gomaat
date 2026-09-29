@@ -1,6 +1,6 @@
 # 15. Noisy CI signals inform rather than gate
 
-- **Status:** Accepted
+- **Status:** Accepted. Since #116 the smoke test compares outputs in printed order, not sorted, because every command's row order is now deterministic (#115). The decision below is unchanged.
 - **Date:** 2026-08-25 (coverage); 2026-08-30 (smoke-test trend declined); 2026-09-26 (benchmarks, fuzzing)
 
 ## Context
