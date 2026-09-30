@@ -8,6 +8,16 @@ import (
 	"testing"
 )
 
+// decodeRecords decodes WriteJSON output into one map per data row.
+func decodeRecords(t *testing.T, data []byte) []map[string]string {
+	t.Helper()
+	var records []map[string]string
+	if err := json.Unmarshal(data, &records); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+	return records
+}
+
 func TestWriteJSON(t *testing.T) {
 	rows := [][]string{
 		{"entity", "n-revs"},
@@ -19,10 +29,7 @@ func TestWriteJSON(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var got []map[string]string
-	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
-	}
+	got := decodeRecords(t, buf.Bytes())
 
 	want := []map[string]string{
 		{"entity": "foo.go", "n-revs": "10"},
@@ -52,10 +59,7 @@ func TestWriteJSONRowLimit(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	var got []map[string]string
-	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
-	}
+	got := decodeRecords(t, buf.Bytes())
 	if len(got) != 2 {
 		t.Errorf("expected 2 records after limit, got %d: %v", len(got), got)
 	}
@@ -73,10 +77,7 @@ func TestWriteJSONFile(t *testing.T) {
 		t.Fatalf("reading output file: %v", err)
 	}
 
-	var got []map[string]string
-	if err := json.Unmarshal(data, &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
-	}
+	got := decodeRecords(t, data)
 	if len(got) != 1 || got[0]["entity"] != "foo.go" {
 		t.Errorf("expected [{entity: foo.go}], got %v", got)
 	}

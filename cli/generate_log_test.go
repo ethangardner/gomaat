@@ -428,9 +428,7 @@ func TestReadIgnoreRevs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := readIgnoreRevs(strings.NewReader(tt.input))
 			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
-				}
+				assertErrContains(t, err, tt.wantErr)
 				return
 			}
 			if err != nil {
@@ -445,9 +443,7 @@ func TestReadIgnoreRevs(t *testing.T) {
 
 func TestReadIgnoreRevsReadError(t *testing.T) {
 	_, err := readIgnoreRevs(iotest.ErrReader(errors.New("boom")))
-	if err == nil || !strings.Contains(err.Error(), "reading ignore-revs file") {
-		t.Fatalf("expected reading ignore-revs file error, got %v", err)
-	}
+	assertErrContains(t, err, "reading ignore-revs file")
 }
 
 func TestLoadIgnoreRevsMissingFile(t *testing.T) {
@@ -579,12 +575,7 @@ func TestGenerateLogRunEIgnoreRevsFileError(t *testing.T) {
 
 	flags := map[string]string{"path": dir, "ignore-revs-file": filepath.Join(dir, "does-not-exist")}
 	err := runCmd(t, newGenerateLogCmd(), flags)
-	if err == nil {
-		t.Fatal("expected error for missing ignore-revs file, got nil")
-	}
-	if !strings.Contains(err.Error(), "ignore-revs file") {
-		t.Errorf("expected error to mention ignore-revs file, got: %v", err)
-	}
+	assertErrContains(t, err, "ignore-revs file")
 }
 
 func TestGenerateLogRejectsNonCSVFormat(t *testing.T) {
@@ -594,12 +585,7 @@ func TestGenerateLogRejectsNonCSVFormat(t *testing.T) {
 
 		cmd := newGenerateLogCmd()
 		err := cmd.RunE(cmd, nil)
-		if err == nil {
-			t.Fatalf("expected error for --format %s, got nil", format)
-		}
-		if !strings.Contains(err.Error(), "--format") {
-			t.Errorf("expected error to mention --format, got: %v", err)
-		}
+		assertErrContains(t, err, "--format")
 	}
 }
 
@@ -628,12 +614,7 @@ func TestGenerateLogRunEPropagatesRunGitLogError(t *testing.T) {
 	dir := t.TempDir() // not a git repo
 
 	err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir})
-	if err == nil {
-		t.Fatal("expected error for non-repo path, got nil")
-	}
-	if !strings.Contains(err.Error(), "git log failed") {
-		t.Errorf("expected 'git log failed' error, got: %v", err)
-	}
+	assertErrContains(t, err, "git log failed")
 }
 
 func TestRunGitLogAfterFiltersCommits(t *testing.T) {
@@ -663,12 +644,7 @@ func TestRunGitLogStartFailsWithoutGitBinary(t *testing.T) {
 	t.Setenv("PATH", "")
 
 	err := runGitLog(".", "", "", logFilters{}, io.Discard)
-	if err == nil {
-		t.Fatal("expected error when git binary is not on PATH, got nil")
-	}
-	if !strings.Contains(err.Error(), "starting git log") {
-		t.Errorf("expected 'starting git log' error, got: %v", err)
-	}
+	assertErrContains(t, err, "starting git log")
 }
 
 func TestRunGitLogWriteError(t *testing.T) {
@@ -676,12 +652,7 @@ func TestRunGitLogWriteError(t *testing.T) {
 	initGenLogRepo(t, dir)
 
 	err := runGitLog(dir, "", "", logFilters{}, errWriter{})
-	if err == nil {
-		t.Fatal("expected error from destination write failure, got nil")
-	}
-	if !strings.Contains(err.Error(), "processing git log output") {
-		t.Errorf("expected 'processing git log output' error, got: %v", err)
-	}
+	assertErrContains(t, err, "processing git log output")
 }
 
 func TestGenerateLogRunEBadOutputPath(t *testing.T) {
@@ -691,10 +662,5 @@ func TestGenerateLogRunEBadOutputPath(t *testing.T) {
 	outFile = filepath.Join(t.TempDir(), "does-not-exist", "out.log")
 
 	err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir})
-	if err == nil {
-		t.Fatal("expected error for unwritable output path, got nil")
-	}
-	if !strings.Contains(err.Error(), "creating output file") {
-		t.Errorf("expected 'creating output file' error, got: %v", err)
-	}
+	assertErrContains(t, err, "creating output file")
 }

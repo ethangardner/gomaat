@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -413,12 +412,7 @@ func TestGitTrackedFilesFromSubdirectoryUsesRepoRoot(t *testing.T) {
 func TestGitTrackedFilesErrorsOnNonRepo(t *testing.T) {
 	dir := t.TempDir()
 	_, _, err := gitTrackedFiles(dir, nil)
-	if err == nil {
-		t.Fatal("expected error for non-git directory, got nil")
-	}
-	if !strings.Contains(err.Error(), "git rev-parse --show-toplevel failed") {
-		t.Errorf("expected rev-parse context in error, got: %v", err)
-	}
+	assertErrContains(t, err, "git rev-parse --show-toplevel failed")
 }
 
 func TestClocIntegration(t *testing.T) {
@@ -503,15 +497,7 @@ func TestClocJSONFormat(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	data, err := os.ReadFile(outFile)
-	if err != nil {
-		t.Fatalf("reading output file: %v", err)
-	}
-	var got []map[string]string
-	if err := json.Unmarshal(data, &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
-	}
-	if len(got) == 0 {
+	if len(readJSONRecords(t, outFile)) == 0 {
 		t.Error("expected at least one JSON record, got none")
 	}
 }
@@ -522,12 +508,7 @@ func TestClocRunENoTrackedFiles(t *testing.T) {
 	initGitRepo(t, dir)
 
 	err := runCmd(t, newClocCmd(), map[string]string{"path": dir})
-	if err == nil {
-		t.Fatal("expected error for repo with no tracked files, got nil")
-	}
-	if !strings.Contains(err.Error(), "no git-tracked files found") {
-		t.Errorf("expected 'no git-tracked files found' error, got: %v", err)
-	}
+	assertErrContains(t, err, "no git-tracked files found")
 }
 
 func TestClocRunEByFile(t *testing.T) {
@@ -565,12 +546,7 @@ func TestClocRunENonRepo(t *testing.T) {
 	dir := t.TempDir()
 
 	err := runCmd(t, newClocCmd(), map[string]string{"path": dir})
-	if err == nil {
-		t.Fatal("expected error for non-repo path, got nil")
-	}
-	if !strings.Contains(err.Error(), "git rev-parse --show-toplevel failed") {
-		t.Errorf("expected rev-parse context in error, got: %v", err)
-	}
+	assertErrContains(t, err, "git rev-parse --show-toplevel failed")
 }
 
 func TestRelativizeResultFallsBackOnRelError(t *testing.T) {
@@ -598,9 +574,5 @@ func TestClocBadFormat(t *testing.T) {
 	outputFormat = "yaml"
 
 	cmd := newClocCmd()
-	if err := cmd.RunE(cmd, nil); err == nil {
-		t.Fatal("expected error for invalid --format, got nil")
-	} else if !strings.Contains(err.Error(), "--format") {
-		t.Errorf("expected error to mention --format, got: %v", err)
-	}
+	assertErrContains(t, cmd.RunE(cmd, nil), "--format")
 }

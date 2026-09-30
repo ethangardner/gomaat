@@ -57,17 +57,32 @@ func runCmd(t *testing.T, cmd *cobra.Command, flags map[string]string, args ...s
 	return cmd.RunE(cmd, args)
 }
 
+// assertErrContains fails t unless err is non-nil and its message contains
+// want.
+func assertErrContains(t *testing.T, err error, want string) {
+	t.Helper()
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected error containing %q, got %v", want, err)
+	}
+}
+
+// readJSONRecords decodes the JSON output file at path into one map per data
+// row, keyed by the header row's column names.
+func readJSONRecords(t *testing.T, path string) []map[string]string {
+	t.Helper()
+	var records []map[string]string
+	if err := json.Unmarshal([]byte(readOutputFile(t, path)), &records); err != nil {
+		t.Fatalf("output is not valid JSON: %v", err)
+	}
+	return records
+}
+
 func TestRunAnalysisMissingLogFlag(t *testing.T) {
 	resetFlags(t)
 	logFile = ""
 
 	err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{})
-	if err == nil {
-		t.Fatal("expected error for missing --log, got nil")
-	}
-	if !strings.Contains(err.Error(), "--log") {
-		t.Errorf("expected error to mention --log, got: %v", err)
-	}
+	assertErrContains(t, err, "--log")
 }
 
 func TestRunAnalysisLogFileNotFound(t *testing.T) {
@@ -108,12 +123,7 @@ func TestRunAnalysisBadFormat(t *testing.T) {
 	outputFormat = "yaml"
 
 	err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{})
-	if err == nil {
-		t.Fatal("expected error for invalid --format, got nil")
-	}
-	if !strings.Contains(err.Error(), "--format") {
-		t.Errorf("expected error to mention --format, got: %v", err)
-	}
+	assertErrContains(t, err, "--format")
 }
 
 func TestRunAnalysisJSONFormat(t *testing.T) {
@@ -125,16 +135,7 @@ func TestRunAnalysisJSONFormat(t *testing.T) {
 	if err := runAnalysis(analysis.Authors, analysis.FormatAuthors, model.Options{}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	data, err := os.ReadFile(outFile)
-	if err != nil {
-		t.Fatalf("reading output file: %v", err)
-	}
-	var got []map[string]string
-	if err := json.Unmarshal(data, &got); err != nil {
-		t.Fatalf("output is not valid JSON: %v", err)
-	}
-	if len(got) == 0 {
+	if len(readJSONRecords(t, outFile)) == 0 {
 		t.Error("expected at least one JSON record, got none")
 	}
 }
@@ -329,12 +330,7 @@ func TestAgeBadTimeNow(t *testing.T) {
 	})
 
 	err = ageCmd.RunE(ageCmd, nil)
-	if err == nil {
-		t.Fatal("expected error for malformed --age-time-now, got nil")
-	}
-	if !strings.Contains(err.Error(), "--age-time-now") {
-		t.Errorf("expected error to mention --age-time-now, got: %v", err)
-	}
+	assertErrContains(t, err, "--age-time-now")
 }
 
 func TestParseDateFlag(t *testing.T) {
@@ -353,9 +349,7 @@ func TestParseDateFlag(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := parseDateFlag("--some-date", tt.value, fallback)
 			if tt.wantErr {
-				if err == nil || !strings.Contains(err.Error(), `--some-date: expected YYYY-MM-DD, got "06/01/2024"`) {
-					t.Fatalf("got err %v, want --some-date format error", err)
-				}
+				assertErrContains(t, err, `--some-date: expected YYYY-MM-DD, got "06/01/2024"`)
 				return
 			}
 			if err != nil {
@@ -423,9 +417,7 @@ func TestKnowledgeLossCmdRunE(t *testing.T) {
 
 			err = cmd.RunE(cmd, nil)
 			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
-				}
+				assertErrContains(t, err, tt.wantErr)
 				return
 			}
 			if err != nil {
