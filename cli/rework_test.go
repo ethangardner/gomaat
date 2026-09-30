@@ -301,6 +301,25 @@ func TestReworkCmdIgnoresUserDiffRelativeConfig(t *testing.T) {
 	}
 }
 
+// Git reads pathspecs relative to -C <--path>, but --path names the whole
+// repository and --exclude patterns match paths from its root.
+func TestReworkCmdExcludeFromSubdirectoryPath(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	writeRepoFile(t, dir, "top.go", "t1\n")
+	writeRepoFile(t, dir, filepath.Join("sub", "a.go"), "a1\n")
+	writeRepoFile(t, dir, filepath.Join("vendor", "v.go"), "v1\n")
+	commitAll(t, dir, "add", "2024-01-01T00:00:00Z")
+
+	got, err := runReworkCmd(t, filepath.Join(dir, "sub"), map[string]string{"exclude": "vendor/"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := "entity,added-lines,reworked-lines,rework-ratio\nsub/a.go,1,0,0.00\ntop.go,1,0,0.00\n"; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestReworkCmdJSON(t *testing.T) {
 	dir := reworkFixtureRepo(t)
 	resetFlags(t)

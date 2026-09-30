@@ -47,26 +47,26 @@ func TestBuildPathspecArgs(t *testing.T) {
 		{"nil excludes", nil, nil, nil},
 		{"empty excludes", nil, []string{}, nil},
 		{"only glob patterns", nil, []string{"*.pb.go"}, nil},
-		{"single dir pattern", nil, []string{"vendor/"}, []string{"--", ".", ":(exclude,literal)vendor/"}},
+		{"single dir pattern", nil, []string{"vendor/"}, []string{"--", ":(top)", ":(top,exclude,literal)vendor/"}},
 		{
 			"multiple dir patterns",
 			nil,
 			[]string{"vendor/", "data/"},
-			[]string{"--", ".", ":(exclude,literal)vendor/", ":(exclude,literal)data/"},
+			[]string{"--", ":(top)", ":(top,exclude,literal)vendor/", ":(top,exclude,literal)data/"},
 		},
 		{
 			"mixed dir and glob patterns",
 			nil,
 			[]string{"vendor/", "*.pb.go"},
-			[]string{"--", ".", ":(exclude,literal)vendor/"},
+			[]string{"--", ":(top)", ":(top,exclude,literal)vendor/"},
 		},
 		{"includes only", []string{"src/a.go"}, nil, []string{"--", "src/a.go"}},
 		{"includes with only glob excludes", []string{"src/"}, []string{"*.pb.go"}, []string{"--", "src/"}},
 		{
-			"includes replace the default . when excluding",
+			"includes replace the default :(top) when excluding",
 			[]string{"src/", "cmd/"},
 			[]string{"src/gen/"},
-			[]string{"--", "src/", "cmd/", ":(exclude,literal)src/gen/"},
+			[]string{"--", "src/", "cmd/", ":(top,exclude,literal)src/gen/"},
 		},
 	}
 
@@ -525,6 +525,34 @@ func TestRunGitLogWritesNonASCIIPathsUnquoted(t *testing.T) {
 	}
 	if strings.Contains(out.String(), ".md") {
 		t.Errorf("expected --exclude '*.md' to drop é.md, got:\n%s", out.String())
+	}
+}
+
+// Git reads pathspecs relative to -C <--path>, but --path names the whole
+// repository and --exclude patterns match paths from its root, so a directory
+// exclude must neither narrow the log to --path's subdirectory nor be read
+// relative to it.
+func TestRunGitLogExcludeFromSubdirectoryPath(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	writeRepoFile(t, dir, "top.go", "package main\n")
+	writeRepoFile(t, dir, filepath.Join("sub", "a.go"), "package sub\n")
+	writeRepoFile(t, dir, filepath.Join("vendor", "v.go"), "package vendor\n")
+	commitAll(t, dir, "add", "")
+
+	var out bytes.Buffer
+	filters := logFilters{Excludes: []string{"vendor/"}}
+	if err := runGitLog(filepath.Join(dir, "sub"), "", "", filters, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	for _, want := range []string{"\ttop.go\n", "\tsub/a.go\n"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("expected %q in output, got:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "vendor/v.go") {
+		t.Errorf("expected vendor/v.go to be excluded, got:\n%s", out.String())
 	}
 }
 

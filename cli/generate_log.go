@@ -86,7 +86,7 @@ Examples:
 	cmd.Flags().StringVar(&before, "before", "", "only include commits before this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&path, "path", ".", "path to the git repository")
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
-	cmd.Flags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, supports globs, case-sensitive)")
+	cmd.Flags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, case-sensitive; * is the only wildcard, so [bot] matches literally)")
 	cmd.Flags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one full SHA per line, '#' comments; same format as git blame --ignore-revs-file)")
 
 	return cmd
@@ -178,20 +178,26 @@ func isFullHash(s string) bool {
 // includes limit the command to those paths, and directory excludes (those
 // ending in "/") become literal exclude pathspecs. Glob excludes are left to
 // matchesExcludePattern, since git's glob semantics differ from ours. With
-// excludes but no includes, "." stands in so git has something to subtract
-// from. Returns nil when there's nothing to restrict.
+// excludes but no includes, the whole repo stands in so git has something to
+// subtract from. Returns nil when there's nothing to restrict.
+//
+// Git reads pathspecs relative to the directory it runs in (-C <--path>), but
+// --path names the repository and exclude patterns match paths from its root,
+// so the default include and the excludes are anchored with :(top). Plain "."
+// would silently narrow the output to --path's subdirectory. Includes are the
+// user's own git pathspecs and keep git's meaning.
 func buildPathspecArgs(includes, excludes []string) []string {
 	var dirExcludes []string
 	for _, pattern := range excludes {
 		if strings.HasSuffix(pattern, "/") {
-			dirExcludes = append(dirExcludes, ":(exclude,literal)"+pattern)
+			dirExcludes = append(dirExcludes, ":(top,exclude,literal)"+pattern)
 		}
 	}
 	if len(includes) == 0 && len(dirExcludes) == 0 {
 		return nil
 	}
 	if len(includes) == 0 {
-		includes = []string{"."}
+		includes = []string{":(top)"}
 	}
 	return slices.Concat([]string{"--"}, includes, dirExcludes)
 }
