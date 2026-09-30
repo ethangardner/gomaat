@@ -243,7 +243,7 @@ func init() {
 			return runAnalysis(analysis.KnowledgeLoss, analysis.FormatKnowledgeLoss, model.Options{FormerAuthors: former})
 		},
 	}
-	knowledgeLossCmd.Flags().StringVar(&formerFile, "former-authors", "", "file listing authors who have left, one per line (CSV with optional author header also accepted)")
+	knowledgeLossCmd.Flags().StringVar(&formerFile, "former-authors", "", "file listing authors who have left, one per line (CSV with optional author header also accepted); required")
 	rootCmd.AddCommand(knowledgeLossCmd)
 
 	// Coupling subcommand (with verbose flag)

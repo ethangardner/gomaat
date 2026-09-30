@@ -11,7 +11,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ### Added
 
-- `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable, supports `*` globs), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable; `*` is the only wildcard, so `dependabot[bot]` matches literally), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `--ignore-revs-file` flag on `generate-log` to drop commits listed in a file, using the same format as `git blame --ignore-revs-file` (full hashes, `#` comments; an abbreviated hash is an error) — useful for excluding a single mass-reformat commit from churn/coupling numbers. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 - `rework` subcommand: per file, the share of added lines removed or substantially rewritten within `--rework-window` (default `14d`) of landing, as `entity, added-lines, reworked-lines, rework-ratio`. Moved lines and small edits (≥60% token-similar) are not counted as rework. Merge commits count as landing their branch's lines at the merge time. Unlike other analyses it reads the repository directly (`--path`, `--after`, `--before`, `--exclude`, positional pathspecs) instead of a `--log` file. See the README for the exact definition, known limitations, and measured runtime. ([#65](https://github.com/ethangardner/gomaat/issues/65))
 - `bus-factor` subcommand: per entity, the fewest authors who together own more than 50% of its lines added, as `entity, bus-factor, top-owners, ownership`, sorted riskiest (`1`) first. ([#58](https://github.com/ethangardner/gomaat/issues/58))
@@ -20,7 +20,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 ### Changed
 
 - `communication` breaks ties between pairs of equal strength by `author` then `peer` ascending, like every other analysis's name tie-break. Before, `author` sorted descending, so with `-r` the cutoff kept the reverse-alphabetical end of a tie.
-- `generate-log`'s rev field now uses the full commit hash (`%H`) instead of the abbreviated `%h`, so `--ignore-revs-file` can match unambiguously. `Rev` is an opaque string everywhere it's consumed, so this only changes the value in output, not its meaning. ([#44](https://github.com/ethangardner/gomaat/issues/44))
+- `generate-log`'s rev field now uses the full commit hash (`%H`) instead of the abbreviated `%h`, so `--ignore-revs-file` can match unambiguously. `Rev` is an opaque string everywhere it's consumed, so this only changes the value in output, not its meaning. Scripts that join `generate-log` or `identity` output against short hashes (e.g. from `git log --oneline`) need to switch to full hashes (`git log --format=%H`) or truncate the rev. ([#44](https://github.com/ethangardner/gomaat/issues/44))
 
 ### Fixed
 

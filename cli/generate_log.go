@@ -86,7 +86,7 @@ Examples:
 	cmd.Flags().StringVar(&before, "before", "", "only include commits before this date (YYYY-MM-DD)")
 	cmd.Flags().StringVar(&path, "path", ".", "path to the git repository")
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
-	cmd.Flags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, supports globs, case-sensitive)")
+	cmd.Flags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, case-sensitive; * is the only wildcard, so [bot] matches literally)")
 	cmd.Flags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one full SHA per line, '#' comments; same format as git blame --ignore-revs-file)")
 
 	return cmd

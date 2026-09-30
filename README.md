@@ -143,7 +143,7 @@ gomaat generate-log [flags]
 | `--path`             | `.`             | Path to the git repository                                                                          |
 | `--outfile`          | stdout          | Write the log to this file                                                                          |
 | `--exclude`          | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs)                                    |
-| `--exclude-author`   | _(none)_        | Exclude commits by this author name (repeatable, supports `*` globs, case-sensitive, matches `%aN`) |
+| `--exclude-author`   | _(none)_        | Exclude commits by this author name (repeatable, case-sensitive, matches `%aN`; `*` is the only wildcard, so `[bot]` matches literally) |
 | `--ignore-revs-file` | _(none)_        | Drop commits listed in this file (one full SHA per line, same format as `git blame --ignore-revs-file`) |
 
 **Examples:**
@@ -670,7 +670,7 @@ where `shared_entities` is the count of entities both authors have touched.
 | `average`  | `ceil((total_entities_A + total_entities_B) / 2)` |
 | `strength` | Communication need as a percentage                |
 
-Sorted by `strength` descending, then `author` and `peer` ascending. Each pair appears twice (once per direction).
+Sorted by `strength` descending, then `author` and `peer` ascending. Each pair appears twice (once per direction, with identical `shared`, `average` and `strength`), so filtering on `author` alone shows all of one person's peers. It also means `-r` counts rows, not pairs. A pair's two rows are only adjacent when no other pair ties on `strength`, so `-r 10` can return anywhere from 5 to 10 distinct pairs, some in only one direction.
 
 ---
 
