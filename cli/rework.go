@@ -30,7 +30,8 @@ original provenance and are not counted as rework.
 
 Unlike most analyses this reads the repository directly (--path) rather than a
 --log file, and it is much more expensive: scope it to known hotspots with
-pathspecs and/or --after where possible.
+pathspecs and/or --after where possible. The global --log, --group and
+--team-map-file flags don't apply and are rejected.
 
 Examples:
   gomaat rework
