@@ -4,7 +4,10 @@ BUILD_DIR  := ./bin
 
 GO         := $(shell which go 2>/dev/null || echo /usr/local/go/bin/go)
 
-.PHONY: all build install fmt vet test bench lint clean tidy check
+# Pinned so local runs and CI (duplication.yml) report the same clones.
+JSCPD      := npx --yes jscpd@5.3.2
+
+.PHONY: all build install fmt vet test bench lint dup clean tidy check
 
 all: fmt vet test build
 
@@ -43,6 +46,10 @@ watchtest:
 ## lint: run golangci-lint
 lint:
 	golangci-lint run
+
+## dup: report duplicated Go code with jscpd (requires Node.js; config in .jscpd.json)
+dup:
+	$(JSCPD) $(JSCPD_FLAGS) .
 
 ## tidy: tidy and verify go.mod / go.sum
 tidy:
