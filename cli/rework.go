@@ -87,11 +87,13 @@ func reworkOptions(window, after, before string) (model.Options, error) {
 // through analysis.Rework.
 func runRework(path, after, before string, pathspecs, excludes []string, opts model.Options) ([]analysis.ReworkResult, error) {
 	// The explicit prefixes override diff.noprefix/diff.mnemonicPrefix,
-	// since gitdiff strips a/ and b/ to recover paths.
+	// since gitdiff strips a/ and b/ to recover paths, and
+	// --inter-hunk-context=0 overrides diff.interHunkContext, which would
+	// merge nearby -U0 hunks with context lines gitdiff can't parse.
 	gitArgs := slices.Concat(
 		[]string{
 			"log", "--reverse", "--first-parent", "--diff-merges=first-parent",
-			"-p", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv",
+			"-p", "-U0", "--inter-hunk-context=0", "--no-renames", "--no-color", "--no-ext-diff", "--no-textconv",
 			"--src-prefix=a/", "--dst-prefix=b/",
 			"--format=" + gitdiff.Format,
 		},

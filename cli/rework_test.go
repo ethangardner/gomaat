@@ -259,6 +259,29 @@ func TestReworkCmdIgnoresUserDiffPrefixConfig(t *testing.T) {
 	}
 }
 
+// diff.interHunkContext makes git merge nearby -U0 hunks and put context
+// lines between them, which gitdiff rejects as malformed.
+func TestReworkCmdIgnoresUserInterHunkContextConfig(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	gitRun(t, dir, nil, "config", "diff.interHunkContext", "10")
+
+	writeRepoFile(t, dir, "x.go", "l1\nl2\nl3\nl4\nl5\n")
+	commitAll(t, dir, "add", "2024-01-01T00:00:00Z")
+	writeRepoFile(t, dir, "x.go", "l1\nX2\nl3\nX4\nl5\n")
+	commitAll(t, dir, "edit two lines", "2024-01-02T00:00:00Z")
+
+	got, err := runReworkCmd(t, dir, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	// X2 and X4 share no tokens with l2 and l4, so both removals are rework:
+	// 7 lines added across the two commits, 2 reworked.
+	if want := "entity,added-lines,reworked-lines,rework-ratio\nx.go,7,2,28.57\n"; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestReworkCmdJSON(t *testing.T) {
 	dir := reworkFixtureRepo(t)
 	resetFlags(t)
