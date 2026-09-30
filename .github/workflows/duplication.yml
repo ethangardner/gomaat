@@ -1,0 +1,52 @@
+name: Duplication
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.go'
+      - '.jscpd.json'
+      - 'Makefile'
+      - '.github/workflows/duplication.yml'
+  # Any base branch, so stacked PRs (based on another PR's branch) get CI too.
+  pull_request:
+    paths:
+      - '**.go'
+      - '.jscpd.json'
+      - 'Makefile'
+      - '.github/workflows/duplication.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  # A PR's runs share a group, so a new push cancels the superseded run. Other
+  # events are keyed by commit: GitHub keeps only one pending run per group,
+  # so a shared group would drop all but the latest of several queued pushes.
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  jscpd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # pin v7.0.1
+        with:
+          persist-credentials: false
+
+      # Visibility only, like coverage: no threshold is set, so this never
+      # fails on the amount of duplication. The jscpd version is pinned in the
+      # Makefile; ubuntu runners ship a Node.js that satisfies it.
+      - name: jscpd
+        run: make dup JSCPD_FLAGS="--reporters console,json --output $RUNNER_TEMP/jscpd"
+
+      - name: summary
+        run: |
+          report="$RUNNER_TEMP/jscpd/jscpd-report.json"
+          {
+            echo '## Duplicated code (jscpd)'
+            echo
+            jq -r '.statistics.total | "\(.clones) clones, \(.duplicatedLines) of \(.lines) lines duplicated (\((.percentage * 100 | round) / 100)%)"' "$report"
+            echo
+            jq -r '.duplicates[] | "- `\(.firstFile.name):\(.firstFile.start)-\(.firstFile.end)` ↔ `\(.secondFile.name):\(.secondFile.start)-\(.secondFile.end)` (\(.lines) lines)"' "$report"
+          } >> "$GITHUB_STEP_SUMMARY"

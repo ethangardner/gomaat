@@ -1,0 +1,7 @@
+{
+  "format": ["go"],
+  "ignore": ["**/testdata/**"],
+  "gitignore": true,
+  "reporters": ["console"],
+  "absolute": false
+}
