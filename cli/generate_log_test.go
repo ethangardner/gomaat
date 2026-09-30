@@ -136,7 +136,9 @@ func TestRunGitLogExcludesMergeCommits(t *testing.T) {
 	}
 }
 
-func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
+// The 2022-01-01 cutoff falls between the two commits, so --before and
+// --after each keep exactly one of them.
+func TestRunGitLogDateFilters(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
@@ -145,17 +147,27 @@ func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
 	writeRepoFile(t, dir, "new.go", "content\n")
 	commitAll(t, dir, "add new.go", "2025-01-01T00:00:00")
 
-	var out bytes.Buffer
-	if err := runGitLog(dir, "", "2022-01-01", logFilters{}, &out); err != nil {
-		t.Fatalf("runGitLog: %v", err)
+	tests := []struct {
+		name, after, before, keep, drop string
+	}{
+		{name: "before", before: "2022-01-01", keep: "old.go", drop: "new.go"},
+		{name: "after", after: "2022-01-01", keep: "new.go", drop: "old.go"},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := runGitLog(dir, tt.after, tt.before, logFilters{}, &out); err != nil {
+				t.Fatalf("runGitLog: %v", err)
+			}
 
-	result := out.String()
-	if !strings.Contains(result, "old.go") {
-		t.Errorf("expected old.go (before cutoff) in output, got:\n%s", result)
-	}
-	if strings.Contains(result, "new.go") {
-		t.Errorf("expected new.go (after cutoff) to be excluded, got:\n%s", result)
+			result := out.String()
+			if !strings.Contains(result, tt.keep) {
+				t.Errorf("expected %s in output, got:\n%s", tt.keep, result)
+			}
+			if strings.Contains(result, tt.drop) {
+				t.Errorf("expected %s to be excluded, got:\n%s", tt.drop, result)
+			}
+		})
 	}
 }
 
@@ -226,16 +238,20 @@ func TestNumstatLineMatchesExclude(t *testing.T) {
 	}
 }
 
-func TestFilterExcludesStreamPreservesTrailingNewline(t *testing.T) {
-	input := "1\t0\tvendor/foo.go\n2\t0\tsrc/keep.go\n"
+func TestFilterExcludesStreamPreservesLineEndings(t *testing.T) {
+	for name, eol := range map[string]string{"LF": "\n", "CRLF": "\r\n"} {
+		t.Run(name, func(t *testing.T) {
+			input := "1\t0\tvendor/foo.go" + eol + "2\t0\tsrc/keep.go" + eol
 
-	var out bytes.Buffer
-	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
-		t.Fatalf("filterLog: %v", err)
-	}
+			var out bytes.Buffer
+			if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
+				t.Fatalf("filterLog: %v", err)
+			}
 
-	if out.String() != "2\t0\tsrc/keep.go\n" {
-		t.Fatalf("unexpected output: %q", out.String())
+			if want := "2\t0\tsrc/keep.go" + eol; out.String() != want {
+				t.Fatalf("got %q, want %q", out.String(), want)
+			}
+		})
 	}
 }
 
@@ -263,19 +279,6 @@ type errReader struct{}
 
 func (errReader) Read(_ []byte) (int, error) {
 	return 0, io.ErrUnexpectedEOF
-}
-
-func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
-	input := "1\t0\tvendor/foo.go\r\n2\t0\tsrc/keep.go\r\n"
-
-	var out bytes.Buffer
-	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
-		t.Fatalf("filterLog: %v", err)
-	}
-
-	if out.String() != "2\t0\tsrc/keep.go\r\n" {
-		t.Fatalf("unexpected output: %q", out.String())
-	}
 }
 
 func TestFilterLogExcludesAuthor(t *testing.T) {
@@ -615,29 +618,6 @@ func TestGenerateLogRunEPropagatesRunGitLogError(t *testing.T) {
 
 	err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir})
 	assertErrContains(t, err, "git log failed")
-}
-
-func TestRunGitLogAfterFiltersCommits(t *testing.T) {
-	dir := t.TempDir()
-	initGitRepo(t, dir)
-
-	writeRepoFile(t, dir, "old.go", "content\n")
-	commitAll(t, dir, "add old.go", "2020-01-01T00:00:00")
-	writeRepoFile(t, dir, "new.go", "content\n")
-	commitAll(t, dir, "add new.go", "2025-01-01T00:00:00")
-
-	var out bytes.Buffer
-	if err := runGitLog(dir, "2022-01-01", "", logFilters{}, &out); err != nil {
-		t.Fatalf("runGitLog: %v", err)
-	}
-
-	result := out.String()
-	if strings.Contains(result, "old.go") {
-		t.Errorf("expected old.go (before cutoff) to be excluded, got:\n%s", result)
-	}
-	if !strings.Contains(result, "new.go") {
-		t.Errorf("expected new.go (after cutoff) in output, got:\n%s", result)
-	}
 }
 
 func TestRunGitLogStartFailsWithoutGitBinary(t *testing.T) {
