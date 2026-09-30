@@ -9,6 +9,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ## [Unreleased]
 
+## [v1.1.0] - 2026-09-29
+
 ### Added
 
 - `--exclude-author` flag on `generate-log` to drop commits by author name (repeatable; `*` is the only wildcard, so `dependabot[bot]` matches literally), for filtering out bot accounts (dependabot, renovate, CI accounts). ([#44](https://github.com/ethangardner/gomaat/issues/44))
@@ -32,6 +34,10 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `coupling`, `entity-effort`, `communication` and `cloc` list rows that tie on their sort keys in a stable order (by name) instead of a random one. Before, the same command on the same log could order tied rows differently on each run, and with `-r` return a different set of rows when ties fell at the cutoff.
 - The log parser trims stray carriage returns from the end of a commit header, so a log converted to CRLF line endings more than once no longer leaves a `\r` on the author name.
 - Errors are printed once instead of twice. Cobra already reports the error with an `Error:` prefix above the usage text, and `Execute` was printing it a second time after the usage.
+
+### Documentation
+
+- The README's install commands download from the pinned `releases/download/v1.1.0/` URL instead of `releases/latest/download/`. The archive filename includes the version, so a `latest` link broke as soon as a newer release shipped.
 
 ## [v1.0.0] - 2026-09-05
 
@@ -105,7 +111,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `--exclude` glob filtering for `generate-log`.
 - CI: linting and a goreleaser-based release workflow.
 
-[Unreleased]: https://github.com/ethangardner/gomaat/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ethangardner/gomaat/compare/v1.1.0...HEAD
+[v1.1.0]: https://github.com/ethangardner/gomaat/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.7...v1.0.0
 [v0.1.0-alpha.7]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.6...v0.1.0-alpha.7
 [v0.1.0-alpha.6]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.5...v0.1.0-alpha.6
