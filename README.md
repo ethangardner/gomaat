@@ -144,7 +144,7 @@ gomaat generate-log [flags]
 | `--outfile`          | stdout          | Write the log to this file                                                                          |
 | `--exclude`          | _(none)_        | Exclude paths matching this pattern (repeatable, supports globs)                                    |
 | `--exclude-author`   | _(none)_        | Exclude commits by this author name (repeatable, supports `*` globs, case-sensitive, matches `%aN`) |
-| `--ignore-revs-file` | _(none)_        | Drop commits listed in this file (one SHA per line, same format as `git blame --ignore-revs-file`)  |
+| `--ignore-revs-file` | _(none)_        | Drop commits listed in this file (one full SHA per line, same format as `git blame --ignore-revs-file`) |
 
 **Examples:**
 
@@ -185,6 +185,8 @@ git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renam
 > **Note:** the log's rev field is the full commit hash (`%H`), not the abbreviated `%h` used in earlier versions, so it can be matched unambiguously against a `.git-blame-ignore-revs`-style file. `Rev` is treated as an opaque string everywhere it's consumed, so this only changes the value shown in output, not its meaning.
 
 > **Note:** `--ignore-revs-file` is not a native `git log` concept (`--ignore-revs-file` is a `git blame` flag) — gomaat reads the file itself and drops matching commits from its own output after `git log` runs.
+
+> **Note:** the file follows `git blame`'s rules: `#` starts a comment anywhere on a line, blank lines are ignored, and every other line must be a full 40- or 64-character commit hash. An abbreviated hash (e.g. copied from `git log --oneline` or from v1.0's short-hash output) is an error, as it is for `git blame`, instead of silently matching nothing.
 
 > **Note:** `generate-log`'s output is raw git log text (the format `internal/parser` reads), not CSV, so `--format` is a no-op here — `--format json` is rejected since there's no tabular data to convert.
 

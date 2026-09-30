@@ -172,3 +172,14 @@ func TestLoadAuthorsFileNotFound(t *testing.T) {
 		t.Fatalf("expected opening authors file error, got %v", err)
 	}
 }
+
+func TestLoadAuthorsFileStripsUTF8BOM(t *testing.T) {
+	path := testhelpers.WriteTempFile(t, "former.csv", "\uFEFFAlice\n")
+	got, err := LoadAuthorsFile(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := map[string]struct{}{"Alice": {}}; !maps.Equal(got, want) {
+		t.Errorf("got %q, want %q", got, want)
+	}
+}

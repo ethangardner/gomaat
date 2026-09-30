@@ -387,10 +387,9 @@ func TestMatchesAuthorPattern(t *testing.T) {
 }
 
 func TestLoadIgnoreRevs(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "ignore-revs")
-	content := "# a comment\naaa111\n\nbbb222\n"
-	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+	sha1 := strings.Repeat("a", 40)
+	path := filepath.Join(t.TempDir(), "ignore-revs")
+	if err := os.WriteFile(path, []byte("# a comment\n"+sha1+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -398,10 +397,49 @@ func TestLoadIgnoreRevs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loadIgnoreRevs: %v", err)
 	}
-
-	want := map[string]struct{}{"aaa111": {}, "bbb222": {}}
-	if !reflect.DeepEqual(revs, want) {
+	if want := map[string]struct{}{sha1: {}}; !reflect.DeepEqual(revs, want) {
 		t.Errorf("loadIgnoreRevs() = %v, want %v", revs, want)
+	}
+}
+
+// readIgnoreRevs follows git's fsck.skipList format, which
+// git blame --ignore-revs-file uses: '#' starts a comment anywhere on a line,
+// surrounding whitespace and blank lines are ignored, and anything left must
+// be a full SHA-1 or SHA-256 hash.
+func TestReadIgnoreRevs(t *testing.T) {
+	sha1 := strings.Repeat("a", 40)
+	sha256 := strings.Repeat("b", 64)
+
+	tests := []struct {
+		name    string
+		input   string
+		want    map[string]struct{}
+		wantErr string
+	}{
+		{"full hashes", sha1 + "\n" + sha256 + "\n", map[string]struct{}{sha1: {}, sha256: {}}, ""},
+		{"comments and blank lines", "# header\n\n  \n" + sha1 + "\n", map[string]struct{}{sha1: {}}, ""},
+		{"trailing comment", sha1 + " # reformat\n", map[string]struct{}{sha1: {}}, ""},
+		{"surrounding whitespace", "\t" + sha1 + "  \r\n", map[string]struct{}{sha1: {}}, ""},
+		{"uppercase is lowered to match git log", strings.ToUpper(sha1) + "\n", map[string]struct{}{sha1: {}}, ""},
+		{"abbreviated hash", sha1 + "\na4e4bab\n", nil, `line 2: "a4e4bab" is not a full commit hash`},
+		{"not hex", strings.Repeat("g", 40) + "\n", nil, "line 1: "},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := readIgnoreRevs(strings.NewReader(tt.input))
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -438,6 +476,55 @@ func TestRunGitLogAppliesMailmap(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "--Test\n") {
 		t.Errorf("expected raw author 'Test' to be resolved away, got:\n%s", out.String())
+	}
+}
+
+// diff.relative would limit the log to --path's subdirectory and strip its
+// prefix from paths; --path names the repository, so the whole repo is wanted.
+func TestRunGitLogIgnoresUserDiffRelativeConfig(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	gitRun(t, dir, nil, "config", "diff.relative", "true")
+	writeRepoFile(t, dir, "top.go", "package main\n")
+	writeRepoFile(t, dir, filepath.Join("sub", "a.go"), "package sub\n")
+	commitAll(t, dir, "add", "")
+
+	var out bytes.Buffer
+	if err := runGitLog(filepath.Join(dir, "sub"), "", "", logFilters{}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	for _, want := range []string{"\ttop.go\n", "\tsub/a.go\n"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("expected %q in output, got:\n%s", want, out.String())
+		}
+	}
+}
+
+// By default git writes non-ASCII paths octal-escaped in quotes
+// ("\303\251.md"), which every analysis would report verbatim and which
+// --exclude globs can't match.
+func TestRunGitLogWritesNonASCIIPathsUnquoted(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	writeRepoFile(t, dir, "é.md", "x\n")
+	writeRepoFile(t, dir, "main.go", "package main\n")
+	commitAll(t, dir, "add", "")
+
+	var out bytes.Buffer
+	if err := runGitLog(dir, "", "", logFilters{}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+	if !strings.Contains(out.String(), "\té.md\n") {
+		t.Errorf("expected unquoted é.md in output, got:\n%s", out.String())
+	}
+
+	out.Reset()
+	if err := runGitLog(dir, "", "", logFilters{Excludes: []string{"*.md"}}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+	if strings.Contains(out.String(), ".md") {
+		t.Errorf("expected --exclude '*.md' to drop é.md, got:\n%s", out.String())
 	}
 }
 

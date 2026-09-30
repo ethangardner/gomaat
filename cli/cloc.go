@@ -93,15 +93,20 @@ func gitTrackedFiles(path string, excludes []string) ([]string, string, error) {
 	// is a native path like the files joined onto it.
 	repoRoot = filepath.FromSlash(repoRoot)
 
-	lsArgs := append([]string{"-C", repoRoot, "ls-files"}, buildPathspecArgs(nil, excludes)...)
-	out, err := exec.Command("git", lsArgs...).CombinedOutput()
+	// -z separates paths with NUL and never quotes them; without it git
+	// quotes non-ASCII paths ("\303\251.go"), which don't exist on disk.
+	lsArgs := append([]string{"-C", repoRoot, "ls-files", "-z"}, buildPathspecArgs(nil, excludes)...)
+	cmd := exec.Command("git", lsArgs...)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
 	if err != nil {
-		return nil, "", fmt.Errorf("git ls-files failed: %w: %s", err, strings.TrimSpace(string(out)))
+		return nil, "", fmt.Errorf("git ls-files failed: %w: %s", err, strings.TrimSpace(stderr.String()))
 	}
 	var files []string
-	for line := range strings.SplitSeq(strings.TrimSpace(string(out)), "\n") {
-		if line != "" {
-			files = append(files, filepath.Join(repoRoot, line))
+	for name := range strings.SplitSeq(string(out), "\x00") {
+		if name != "" {
+			files = append(files, filepath.Join(repoRoot, name))
 		}
 	}
 	return files, repoRoot, nil

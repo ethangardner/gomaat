@@ -87,7 +87,7 @@ Examples:
 	cmd.Flags().StringVar(&path, "path", ".", "path to the git repository")
 	cmd.Flags().StringArrayVar(&excludes, "exclude", nil, "exclude paths matching this pattern (repeatable, supports globs)")
 	cmd.Flags().StringArrayVar(&excludeAuthors, "exclude-author", nil, "exclude commits by this author name (repeatable, supports globs, case-sensitive)")
-	cmd.Flags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one SHA per line, '#' comments; same format as git blame --ignore-revs-file)")
+	cmd.Flags().StringVar(&ignoreRevsFile, "ignore-revs-file", "", "drop commits listed in this file (one full SHA per line, '#' comments; same format as git blame --ignore-revs-file)")
 
 	return cmd
 }
@@ -135,27 +135,43 @@ func dateRangeArgs(after, before string) []string {
 	return args
 }
 
-// loadIgnoreRevs reads a newline-separated list of commit SHAs, in the same
-// format git blame --ignore-revs-file uses: blank lines and lines starting
-// with '#' are skipped.
+// loadIgnoreRevs reads the commit hashes listed in the file at path. See
+// readIgnoreRevs for the format.
 func loadIgnoreRevs(path string) (map[string]struct{}, error) {
 	return loadfile.Parse(path, "ignore-revs", readIgnoreRevs)
 }
 
+// readIgnoreRevs parses the format git blame --ignore-revs-file uses (git's
+// fsck.skipList format): '#' starts a comment anywhere on a line, surrounding
+// whitespace and blank lines are ignored, and what's left must be a full
+// SHA-1 or SHA-256 hash. Hashes are lowercased to match generate-log's %H.
+//
+// It errors on anything else, as git does, instead of keeping an entry that
+// can never match: an abbreviated hash would otherwise silently filter
+// nothing.
 func readIgnoreRevs(r io.Reader) (map[string]struct{}, error) {
 	revs := map[string]struct{}{}
 	scanner := bufio.NewScanner(r)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+	for n := 1; scanner.Scan(); n++ {
+		line, _, _ := strings.Cut(scanner.Text(), "#")
+		rev := strings.ToLower(strings.TrimSpace(line))
+		if rev == "" {
 			continue
 		}
-		revs[line] = struct{}{}
+		if !isFullHash(rev) {
+			return nil, fmt.Errorf("ignore-revs file line %d: %q is not a full commit hash (40 or 64 hex characters, as in .git-blame-ignore-revs)", n, rev)
+		}
+		revs[rev] = struct{}{}
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("reading ignore-revs file: %w", err)
 	}
 	return revs, nil
+}
+
+// isFullHash reports whether s is a full lowercase SHA-1 or SHA-256 hex hash.
+func isFullHash(s string) bool {
+	return (len(s) == 40 || len(s) == 64) && strings.Trim(s, "0123456789abcdef") == ""
 }
 
 // buildPathspecArgs builds the trailing "-- <pathspec>..." git arguments:

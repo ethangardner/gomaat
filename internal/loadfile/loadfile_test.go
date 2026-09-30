@@ -41,3 +41,27 @@ func TestParseParserError(t *testing.T) {
 		t.Errorf("expected parse error, got %v", err)
 	}
 }
+
+// Excel's "CSV UTF-8" export and some Windows editors start files with a
+// UTF-8 byte order mark, which would otherwise stick to the first value.
+func TestParseStripsUTF8BOM(t *testing.T) {
+	tests := []struct{ name, content, want string }{
+		{"leading BOM", "\uFEFFAlice\nBob\n", "Alice\nBob\n"},
+		{"no BOM", "Alice\n", "Alice\n"},
+		{"BOM only", "\uFEFF", ""},
+		{"BOM later in the file is kept", "Alice\uFEFF\n", "Alice\uFEFF\n"},
+		{"empty file", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := testhelpers.WriteTempFile(t, "sample.txt", tt.content)
+			got, err := Parse(path, "sample", readAll)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
