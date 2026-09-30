@@ -173,7 +173,7 @@ gomaat generate-log --ignore-revs-file .git-blame-ignore-revs --outfile logfile.
 
 The log is generated using:
 ```
-git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renames --no-merges [--after=DATE] [--before=DATE] [-- . :(exclude)PATTERN ...]
+git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renames --no-merges [--after=DATE] [--before=DATE] [-- :(top) :(top,exclude,literal)DIR/ ...]
 ```
 
 > **Note:** `--no-renames` means renamed files are tracked as a delete + add rather than a rename. This avoids inflated coupling between old and new paths.
@@ -737,7 +737,7 @@ gomaat rework [pathspec...] [flags]
 | `--after`         |       | _(none)_     | Only walk commits after this date (YYYY-MM-DD). Lines that already existed are untracked             |
 | `--before`        |       | _(none)_     | Only walk commits before this date (YYYY-MM-DD). Lines are also judged as of this date (default: now) |
 | `--exclude`       |       | _(none)_     | Exclude paths matching this pattern (repeatable; same rules as `generate-log --exclude`)             |
-| `pathspec...`     |       | _(all)_      | Limit the walk to these paths (git pathspecs), e.g. known hotspots                                   |
+| `pathspec...`     |       | _(all)_      | Limit the walk to these paths (git pathspecs, relative to `--path`; prefix with `:/` for the repo root), e.g. known hotspots |
 
 `--outfile`, `--rows`, and `--format` work as for every other command.
 
