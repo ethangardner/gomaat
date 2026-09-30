@@ -282,6 +282,25 @@ func TestReworkCmdIgnoresUserInterHunkContextConfig(t *testing.T) {
 	}
 }
 
+// diff.relative would limit rework to --path's subdirectory and strip its
+// prefix from paths; --path names the repository, so the whole repo is wanted.
+func TestReworkCmdIgnoresUserDiffRelativeConfig(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	gitRun(t, dir, nil, "config", "diff.relative", "true")
+	writeRepoFile(t, dir, "top.go", "t1\n")
+	writeRepoFile(t, dir, filepath.Join("sub", "a.go"), "a1\n")
+	commitAll(t, dir, "add", "2024-01-01T00:00:00Z")
+
+	got, err := runReworkCmd(t, filepath.Join(dir, "sub"), nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := "entity,added-lines,reworked-lines,rework-ratio\nsub/a.go,1,0,0.00\ntop.go,1,0,0.00\n"; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestReworkCmdJSON(t *testing.T) {
 	dir := reworkFixtureRepo(t)
 	resetFlags(t)

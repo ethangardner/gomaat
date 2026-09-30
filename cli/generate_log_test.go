@@ -441,6 +441,28 @@ func TestRunGitLogAppliesMailmap(t *testing.T) {
 	}
 }
 
+// diff.relative would limit the log to --path's subdirectory and strip its
+// prefix from paths; --path names the repository, so the whole repo is wanted.
+func TestRunGitLogIgnoresUserDiffRelativeConfig(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	gitRun(t, dir, nil, "config", "diff.relative", "true")
+	writeRepoFile(t, dir, "top.go", "package main\n")
+	writeRepoFile(t, dir, filepath.Join("sub", "a.go"), "package sub\n")
+	commitAll(t, dir, "add", "")
+
+	var out bytes.Buffer
+	if err := runGitLog(filepath.Join(dir, "sub"), "", "", logFilters{}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+
+	for _, want := range []string{"\ttop.go\n", "\tsub/a.go\n"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("expected %q in output, got:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestGenerateLogRunEWithNewFilters(t *testing.T) {
 	resetFlags(t)
 	dir := t.TempDir()

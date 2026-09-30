@@ -107,7 +107,7 @@ func TestStreamGitCommandFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error outside a git repo, got nil")
 	}
-	for _, want := range []string{"git log failed", "not a git repository", "Command: git -C " + dir + " log"} {
+	for _, want := range []string{"git log failed", "not a git repository", "Command: git " + strings.Join(gitConfigOverrides, " ") + " -C " + dir + " log"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("error %q does not contain %q", err, want)
 		}
