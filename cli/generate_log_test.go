@@ -562,15 +562,8 @@ func TestGenerateLogRunEWithNewFilters(t *testing.T) {
 	initGenLogRepo(t, dir)
 	outFile = filepath.Join(t.TempDir(), "out.log")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("exclude-author", "nobody-matches-this"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := cmd.RunE(cmd, nil); err != nil {
+	flags := map[string]string{"path": dir, "exclude-author": "nobody-matches-this"}
+	if err := runCmd(t, newGenerateLogCmd(), flags); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(readOutputFile(t, outFile), "main.go") {
@@ -584,15 +577,8 @@ func TestGenerateLogRunEIgnoreRevsFileError(t *testing.T) {
 	initGitRepo(t, dir)
 	commitFiles(t, dir, "keep.go")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("ignore-revs-file", filepath.Join(dir, "does-not-exist")); err != nil {
-		t.Fatal(err)
-	}
-
-	err := cmd.RunE(cmd, nil)
+	flags := map[string]string{"path": dir, "ignore-revs-file": filepath.Join(dir, "does-not-exist")}
+	err := runCmd(t, newGenerateLogCmd(), flags)
 	if err == nil {
 		t.Fatal("expected error for missing ignore-revs file, got nil")
 	}
@@ -629,11 +615,7 @@ func TestGenerateLogRunEWritesToFile(t *testing.T) {
 	initGenLogRepo(t, dir)
 	outFile = filepath.Join(t.TempDir(), "out.log")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.RunE(cmd, nil); err != nil {
+	if err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(readOutputFile(t, outFile), "main.go") {
@@ -645,11 +627,7 @@ func TestGenerateLogRunEPropagatesRunGitLogError(t *testing.T) {
 	resetFlags(t)
 	dir := t.TempDir() // not a git repo
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	err := cmd.RunE(cmd, nil)
+	err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir})
 	if err == nil {
 		t.Fatal("expected error for non-repo path, got nil")
 	}
@@ -712,11 +690,7 @@ func TestGenerateLogRunEBadOutputPath(t *testing.T) {
 	initGenLogRepo(t, dir)
 	outFile = filepath.Join(t.TempDir(), "does-not-exist", "out.log")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	err := cmd.RunE(cmd, nil)
+	err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir})
 	if err == nil {
 		t.Fatal("expected error for unwritable output path, got nil")
 	}

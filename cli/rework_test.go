@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"iter"
+	"maps"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -143,19 +144,9 @@ func runReworkCmd(t *testing.T, dir string, flags map[string]string, args ...str
 	resetFlags(t)
 	outFile = filepath.Join(t.TempDir(), "out")
 
-	cmd := newReworkCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("before", "2024-03-01"); err != nil {
-		t.Fatal(err)
-	}
-	for k, v := range flags {
-		if err := cmd.Flags().Set(k, v); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := cmd.RunE(cmd, args); err != nil {
+	all := map[string]string{"path": dir, "before": "2024-03-01"}
+	maps.Copy(all, flags)
+	if err := runCmd(t, newReworkCmd(), all, args...); err != nil {
 		return "", err
 	}
 	return readOutputFile(t, outFile), nil

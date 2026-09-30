@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/ethangardner/gomaat/internal/analysis"
 	"github.com/ethangardner/gomaat/internal/model"
 	"github.com/ethangardner/gomaat/internal/testhelpers"
@@ -41,6 +43,18 @@ func readOutputFile(t *testing.T, path string) string {
 		t.Fatalf("reading output file: %v", err)
 	}
 	return string(data)
+}
+
+// runCmd sets each of flags on cmd, then runs it with args. Flags are set in
+// map order, so none may depend on another having been set first.
+func runCmd(t *testing.T, cmd *cobra.Command, flags map[string]string, args ...string) error {
+	t.Helper()
+	for name, value := range flags {
+		if err := cmd.Flags().Set(name, value); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return cmd.RunE(cmd, args)
 }
 
 func TestRunAnalysisMissingLogFlag(t *testing.T) {
@@ -212,16 +226,8 @@ func TestCouplingCmdRunE(t *testing.T) {
 	if err != nil {
 		t.Fatalf("finding coupling command: %v", err)
 	}
-	for _, flag := range []struct{ name, val string }{
-		{"min-revs", "1"},
-		{"min-shared-revs", "1"},
-		{"min-coupling", "0"},
-	} {
-		if err := cmd.Flags().Set(flag.name, flag.val); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := cmd.RunE(cmd, nil); err != nil {
+	flags := map[string]string{"min-revs": "1", "min-shared-revs": "1", "min-coupling": "0"}
+	if err := runCmd(t, cmd, flags); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	data := readOutputFile(t, outFile)

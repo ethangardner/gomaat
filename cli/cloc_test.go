@@ -499,11 +499,7 @@ func TestClocJSONFormat(t *testing.T) {
 	outputFormat = "json"
 	outFile = filepath.Join(t.TempDir(), "out.json")
 
-	cmd := newClocCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.RunE(cmd, nil); err != nil {
+	if err := runCmd(t, newClocCmd(), map[string]string{"path": dir}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -525,11 +521,7 @@ func TestClocRunENoTrackedFiles(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
-	cmd := newClocCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	err := cmd.RunE(cmd, nil)
+	err := runCmd(t, newClocCmd(), map[string]string{"path": dir})
 	if err == nil {
 		t.Fatal("expected error for repo with no tracked files, got nil")
 	}
@@ -545,14 +537,7 @@ func TestClocRunEByFile(t *testing.T) {
 	commitFiles(t, dir, "main.go")
 	outFile = filepath.Join(t.TempDir(), "out.csv")
 
-	cmd := newClocCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("by-file", "true"); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.RunE(cmd, nil); err != nil {
+	if err := runCmd(t, newClocCmd(), map[string]string{"path": dir, "by-file": "true"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(readOutputFile(t, outFile), "main.go") {
@@ -567,14 +552,7 @@ func TestClocRunEWithExcludes(t *testing.T) {
 	commitFiles(t, dir, "main.go", "types.pb.go")
 	outFile = filepath.Join(t.TempDir(), "out.csv")
 
-	cmd := newClocCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("exclude", "*.pb.go"); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.RunE(cmd, nil); err != nil {
+	if err := runCmd(t, newClocCmd(), map[string]string{"path": dir, "exclude": "*.pb.go"}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if strings.Contains(readOutputFile(t, outFile), "types.pb.go") {
@@ -586,11 +564,7 @@ func TestClocRunENonRepo(t *testing.T) {
 	resetFlags(t)
 	dir := t.TempDir()
 
-	cmd := newClocCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	err := cmd.RunE(cmd, nil)
+	err := runCmd(t, newClocCmd(), map[string]string{"path": dir})
 	if err == nil {
 		t.Fatal("expected error for non-repo path, got nil")
 	}
