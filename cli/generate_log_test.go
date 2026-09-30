@@ -463,6 +463,33 @@ func TestRunGitLogIgnoresUserDiffRelativeConfig(t *testing.T) {
 	}
 }
 
+// By default git writes non-ASCII paths octal-escaped in quotes
+// ("\303\251.md"), which every analysis would report verbatim and which
+// --exclude globs can't match.
+func TestRunGitLogWritesNonASCIIPathsUnquoted(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	writeRepoFile(t, dir, "é.md", "x\n")
+	writeRepoFile(t, dir, "main.go", "package main\n")
+	commitAll(t, dir, "add", "")
+
+	var out bytes.Buffer
+	if err := runGitLog(dir, "", "", logFilters{}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+	if !strings.Contains(out.String(), "\té.md\n") {
+		t.Errorf("expected unquoted é.md in output, got:\n%s", out.String())
+	}
+
+	out.Reset()
+	if err := runGitLog(dir, "", "", logFilters{Excludes: []string{"*.md"}}, &out); err != nil {
+		t.Fatalf("runGitLog: %v", err)
+	}
+	if strings.Contains(out.String(), ".md") {
+		t.Errorf("expected --exclude '*.md' to drop é.md, got:\n%s", out.String())
+	}
+}
+
 func TestGenerateLogRunEWithNewFilters(t *testing.T) {
 	resetFlags(t)
 	dir := t.TempDir()

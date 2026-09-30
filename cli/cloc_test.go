@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -303,6 +304,23 @@ func commitFiles(t *testing.T, dir string, files ...string) {
 		writeRepoFile(t, dir, f, "package main\n")
 	}
 	commitAll(t, dir, "initial", "")
+}
+
+// By default git ls-files quotes non-ASCII paths ("\303\251.md"), which
+// isn't a file on disk, so cloc skipped it.
+func TestGitTrackedFilesReturnsNonASCIIPaths(t *testing.T) {
+	dir := realTempDir(t)
+	initGitRepo(t, dir)
+	writeRepoFile(t, dir, "é.go", "package main\n")
+	gitRun(t, dir, nil, "add", "é.go")
+
+	files, _, err := gitTrackedFiles(dir, nil)
+	if err != nil {
+		t.Fatalf("gitTrackedFiles: %v", err)
+	}
+	if want := []string{filepath.Join(dir, "é.go")}; !slices.Equal(files, want) {
+		t.Errorf("got %q, want %q", files, want)
+	}
 }
 
 func TestGitTrackedFilesOnlyReturnsTrackedFiles(t *testing.T) {

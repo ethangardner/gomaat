@@ -18,8 +18,14 @@ import (
 // diff.relative=false: with diff.relative set, git limits diff output to the
 // working directory (--path) and strips its prefix from paths, silently
 // dropping the rest of the repository.
+//
+// core.quotePath=false: by default git writes non-ASCII paths octal-escaped
+// in quotes ("\303\251.md"). Paths containing a tab, newline, quote or
+// backslash are still quoted, which gitdiff unquotes but the numstat parser
+// doesn't.
 var gitConfigOverrides = []string{
 	"-c", "diff.relative=false",
+	"-c", "core.quotePath=false",
 }
 
 // streamGit runs `git [config overrides] [-C dir] args...` and hands its
