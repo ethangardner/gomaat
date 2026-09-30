@@ -136,7 +136,9 @@ func TestRunGitLogExcludesMergeCommits(t *testing.T) {
 	}
 }
 
-func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
+// The 2022-01-01 cutoff falls between the two commits, so --before and
+// --after each keep exactly one of them.
+func TestRunGitLogDateFilters(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepo(t, dir)
 
@@ -145,17 +147,27 @@ func TestRunGitLogBeforeFiltersCommits(t *testing.T) {
 	writeRepoFile(t, dir, "new.go", "content\n")
 	commitAll(t, dir, "add new.go", "2025-01-01T00:00:00")
 
-	var out bytes.Buffer
-	if err := runGitLog(dir, "", "2022-01-01", logFilters{}, &out); err != nil {
-		t.Fatalf("runGitLog: %v", err)
+	tests := []struct {
+		name, after, before, keep, drop string
+	}{
+		{name: "before", before: "2022-01-01", keep: "old.go", drop: "new.go"},
+		{name: "after", after: "2022-01-01", keep: "new.go", drop: "old.go"},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out bytes.Buffer
+			if err := runGitLog(dir, tt.after, tt.before, logFilters{}, &out); err != nil {
+				t.Fatalf("runGitLog: %v", err)
+			}
 
-	result := out.String()
-	if !strings.Contains(result, "old.go") {
-		t.Errorf("expected old.go (before cutoff) in output, got:\n%s", result)
-	}
-	if strings.Contains(result, "new.go") {
-		t.Errorf("expected new.go (after cutoff) to be excluded, got:\n%s", result)
+			result := out.String()
+			if !strings.Contains(result, tt.keep) {
+				t.Errorf("expected %s in output, got:\n%s", tt.keep, result)
+			}
+			if strings.Contains(result, tt.drop) {
+				t.Errorf("expected %s to be excluded, got:\n%s", tt.drop, result)
+			}
+		})
 	}
 }
 
@@ -226,16 +238,20 @@ func TestNumstatLineMatchesExclude(t *testing.T) {
 	}
 }
 
-func TestFilterExcludesStreamPreservesTrailingNewline(t *testing.T) {
-	input := "1\t0\tvendor/foo.go\n2\t0\tsrc/keep.go\n"
+func TestFilterExcludesStreamPreservesLineEndings(t *testing.T) {
+	for name, eol := range map[string]string{"LF": "\n", "CRLF": "\r\n"} {
+		t.Run(name, func(t *testing.T) {
+			input := "1\t0\tvendor/foo.go" + eol + "2\t0\tsrc/keep.go" + eol
 
-	var out bytes.Buffer
-	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
-		t.Fatalf("filterLog: %v", err)
-	}
+			var out bytes.Buffer
+			if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
+				t.Fatalf("filterLog: %v", err)
+			}
 
-	if out.String() != "2\t0\tsrc/keep.go\n" {
-		t.Fatalf("unexpected output: %q", out.String())
+			if want := "2\t0\tsrc/keep.go" + eol; out.String() != want {
+				t.Fatalf("got %q, want %q", out.String(), want)
+			}
+		})
 	}
 }
 
@@ -263,19 +279,6 @@ type errReader struct{}
 
 func (errReader) Read(_ []byte) (int, error) {
 	return 0, io.ErrUnexpectedEOF
-}
-
-func TestFilterExcludesStreamCarriageReturn(t *testing.T) {
-	input := "1\t0\tvendor/foo.go\r\n2\t0\tsrc/keep.go\r\n"
-
-	var out bytes.Buffer
-	if err := filterLog(strings.NewReader(input), &out, []string{"vendor/"}, nil, nil); err != nil {
-		t.Fatalf("filterLog: %v", err)
-	}
-
-	if out.String() != "2\t0\tsrc/keep.go\r\n" {
-		t.Fatalf("unexpected output: %q", out.String())
-	}
 }
 
 func TestFilterLogExcludesAuthor(t *testing.T) {
@@ -428,9 +431,7 @@ func TestReadIgnoreRevs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := readIgnoreRevs(strings.NewReader(tt.input))
 			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
-				}
+				assertErrContains(t, err, tt.wantErr)
 				return
 			}
 			if err != nil {
@@ -445,9 +446,7 @@ func TestReadIgnoreRevs(t *testing.T) {
 
 func TestReadIgnoreRevsReadError(t *testing.T) {
 	_, err := readIgnoreRevs(iotest.ErrReader(errors.New("boom")))
-	if err == nil || !strings.Contains(err.Error(), "reading ignore-revs file") {
-		t.Fatalf("expected reading ignore-revs file error, got %v", err)
-	}
+	assertErrContains(t, err, "reading ignore-revs file")
 }
 
 func TestLoadIgnoreRevsMissingFile(t *testing.T) {
@@ -562,15 +561,8 @@ func TestGenerateLogRunEWithNewFilters(t *testing.T) {
 	initGenLogRepo(t, dir)
 	outFile = filepath.Join(t.TempDir(), "out.log")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("exclude-author", "nobody-matches-this"); err != nil {
-		t.Fatal(err)
-	}
-
-	if err := cmd.RunE(cmd, nil); err != nil {
+	flags := map[string]string{"path": dir, "exclude-author": "nobody-matches-this"}
+	if err := runCmd(t, newGenerateLogCmd(), flags); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(readOutputFile(t, outFile), "main.go") {
@@ -584,21 +576,9 @@ func TestGenerateLogRunEIgnoreRevsFileError(t *testing.T) {
 	initGitRepo(t, dir)
 	commitFiles(t, dir, "keep.go")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("ignore-revs-file", filepath.Join(dir, "does-not-exist")); err != nil {
-		t.Fatal(err)
-	}
-
-	err := cmd.RunE(cmd, nil)
-	if err == nil {
-		t.Fatal("expected error for missing ignore-revs file, got nil")
-	}
-	if !strings.Contains(err.Error(), "ignore-revs file") {
-		t.Errorf("expected error to mention ignore-revs file, got: %v", err)
-	}
+	flags := map[string]string{"path": dir, "ignore-revs-file": filepath.Join(dir, "does-not-exist")}
+	err := runCmd(t, newGenerateLogCmd(), flags)
+	assertErrContains(t, err, "ignore-revs file")
 }
 
 func TestGenerateLogRejectsNonCSVFormat(t *testing.T) {
@@ -608,12 +588,7 @@ func TestGenerateLogRejectsNonCSVFormat(t *testing.T) {
 
 		cmd := newGenerateLogCmd()
 		err := cmd.RunE(cmd, nil)
-		if err == nil {
-			t.Fatalf("expected error for --format %s, got nil", format)
-		}
-		if !strings.Contains(err.Error(), "--format") {
-			t.Errorf("expected error to mention --format, got: %v", err)
-		}
+		assertErrContains(t, err, "--format")
 	}
 }
 
@@ -629,11 +604,7 @@ func TestGenerateLogRunEWritesToFile(t *testing.T) {
 	initGenLogRepo(t, dir)
 	outFile = filepath.Join(t.TempDir(), "out.log")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.RunE(cmd, nil); err != nil {
+	if err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir}); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(readOutputFile(t, outFile), "main.go") {
@@ -645,52 +616,15 @@ func TestGenerateLogRunEPropagatesRunGitLogError(t *testing.T) {
 	resetFlags(t)
 	dir := t.TempDir() // not a git repo
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	err := cmd.RunE(cmd, nil)
-	if err == nil {
-		t.Fatal("expected error for non-repo path, got nil")
-	}
-	if !strings.Contains(err.Error(), "git log failed") {
-		t.Errorf("expected 'git log failed' error, got: %v", err)
-	}
-}
-
-func TestRunGitLogAfterFiltersCommits(t *testing.T) {
-	dir := t.TempDir()
-	initGitRepo(t, dir)
-
-	writeRepoFile(t, dir, "old.go", "content\n")
-	commitAll(t, dir, "add old.go", "2020-01-01T00:00:00")
-	writeRepoFile(t, dir, "new.go", "content\n")
-	commitAll(t, dir, "add new.go", "2025-01-01T00:00:00")
-
-	var out bytes.Buffer
-	if err := runGitLog(dir, "2022-01-01", "", logFilters{}, &out); err != nil {
-		t.Fatalf("runGitLog: %v", err)
-	}
-
-	result := out.String()
-	if strings.Contains(result, "old.go") {
-		t.Errorf("expected old.go (before cutoff) to be excluded, got:\n%s", result)
-	}
-	if !strings.Contains(result, "new.go") {
-		t.Errorf("expected new.go (after cutoff) in output, got:\n%s", result)
-	}
+	err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir})
+	assertErrContains(t, err, "git log failed")
 }
 
 func TestRunGitLogStartFailsWithoutGitBinary(t *testing.T) {
 	t.Setenv("PATH", "")
 
 	err := runGitLog(".", "", "", logFilters{}, io.Discard)
-	if err == nil {
-		t.Fatal("expected error when git binary is not on PATH, got nil")
-	}
-	if !strings.Contains(err.Error(), "starting git log") {
-		t.Errorf("expected 'starting git log' error, got: %v", err)
-	}
+	assertErrContains(t, err, "starting git log")
 }
 
 func TestRunGitLogWriteError(t *testing.T) {
@@ -698,12 +632,7 @@ func TestRunGitLogWriteError(t *testing.T) {
 	initGenLogRepo(t, dir)
 
 	err := runGitLog(dir, "", "", logFilters{}, errWriter{})
-	if err == nil {
-		t.Fatal("expected error from destination write failure, got nil")
-	}
-	if !strings.Contains(err.Error(), "processing git log output") {
-		t.Errorf("expected 'processing git log output' error, got: %v", err)
-	}
+	assertErrContains(t, err, "processing git log output")
 }
 
 func TestGenerateLogRunEBadOutputPath(t *testing.T) {
@@ -712,15 +641,6 @@ func TestGenerateLogRunEBadOutputPath(t *testing.T) {
 	initGenLogRepo(t, dir)
 	outFile = filepath.Join(t.TempDir(), "does-not-exist", "out.log")
 
-	cmd := newGenerateLogCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	err := cmd.RunE(cmd, nil)
-	if err == nil {
-		t.Fatal("expected error for unwritable output path, got nil")
-	}
-	if !strings.Contains(err.Error(), "creating output file") {
-		t.Errorf("expected 'creating output file' error, got: %v", err)
-	}
+	err := runCmd(t, newGenerateLogCmd(), map[string]string{"path": dir})
+	assertErrContains(t, err, "creating output file")
 }

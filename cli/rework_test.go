@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"iter"
+	"maps"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -34,12 +34,7 @@ func TestParseWindow(t *testing.T) {
 		t.Run(tt.in, func(t *testing.T) {
 			got, err := parseWindow(tt.in)
 			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("parseWindow(%q) = %v, want error", tt.in, got)
-				}
-				if !strings.Contains(err.Error(), "--rework-window") {
-					t.Errorf("error %q should mention --rework-window", err)
-				}
+				assertErrContains(t, err, "--rework-window")
 				return
 			}
 			if err != nil {
@@ -143,19 +138,9 @@ func runReworkCmd(t *testing.T, dir string, flags map[string]string, args ...str
 	resetFlags(t)
 	outFile = filepath.Join(t.TempDir(), "out")
 
-	cmd := newReworkCmd()
-	if err := cmd.Flags().Set("path", dir); err != nil {
-		t.Fatal(err)
-	}
-	if err := cmd.Flags().Set("before", "2024-03-01"); err != nil {
-		t.Fatal(err)
-	}
-	for k, v := range flags {
-		if err := cmd.Flags().Set(k, v); err != nil {
-			t.Fatal(err)
-		}
-	}
-	if err := cmd.RunE(cmd, args); err != nil {
+	all := map[string]string{"path": dir, "before": "2024-03-01"}
+	maps.Copy(all, flags)
+	if err := runCmd(t, newReworkCmd(), all, args...); err != nil {
 		return "", err
 	}
 	return readOutputFile(t, outFile), nil
@@ -361,9 +346,8 @@ func TestReworkCmdErrors(t *testing.T) {
 			if tt.setup != nil {
 				tt.setup()
 			}
-			if _, err := runReworkCmd(t, dir, tt.flags); err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("got err %v, want one mentioning %q", err, tt.wantErr)
-			}
+			_, err := runReworkCmd(t, dir, tt.flags)
+			assertErrContains(t, err, tt.wantErr)
 		})
 	}
 }

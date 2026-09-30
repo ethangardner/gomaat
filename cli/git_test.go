@@ -75,12 +75,7 @@ func commitAll(t *testing.T, dir, msg, date string) {
 
 func TestStreamGitEmptyArgs(t *testing.T) {
 	err := streamGit("", nil, func(io.Reader) error { return nil })
-	if err == nil {
-		t.Fatal("expected error with empty args, got nil")
-	}
-	if !strings.Contains(err.Error(), "no git arguments provided") {
-		t.Errorf("got %v, want no git arguments provided", err)
-	}
+	assertErrContains(t, err, "no git arguments provided")
 }
 
 func TestStreamGitPassesStdout(t *testing.T) {
