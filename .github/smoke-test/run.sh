@@ -36,6 +36,7 @@ for fmt in csv json; do
   run "age.$fmt" age -l "$log" -d 2026-01-01 -f "$fmt"
   run "knowledge-loss.$fmt" knowledge-loss -l "$log" \
     --former-authors "$fixtures/former-authors.csv" -f "$fmt"
+  run "orphans.$fmt" orphans -l "$log" --min-lines 100 -f "$fmt"
 done
 
 # Grouping and team mapping.

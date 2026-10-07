@@ -34,6 +34,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [knowledge-loss](#knowledge-loss)
   - [communication](#communication)
   - [age](#age)
+  - [orphans](#orphans)
   - [identity](#identity)
 - [Repository Analyses](#repository-analyses)
   - [rework](#rework)
@@ -694,6 +695,43 @@ gomaat age -l logfile.log [--age-time-now YYYY-MM-DD]
 | `age-months` | Months since last modification |
 
 Sorted by `age-months` ascending (youngest first).
+
+---
+
+### orphans
+
+Files that appear in exactly one commit in the log, where that commit added at least `--min-lines` lines: code dropped in once and never revised since. A large, never-touched file can be speculative or generated code that nobody integrated or iterated on.
+
+> **This is a heuristic, not proof of dead or unused code.** It looks only at revision count and size. A flagged file may be legitimately stable, vendored, or generated-and-correct. gomaat doesn't check whether anything imports or calls the file. Treat the output as a list of files to look at, not a list of files to delete.
+
+"Exactly one commit" means within the log you pass. A log generated with `--after` counts only commits in that window, so an old file edited once inside it will show up too.
+
+```
+gomaat orphans -l logfile.log [--min-lines 200]
+```
+
+| Flag          | Default | Description                                                    |
+|---------------|---------|----------------------------------------------------------------|
+| `--min-lines` | `200`   | Minimum lines added in the single commit (inclusive) to report |
+
+**Example output:**
+
+```
+entity,added-lines,date,author
+src/generated/schema.go,2140,2025-03-11,Alice Smith
+src/legacy/importer.go,612,2024-11-02,Bob Jones
+```
+
+**Output:**
+
+| Column        | Description                                 |
+|---------------|---------------------------------------------|
+| `entity`      | File path (or group name with `-g`)         |
+| `added-lines` | Lines added in the entity's only commit     |
+| `date`        | Date of that commit                         |
+| `author`      | Author of that commit (or team with `-p`)   |
+
+Sorted by `added-lines` descending (biggest single-shot drops first), then `entity`.
 
 ---
 

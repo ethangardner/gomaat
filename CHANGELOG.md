@@ -9,6 +9,10 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ## [Unreleased]
 
+### Added
+
+- `orphans` subcommand: files touched by exactly one commit in the log that added at least `--min-lines` lines (default `200`), as `entity, added-lines, date, author`, largest first. It's a heuristic based only on revision count and size, not proof of dead code: stable, vendored, or generated files match too. ([#66](https://github.com/ethangardner/gomaat/issues/66))
+
 ## [v1.1.0] - 2026-09-29
 
 ### Added
