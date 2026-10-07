@@ -23,4 +23,6 @@ type Options struct {
 	VerboseResults   bool
 	FormerAuthors    map[string]struct{}
 	MinLines         int
+	Path             string
+	After            time.Time
 }

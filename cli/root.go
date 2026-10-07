@@ -266,6 +266,9 @@ func init() {
 	// cloc subcommand
 	rootCmd.AddCommand(newClocCmd())
 
+	// whoknows subcommand (takes a path argument)
+	rootCmd.AddCommand(newWhoKnowsCmd())
+
 	// rework subcommand (reads patches from the repo, not a log file)
 	rootCmd.AddCommand(newReworkCmd())
 }

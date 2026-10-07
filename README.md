@@ -32,6 +32,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [fragmentation](#fragmentation)
   - [bus-factor](#bus-factor)
   - [knowledge-loss](#knowledge-loss)
+  - [whoknows](#whoknows)
   - [communication](#communication)
   - [age](#age)
   - [orphans](#orphans)
@@ -644,6 +645,43 @@ src/api.go,0,35,0.00
 Sorted by `knowledge-loss` descending, then `entity`. Entities with no former-author contributions are still listed at `0.00`; entities with no added lines are omitted. Names in the former-authors file that never appear in the log are ignored.
 
 Results are only as accurate as author identity resolution: names are matched exactly, so someone who committed as both `Alice Smith` and `alice` needs both names listed — or add a `.mailmap` to the repository so [`generate-log`](#generating-a-git-log) collapses them to one canonical name first. With `-p`, matching happens *after* team mapping, so the former-authors file must list team names.
+
+---
+
+### whoknows
+
+Who currently knows a file or directory: authors ranked by lines added to it **on or after `--after`** (default: 12 months ago). Pass a directory to aggregate every file beneath it, `.` for the whole log, or a group name with `-g`.
+
+```
+gomaat whoknows -l logfile.log <path> [--after YYYY-MM-DD]
+```
+
+| Flag      | Default       | Description                                           |
+|-----------|---------------|-------------------------------------------------------|
+| `--after` | 12 months ago | Count only commits on or after this date (YYYY-MM-DD) |
+
+**How it differs from [`main-dev`](#main-dev):** both measure ownership as lines added, but `main-dev` counts every line ever added, per file, so it often names someone who wrote the file years ago and has since moved on. `whoknows` drops everything before `--after`, so the ranking reflects who has been working on the code recently, and it answers for one path at a time, including a whole directory.
+
+Contributions before the cutoff are dropped entirely, not weighted down (see [ADR 0008](docs/adr/0008-no-time-decay-weighting.md) for why gomaat doesn't use time-decay weighting). If a slow-moving file has no commits in the window, the output is empty; move `--after` back to widen it.
+
+**Example output:**
+
+```
+author,added,ownership
+Bob Jones,182,71.65
+Carol White,72,28.35
+Alice Smith,0,0.00
+```
+
+**Output:**
+
+| Column      | Description                                                            |
+|-------------|------------------------------------------------------------------------|
+| `author`    | Author (or team with `-p`)                                             |
+| `added`     | Lines added to the path since `--after`                                |
+| `ownership` | `added` as a share of all lines added to the path since `--after` (%)  |
+
+Sorted by `added` descending, then `author`. Authors whose commits in the window only deleted lines are listed with `0`.
 
 ---
 

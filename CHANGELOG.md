@@ -12,6 +12,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 ### Added
 
 - `orphans` subcommand: files touched by exactly one commit in the log that added at least `--min-lines` lines (default `200`), as `entity, added-lines, date, author`, largest first. It's a heuristic based only on revision count and size, not proof of dead code: stable, vendored, or generated files match too. ([#66](https://github.com/ethangardner/gomaat/issues/66))
+- `whoknows <path>` subcommand: authors ranked by lines added to a file, directory, or `-g` group on or after `--after` (default: 12 months ago), as `author, added, ownership`. Unlike `main-dev`, contributions before the cutoff are dropped, so a large early author who has moved on doesn't outrank current maintainers. ([#57](https://github.com/ethangardner/gomaat/issues/57))
 
 ## [v1.1.0] - 2026-09-29
 
