@@ -40,6 +40,10 @@ for fmt in csv json; do
   run "whoknows.$fmt" whoknows -l "$log" internal --after 2026-01-01 -f "$fmt"
 done
 
+# brief writes Markdown, so it runs once rather than per format.
+run brief.md brief -l "$log" -d 2026-01-01
+run grouped-brief.md brief -l "$log" -d 2026-01-01 -g "$fixtures/groups.txt"
+
 # Grouping and team mapping.
 run grouped-coupling.csv coupling -l "$log" "${thresholds[@]}" -g "$fixtures/groups.txt"
 run grouped-revisions.csv revisions -l "$log" -g "$fixtures/groups.txt"

@@ -13,6 +13,7 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 - `orphans` subcommand: files touched by exactly one commit in the log that added at least `--min-lines` lines (default `200`), as `entity, added-lines, date, author`, largest first. It's a heuristic based only on revision count and size, not proof of dead code: stable, vendored, or generated files match too. ([#66](https://github.com/ethangardner/gomaat/issues/66))
 - `whoknows <path>` subcommand: authors ranked by lines added to a file, directory, or `-g` group on or after `--after` (default: 12 months ago), as `author, added, ownership`. Unlike `main-dev`, contributions before the cutoff are dropped, so a large early author who has moved on doesn't outrank current maintainers. ([#57](https://github.com/ethangardner/gomaat/issues/57))
+- `brief` subcommand: one Markdown overview of a log (summary, hotspots, coupling, main developers per directory or `-g` group, active vs. dormant files, and a suggested reading order) to commit as a starting `ARCHITECTURE.md` or paste into an agent's context. `--top` (default `10`) sizes each section, `--dormant-months` (default `12`) sets the dormant cutoff, and `-d/--age-time-now` sets the reference date. It honors `-l`, `-o`, `-g` and `-p`, and rejects `-f` and `-r`. ([#55](https://github.com/ethangardner/gomaat/issues/55))
 
 ## [v1.1.0] - 2026-09-29
 

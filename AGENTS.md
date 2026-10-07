@@ -74,6 +74,7 @@ func FormatXXX(results T, opts model.Options) [][]string  // render to CSV rows
 - Coupling-style subcommands (those needing the `--min-revs`/`--min-shared-revs`/`--min-coupling`/`--max-coupling`/`--max-changeset-size` thresholds) use `newCouplingCmd`.
 - `age`, `knowledge-loss` (`--former-authors`, loaded via `teammapper.LoadAuthorsFile`), `orphans` (`--min-lines`, `cli/orphans.go`) and `generate-log`/`cloc` are registered individually because they need bespoke flags.
 - `whoknows` is registered individually too (`cli/whoknows.go`): it takes a path argument and `--after`, and filters commits to that path and window before ranking authors.
+- `brief` is registered individually too (`cli/brief.go`): it shares `runAnalysis`'s input steps via `loadCommits`, then `internal/brief` runs several analyses and renders one Markdown document with `internal/markdown` instead of writing rows, so it rejects `--format` and `--rows`.
 - `rework` is registered individually too, and bypasses `runAnalysis`: it needs line-level diffs, so it streams `git log -p -U0` from the repo (`--path`) through `internal/gitdiff.Parse` into `analysis.Rework`, which takes an `iter.Seq2[gitdiff.Commit, error]` instead of `[]model.Commit`.
 
 ### CLI structure (`cli/` package)

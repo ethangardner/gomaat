@@ -66,22 +66,31 @@ func init() {
 // so the compiler rejects mismatched compute/format pairs instead of relying
 // on `any` plus a runtime type assertion inside format.
 func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T, model.Options) [][]string, opts model.Options) error {
-	if logFile == "" {
-		return fmt.Errorf("--log (-l) is required")
-	}
 	if err := validateOutputFormat(); err != nil {
 		return err
+	}
+	commits, err := loadCommits()
+	if err != nil {
+		return err
+	}
+	return writeRows(format(fn(commits, opts), opts))
+}
+
+// loadCommits parses --log and applies --group and --team-map-file when set.
+func loadCommits() ([]model.Commit, error) {
+	if logFile == "" {
+		return nil, fmt.Errorf("--log (-l) is required")
 	}
 
 	commits, err := parser.ParseFile(logFile)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if groupFile != "" {
 		groups, err := grouper.LoadFile(groupFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		commits = grouper.Apply(commits, groups)
 	}
@@ -89,15 +98,11 @@ func runAnalysis[T any](fn func([]model.Commit, model.Options) T, format func(T,
 	if teamMapFile != "" {
 		lookup, err := teammapper.LoadFile(teamMapFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		commits = teammapper.Apply(commits, lookup)
 	}
-
-	results := fn(commits, opts)
-	rows := format(results, opts)
-
-	return writeRows(rows)
+	return commits, nil
 }
 
 // validateOutputFormat checks outputFormat against the formats writeRows supports.
@@ -268,6 +273,9 @@ func init() {
 
 	// whoknows subcommand (takes a path argument)
 	rootCmd.AddCommand(newWhoKnowsCmd())
+
+	// brief subcommand (writes Markdown, not rows)
+	rootCmd.AddCommand(newBriefCmd())
 
 	// rework subcommand (reads patches from the repo, not a log file)
 	rootCmd.AddCommand(newReworkCmd())

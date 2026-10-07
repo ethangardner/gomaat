@@ -37,6 +37,8 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [age](#age)
   - [orphans](#orphans)
   - [identity](#identity)
+- [Reports](#reports)
+  - [brief](#brief)
 - [Repository Analyses](#repository-analyses)
   - [rework](#rework)
 - [Code Metrics](#code-metrics)
@@ -196,7 +198,7 @@ git log --all --numstat --date=short --pretty=format:'--%H--%ad--%aN' --no-renam
 
 ## Global Flags
 
-These flags are available on every analysis subcommand.
+These flags are available on every analysis subcommand. [`brief`](#brief) rejects `--format` and `--rows`.
 
 | Flag              | Short | Default      | Description                                                 |
 |-------------------|-------|--------------|-------------------------------------------------------------|
@@ -791,6 +793,73 @@ gomaat identity -l logfile.log
 | `author`      | Author name                        |
 | `loc-added`   | Lines added (0 for binary files)   |
 | `loc-deleted` | Lines deleted (0 for binary files) |
+
+---
+
+## Reports
+
+Reports run several analyses in-process and combine them into one document, instead of writing the rows of a single analysis.
+
+### brief
+
+A one-page Markdown overview of the codebase for someone (or an AI agent) seeing it for the first time. It replaces running `summary`, `revisions`, `coupling`, `main-dev`, `age` and `soc` separately and piecing the results together. Commit the output as a starting `ARCHITECTURE.md`, or paste it into an agent's context.
+
+```
+gomaat brief -l logfile.log > ARCHITECTURE.md
+```
+
+| Flag               | Short | Default | Description                                                   |
+|--------------------|-------|---------|---------------------------------------------------------------|
+| `--top`            |       | `10`    | Maximum rows per section (`0` = no limit)                     |
+| `--dormant-months` |       | `12`    | Months without changes after which a file counts as dormant   |
+| `--age-time-now`   | `-d`  | today   | Reference date for the Activity section                       |
+
+Sections:
+
+| Section                 | Source                                      | Shows                                                                  |
+|-------------------------|---------------------------------------------|------------------------------------------------------------------------|
+| Summary                 | [`summary`](#summary)                       | Commit, entity and author counts, and the log's date range             |
+| Hotspots                | [`revisions`](#revisions)                   | Most frequently changed files                                          |
+| Coupling                | [`coupling`](#coupling) `-n 2 -m 2 -i 30`   | File pairs that change together, with thresholds loosened for small repos |
+| Main developers         | [`main-dev`](#main-dev)                     | Top author per directory (per group with `-g`), largest first          |
+| Activity                | [`age`](#age)                               | Files changed within `--dormant-months`, and the oldest dormant ones   |
+| Suggested reading order | [`soc`](#soc-sum-of-coupling)               | Files that change together with the most others, most central first   |
+
+**Global flags:** `brief` honors `-l`, `-o`, `-g` and `-p`. It writes Markdown, not rows, so it rejects `-f/--format` and `-r/--rows` with an error instead of ignoring them; use `--top` to size each section.
+
+**Example output** (abridged):
+
+```markdown
+# Architecture brief
+
+## Summary
+
+- Commits: 149
+- Entities: 140
+- Authors: 2
+- Date range: 2026-05-08 to 2026-09-30
+
+## Hotspots
+
+| entity | n-revs |
+| --- | --- |
+| README.md | 36 |
+| cli/generate\_log.go | 28 |
+
+## Main developers
+
+| component | main-dev | added | total-added | ownership |
+| --- | --- | --- | --- | --- |
+| cli | Ethan Gardner | 5476 | 5476 | 100.00 |
+| internal/analysis | Ethan Gardner | 5353 | 5353 | 100.00 |
+
+## Suggested reading order
+
+1. cli/root.go
+2. cli/generate\_log.go
+```
+
+Markdown characters in file and author names (`_`, `*`, `|`, …) are backslash-escaped so names like `__init__.py` render as-is.
 
 ---
 
