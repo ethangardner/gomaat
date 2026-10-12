@@ -32,8 +32,10 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [fragmentation](#fragmentation)
   - [bus-factor](#bus-factor)
   - [knowledge-loss](#knowledge-loss)
+  - [whoknows](#whoknows)
   - [communication](#communication)
   - [age](#age)
+  - [orphans](#orphans)
   - [identity](#identity)
 - [Repository Analyses](#repository-analyses)
   - [rework](#rework)
@@ -646,6 +648,43 @@ Results are only as accurate as author identity resolution: names are matched ex
 
 ---
 
+### whoknows
+
+Who currently knows a file or directory: authors ranked by lines added to it **on or after `--after`** (default: 12 months ago). Pass a directory to aggregate every file beneath it, `.` for the whole log, or a group name with `-g`.
+
+```
+gomaat whoknows -l logfile.log <path> [--after YYYY-MM-DD]
+```
+
+| Flag      | Default       | Description                                           |
+|-----------|---------------|-------------------------------------------------------|
+| `--after` | 12 months ago | Count only commits on or after this date (YYYY-MM-DD) |
+
+**How it differs from [`main-dev`](#main-dev):** both measure ownership as lines added, but `main-dev` counts every line ever added, per file, so it often names someone who wrote the file years ago and has since moved on. `whoknows` drops everything before `--after`, so the ranking reflects who has been working on the code recently, and it answers for one path at a time, including a whole directory.
+
+Contributions before the cutoff are dropped entirely, not weighted down (see [ADR 0008](docs/adr/0008-no-time-decay-weighting.md) for why gomaat doesn't use time-decay weighting). If a slow-moving file has no commits in the window, the output is empty; move `--after` back to widen it.
+
+**Example output:**
+
+```
+author,added,ownership
+Bob Jones,182,71.65
+Carol White,72,28.35
+Alice Smith,0,0.00
+```
+
+**Output:**
+
+| Column      | Description                                                            |
+|-------------|------------------------------------------------------------------------|
+| `author`    | Author (or team with `-p`)                                             |
+| `added`     | Lines added to the path since `--after`                                |
+| `ownership` | `added` as a share of all lines added to the path since `--after` (%)  |
+
+Sorted by `added` descending, then `author`. Authors whose commits in the window only deleted lines are listed with `0`.
+
+---
+
 ### communication
 
 Map communication needs across the team. Author pairs who frequently modify the same entities need to coordinate — this analysis makes that implicit need explicit. Based on Conway's Law.
@@ -694,6 +733,43 @@ gomaat age -l logfile.log [--age-time-now YYYY-MM-DD]
 | `age-months` | Months since last modification |
 
 Sorted by `age-months` ascending (youngest first).
+
+---
+
+### orphans
+
+Files that appear in exactly one commit in the log, where that commit added at least `--min-lines` lines: code dropped in once and never revised since. A large, never-touched file can be speculative or generated code that nobody integrated or iterated on.
+
+> **This is a heuristic, not proof of dead or unused code.** It looks only at revision count and size. A flagged file may be legitimately stable, vendored, or generated-and-correct. gomaat doesn't check whether anything imports or calls the file. Treat the output as a list of files to look at, not a list of files to delete.
+
+"Exactly one commit" means within the log you pass. A log generated with `--after` counts only commits in that window, so an old file edited once inside it will show up too.
+
+```
+gomaat orphans -l logfile.log [--min-lines 200]
+```
+
+| Flag          | Default | Description                                                    |
+|---------------|---------|----------------------------------------------------------------|
+| `--min-lines` | `200`   | Minimum lines added in the single commit (inclusive) to report |
+
+**Example output:**
+
+```
+entity,added-lines,date,author
+src/generated/schema.go,2140,2025-03-11,Alice Smith
+src/legacy/importer.go,612,2024-11-02,Bob Jones
+```
+
+**Output:**
+
+| Column        | Description                                 |
+|---------------|---------------------------------------------|
+| `entity`      | File path (or group name with `-g`)         |
+| `added-lines` | Lines added in the entity's only commit     |
+| `date`        | Date of that commit                         |
+| `author`      | Author of that commit (or team with `-p`)   |
+
+Sorted by `added-lines` descending (biggest single-shot drops first), then `entity`.
 
 ---
 

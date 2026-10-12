@@ -22,4 +22,7 @@ type Options struct {
 	ReworkTimeNow    time.Time
 	VerboseResults   bool
 	FormerAuthors    map[string]struct{}
+	MinLines         int
+	Path             string
+	After            time.Time
 }

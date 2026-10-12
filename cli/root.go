@@ -246,6 +246,9 @@ func init() {
 	knowledgeLossCmd.Flags().StringVar(&formerFile, "former-authors", "", "file listing authors who have left, one per line (CSV with optional author header also accepted); required")
 	rootCmd.AddCommand(knowledgeLossCmd)
 
+	// Orphans subcommand (needs --min-lines flag)
+	rootCmd.AddCommand(newOrphansCmd())
+
 	// Coupling subcommand (with verbose flag)
 	couplingCmd := newCouplingCmd("coupling", "Detect temporal coupling between modules", analysis.Coupling, analysis.FormatCoupling,
 		func(cmd *cobra.Command, cf *couplingFlags) {
@@ -262,6 +265,9 @@ func init() {
 
 	// cloc subcommand
 	rootCmd.AddCommand(newClocCmd())
+
+	// whoknows subcommand (takes a path argument)
+	rootCmd.AddCommand(newWhoKnowsCmd())
 
 	// rework subcommand (reads patches from the repo, not a log file)
 	rootCmd.AddCommand(newReworkCmd())

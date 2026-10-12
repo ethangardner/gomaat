@@ -77,6 +77,19 @@ func readJSONRecords(t *testing.T, path string) []map[string]string {
 	return records
 }
 
+// runOnFixture runs cmd with flags and args against validLogFixture and
+// returns what it wrote to --outfile. Global flags are reset first.
+func runOnFixture(t *testing.T, cmd *cobra.Command, flags map[string]string, args ...string) (string, error) {
+	t.Helper()
+	resetFlags(t)
+	logFile = validLogFixture(t)
+	outFile = filepath.Join(t.TempDir(), "out")
+	if err := runCmd(t, cmd, flags, args...); err != nil {
+		return "", err
+	}
+	return readOutputFile(t, outFile), nil
+}
+
 func TestRunAnalysisMissingLogFlag(t *testing.T) {
 	resetFlags(t)
 	logFile = ""
