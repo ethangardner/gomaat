@@ -964,8 +964,8 @@ gomaat cloc --exclude vendor/ --exclude '*.pb.go'
 # Per-file breakdown saved to CSV
 gomaat cloc --by-file -o cloc.csv
 
-# Top 10 largest files by code
-gomaat cloc --by-file -r 10
+# Top 10 largest files by code (--by-file sorts by path, so sort on the Code column)
+gomaat cloc --by-file | tail -n +2 | sort -t, -k5 -nr | head -10
 
 # Per-language breakdown as JSON
 gomaat cloc --format json
