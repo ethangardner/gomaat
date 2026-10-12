@@ -47,6 +47,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [Former Authors](#former-authors)
   - [Tracking Metrics Over Time](#tracking-metrics-over-time)
   - [Running in CI](#running-in-ci)
+  - [Recipes](#recipes)
   - [Limiting Output Rows](#limiting-output-rows)
   - [Writing to a File](#writing-to-a-file)
 
@@ -1093,6 +1094,21 @@ This pattern combines well with [Architectural Grouping](#architectural-grouping
 ### Running in CI
 
 Run gomaat on a schedule, such as monthly, rather than on every commit: history-based metrics barely move per commit, and the results are prompts for discussion, not pass/fail gates. The [monthly health check recipe](docs/recipes/monthly-health-check.md) has a GitHub Actions workflow and script that compare hotspots, coupling, bus factor, and rework against thresholds and a team-agreed baseline, and open an issue with any new findings to triage into the backlog.
+
+---
+
+### Recipes
+
+Step-by-step guides that combine several analyses to answer one question. Each has a script you can run from the root of your repository.
+
+| Recipe | Question it answers |
+|---|---|
+| [Monthly health check](docs/recipes/monthly-health-check.md) | What new hotspots, coupling, knowledge risks, and rework should we triage this month? |
+| [Handover when someone leaves](docs/recipes/offboarding.md) | What does the person leaving know that nobody else does, and who should take it over? |
+| [Choose and measure a refactor](docs/recipes/refactoring.md) | Which refactor is worth doing, and did it help? |
+| [Check architecture boundaries](docs/recipes/architecture-boundaries.md) | Do the components we intended actually change independently? |
+| [Draft a CODEOWNERS file](docs/recipes/codeowners.md) | Who should review changes to each directory? |
+| [Find code to delete](docs/recipes/deletion-candidates.md) | Which large files haven't changed in years and may be unused? |
 
 ---
 
