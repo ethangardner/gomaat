@@ -46,6 +46,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [Team Mapping](#team-mapping)
   - [Former Authors](#former-authors)
   - [Tracking Metrics Over Time](#tracking-metrics-over-time)
+  - [Running in CI](#running-in-ci)
   - [Limiting Output Rows](#limiting-output-rows)
   - [Writing to a File](#writing-to-a-file)
 
@@ -1086,6 +1087,12 @@ done
 ```
 
 This pattern combines well with [Architectural Grouping](#architectural-grouping) and [Team Mapping](#team-mapping) — add `-g`/`-p` to each per-period run to track one component's or team's metrics over time instead of the whole codebase.
+
+---
+
+### Running in CI
+
+Run gomaat on a schedule, such as monthly, rather than on every commit: history-based metrics barely move per commit, and the results are prompts for discussion, not pass/fail gates. The [monthly health check recipe](docs/recipes/monthly-health-check.md) has a GitHub Actions workflow and script that compare hotspots, coupling, bus factor, and rework against thresholds and a team-agreed baseline, and open an issue with any new findings to triage into the backlog.
 
 ---
 
