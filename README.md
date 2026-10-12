@@ -48,6 +48,7 @@ Inspired by the books [*Your Code as a Crime Scene*](https://pragprog.com/titles
   - [Tracking Metrics Over Time](#tracking-metrics-over-time)
   - [Limiting Output Rows](#limiting-output-rows)
   - [Writing to a File](#writing-to-a-file)
+- [License](#license)
 
 ---
 
@@ -1147,3 +1148,11 @@ gomaat age -l logfile.log -r 20
 # 9. Find the largest files
 gomaat cloc --by-file | sort -t, -k5 -nr
 ```
+
+---
+
+## License
+
+Copyright (C) 2026 Ethan Gardner
+
+gomaat is free software: you can redistribute it and/or modify it under the terms of the [GNU General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version (`GPL-3.0-or-later`).
