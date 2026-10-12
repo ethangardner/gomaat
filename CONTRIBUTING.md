@@ -41,4 +41,4 @@ maintainer can add the `skip-changelog` label to an internal-only PR.
 ## License
 
 By contributing, you agree your contributions will be licensed under this
-project's [MIT License](LICENSE).
+project's [GNU General Public License v3.0 or later](LICENSE).
