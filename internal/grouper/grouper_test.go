@@ -54,6 +54,35 @@ func TestApply(t *testing.T) {
 	}
 }
 
+func TestApplyPlainPath(t *testing.T) {
+	tests := []struct {
+		name   string
+		rule   string
+		entity string
+		want   bool
+	}{
+		{"file under directory", "src/api", "src/api/handler.go", true},
+		{"file under directory, trailing slash", "src/api/", "src/api/handler.go", true},
+		{"file under directory, several trailing slashes", "src/api//", "src/api/handler.go", true},
+		{"exact file", "src/main.go", "src/main.go", true},
+		{"sibling sharing a prefix", "src/api", "src/apiv2/handler.go", false},
+		{"file sharing a prefix", "src/main.go", "src/main.go.bak", false},
+		{"parent directory", "src/api", "src/handler.go", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			groups, err := load(strings.NewReader(tt.rule + " => G\n"))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			got := len(Apply([]model.Commit{{Entity: tt.entity}}, groups)) == 1
+			if got != tt.want {
+				t.Errorf("rule %q matching %q = %v, want %v", tt.rule, tt.entity, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestApplyRegexPattern(t *testing.T) {
 	spec := "^src/gen/ => Generated\n"
 	groups, _ := load(strings.NewReader(spec))

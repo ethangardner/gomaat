@@ -991,7 +991,7 @@ src/users     => Users
 ^src/shared/  => Shared
 ```
 
-Plain paths are matched as prefixes (`src/orders/` matches `src/orders/Model.java`).
+A plain path matches that file, or every file beneath that directory: `src/orders` (or `src/orders/`) matches `src/orders/Model.java` but not `src/orders-legacy/Model.java`.
 Lines starting with `^` are treated as regular expressions.
 
 ```bash
