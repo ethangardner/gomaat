@@ -22,8 +22,7 @@ type group struct {
 //	some/path => GroupName
 //	^some-regexp$ => GroupName
 //
-// A plain path matches that file, or every file beneath that directory;
-// a trailing slash is optional.
+// Plain paths are matched as prefix: ^some/path/
 // Lines starting with # or blank lines are ignored.
 func LoadFile(path string) ([]group, error) {
 	return loadfile.Parse(path, "group", load)
@@ -44,9 +43,7 @@ func load(r io.Reader) ([]group, error) {
 		rawPath := strings.TrimSpace(before)
 		name := strings.TrimSpace(after)
 
-		// A plain path names a file or a directory, with or without a
-		// trailing slash, so match it exactly or as a whole-segment prefix.
-		pattern := "^" + regexp.QuoteMeta(strings.TrimRight(rawPath, "/")) + "(/|$)"
+		pattern := "^" + regexp.QuoteMeta(rawPath) + "/"
 		if strings.HasPrefix(rawPath, "^") {
 			pattern = rawPath
 		}
