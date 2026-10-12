@@ -9,6 +9,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 
 ## [Unreleased]
 
+## [v1.2.0] - 2026-10-11
+
 ### Changed
 
 - gomaat is licensed under the GNU General Public License v3.0 or later (`GPL-3.0-or-later`).
@@ -120,7 +122,8 @@ This project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html) 
 - `--exclude` glob filtering for `generate-log`.
 - CI: linting and a goreleaser-based release workflow.
 
-[Unreleased]: https://github.com/ethangardner/gomaat/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/ethangardner/gomaat/compare/v1.2.0...HEAD
+[v1.2.0]: https://github.com/ethangardner/gomaat/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/ethangardner/gomaat/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.7...v1.0.0
 [v0.1.0-alpha.7]: https://github.com/ethangardner/gomaat/compare/v0.1.0-alpha.6...v0.1.0-alpha.7
